@@ -114,6 +114,7 @@ venv.bak/
 # config.ini
 *.ini
 config*
+~config.py
 
 # logs
 *.log
