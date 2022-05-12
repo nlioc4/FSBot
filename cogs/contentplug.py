@@ -28,7 +28,7 @@ class ContentPlug(commands.Cog, name="ContentPlug"):
         elif not message.channel.id == cfg.channels['content-plug']:
             return
         elif matches or message.attachments:
-            await message.create_thread(name=f"{message.author.mention}'s content thread")
+            await message.create_thread(name=f"{message.author.display_name}'s content thread")
         elif not matches:
             log.info(f'{message.author.name} had a message deleted in content plug.')
             await message.delete()
