@@ -10,7 +10,18 @@ import pathlib
 
 log = getLogger("fs_bot")
 
-## Static Variables
+class ConfigError(Exception):
+    """
+    Raised when an error occur while reading the config file.
+
+    :param msg: Error message.
+    """
+    def __init__(self, msg: str):
+        self.message = "Error in config file: " + msg
+        super().__init__(self.message)
+
+
+## Static Parameters
 
 name_regex = r"^[ -■]{1,32}$"
 
@@ -60,31 +71,54 @@ def get_config():
 
     file = f'{pathlib.Path(__file__).parent.absolute()}\..\config.ini'
 
+    if not os.path.isfile(file):
+        raise ConfigError(f"{file} not found!")
+
     config = ConfigParser()
-    config.read(file)
+    try:
+        config.read(file)
+    except ParsingError as e:
+        raise ConfigError(f"Parsing Error in '{file}'\n{e}")
+
 
     # General Section
+    _check_section(config, 'General', file)
     for key in general:
         try:
             general[key] = int(config['General'][key])
+        except KeyError:
+            _error_missing(key, 'General', file)
         except ValueError:
             general[key] = (config['General'][key])
 
     # Channels Section
+    _check_section(config, 'Channels', file)
     for key in channels:
         channels[key] = int(config['Channels'][key])
 
     # Roles Section
+    _check_section(config, 'Roles', file)
     for key in roles:
         roles[key] = int(config['Roles'][key])
 
     # Database Section
+    _check_section(config, 'Database', file)
     for key in database:
         database[key] = config['Database'][key]
 
 
 
+def _check_section(config, section, file):
+    if section not in config:
+        raise ConfigError(f"Missing section '{section}' in '{file}'")
 
+
+def _error_missing(field, section, file):
+    raise ConfigError(f"Missing field '{field}' in '{section}' in '{file}'")
+
+
+def _error_incorrect(field, section, file):
+    raise ConfigError(f"Incorrect field '{field}' in '{section}' in '{file}'")
 
 
 
