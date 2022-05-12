@@ -67,9 +67,9 @@ database = {
 
 def get_config():
     global GAPI_SERVICE
-    GAPI_SERVICE = f'{pathlib.Path(__file__).parent.absolute()}\..\service_account.json'
+    GAPI_SERVICE = f'{pathlib.Path(__file__).parent.absolute()}/../service_account.json'
 
-    file = f'{pathlib.Path(__file__).parent.absolute()}\..\config.ini'
+    file = f'{pathlib.Path(__file__).parent.absolute()}/../config.ini'
     print(file)
 
     if not os.path.isfile(file):
