@@ -183,7 +183,6 @@ def accounts_info():
         i = acc
         u = _busy_accounts[acc].a_player
         usages.append((i, u.mention))
-    print(usages)
     return available, used, usages
 
 

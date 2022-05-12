@@ -70,6 +70,7 @@ def get_config():
     GAPI_SERVICE = f'{pathlib.Path(__file__).parent.absolute()}\..\service_account.json'
 
     file = f'{pathlib.Path(__file__).parent.absolute()}\..\config.ini'
+    print(file)
 
     if not os.path.isfile(file):
         raise ConfigError(f"{file} not found!")
