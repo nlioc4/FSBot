@@ -69,6 +69,7 @@ def init(service_account_path: str, client: discord.bot):
             if raw_use == "OPEN":
                 _busy_accounts[a_id].clean()
                 _available_accounts[a_id] = _busy_accounts[a_id]
+                _available_accounts.clean()
                 del _busy_accounts[a_id]
 
         else:
@@ -99,6 +100,7 @@ def pick_account(a_player: discord.member) -> object:
     """
     Pick the account that the player has used the most, or the least used account
     Avoid players using multiple accounts if possible
+    Adapted from PogBot
     """
 
     # if no accounts: quit
