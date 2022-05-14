@@ -69,7 +69,7 @@ def init(service_account_path: str, client: discord.bot):
             if raw_use == "OPEN":
                 _busy_accounts[a_id].clean()
                 _available_accounts[a_id] = _busy_accounts[a_id]
-                _available_accounts.clean()
+                _available_accounts[a_id].clean()
                 del _busy_accounts[a_id]
 
         else:

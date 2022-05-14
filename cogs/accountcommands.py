@@ -138,6 +138,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
 
     @tasks.loop(time=midnight_eastern)
     async def midnight_init(self):
+        asyncio.sleep(15
         print("Automatically", end=" ")
         modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, self.bot)
 
