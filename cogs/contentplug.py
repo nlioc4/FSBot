@@ -1,5 +1,5 @@
 """
-Simple filter setup to create threads in the content plug, and enforce the content only rule
+Simple filter setup to create threads in #contentplug, and enforce the content only rule
 
 """
 
