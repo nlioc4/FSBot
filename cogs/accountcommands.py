@@ -17,6 +17,7 @@ log = getLogger("fs_bot")
 # Internal imports
 import modules.config as cfg
 import modules.accounts_handler_simple
+import modules.census as census
 import classes
 import display
 
@@ -33,6 +34,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
     def __init__(self, bot):
         self.bot = bot
         self.midnight_init.start()
+        self.online_check.start()
 
     ##TODO cog_check for @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     # async def cog_check(self, ctx):+
@@ -105,8 +107,11 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
     @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def accountcheck(self, ctx):
         """Account status info"""
+        await ctx.defer()
         available, used, usage = modules.accounts_handler_simple.accounts_info()
-        await ctx.respond(content="", embed=display.embeds.accountcheck(ctx, available, used, usage))
+        chars_list = census.get_account_chars_list(modules.accounts_handler_simple._all_accounts)
+        online = await census.get_chars_list_online_status(chars_list)
+        await ctx.respond(content="", embed=display.embeds.accountcheck(ctx, available, used, usage, online))
 
     @commands.slash_command(name="initialize", guild_ids=[cfg.general['guild_id']], default_permission=False)
     @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
@@ -141,6 +146,19 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         asyncio.sleep(15)
         print("Automatically", end=" ")
         modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, self.bot)
+
+    @tasks.loop(minutes=5)
+    async def online_check(self):
+        chars_list = census.get_account_chars_list(modules.accounts_handler_simple._available_accounts)
+        usage_channel = self.bot.get_partial_messageable(cfg.channels['usage'])
+        online = await census.get_chars_list_online_status(chars_list)
+        if online:
+            await usage_channel.send(content="", embed=display.embeds.account_online_check(online))
+
+    @online_check.before_loop
+    async def before_online_check(self):
+        await self.bot.wait_until_ready()
+
 
 
 def setup(client):

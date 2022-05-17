@@ -20,6 +20,7 @@ eastern = pytz.timezone('US/Eastern')
 
 _busy_accounts = dict()
 _available_accounts = dict()
+_all_accounts = dict()
 
 #Sheet Offsets
 Y_OFFSET = 2
@@ -87,12 +88,16 @@ def init(service_account_path: str, client: discord.bot):
             if raw_use == "OPEN":
                 _available_accounts[a_id] = classes.Account(a_id, a_username, a_password,
                                                             a_in_game, a_unique_usages_id)
+                _available_accounts[a_id].last_usage = {"id": a_unique_usages_id[-1],
+                                                   "time_string": a_unique_usages_date[-1]}
             if raw_use == "USED":
                 _busy_accounts[a_id] = classes.Account(a_id, a_username, a_password,
                                                        a_in_game, a_unique_usages_id)
-                _busy_accounts[a_id].last_usage.update({"id": a_unique_usages_id[-1],
-                                                        "timestamp": a_unique_usages_date[-1]})
+                _busy_accounts[a_id].last_usage = {"id": a_unique_usages_id[-1],
+                                                        "time_string": a_unique_usages_date[-1]}
                 _busy_accounts[a_id].a_player = _guild.get_member(a_unique_usages_id[-1])
+    global _all_accounts
+    _all_accounts = _available_accounts | _busy_accounts
 
 
 
@@ -150,6 +155,8 @@ def set_account(a_player: discord.member, acc: classes.Account):
     print(f'Giving account [{acc.id}] to player: ID: [{a_player.id}], name: [{a_player.name}]')
     acc.a_player = a_player
     acc.unique_usages.append(a_player.id)
+    acc.last_usage.update({"id": a_player.id, "time_string": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+                      "timestamp": datetime.now()})
 
     # Update GSheet with Usage
     gc = service_account(cfg.GAPI_SERVICE) # connection

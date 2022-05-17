@@ -44,7 +44,7 @@ class Account:
     def nb_unique_usages(self):
         return len(self.__unique_usages)
 
-    @property
+
     def last_usage(self):
         return self.__last_usage
 
