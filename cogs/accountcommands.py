@@ -159,7 +159,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
             return
         ping = ""
         if not any(item in self.last_online_check.keys() for item in online.keys()):
-            ping = admin.mention, mod.mention
+            ping = f'{admin.mention}{mod.mention}'
 
         await usage_channel.send(content=ping, embed=display.embeds.account_online_check(online))
 
