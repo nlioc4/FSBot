@@ -156,10 +156,12 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         jaeger_accounts_role = guild.get_role(806655027333693471)  ##TODO fix hardcoding JaegerAccounts role
         online = await census.get_chars_list_online_status(chars_list)
         if not online:
+            self.last_online_check = dict()
             return
         ping = ""
         if not any(item in self.last_online_check.keys() for item in online.keys()):
             ping = f'{jaeger_accounts_role.mention}'
+
         self.last_online_check = online
 
         await usage_channel.send(content=ping, embed=display.embeds.account_online_check(online))
