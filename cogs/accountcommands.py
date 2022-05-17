@@ -33,6 +33,7 @@ midnight_eastern = (datetime.now().astimezone(eastern)
 class AccountCommands(commands.Cog, name="AccountCommands"):
     def __init__(self, bot):
         self.bot = bot
+        self.last_online_check = dict()
         self.midnight_init.start()
         self.online_check.start()
 
@@ -151,9 +152,15 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
     async def online_check(self):
         chars_list = census.get_account_chars_list(modules.accounts_handler_simple._available_accounts)
         usage_channel = self.bot.get_partial_messageable(cfg.channels['usage'])
+        guild = self.bot.get_guild(cfg.general['guild_id'])
+        admin, mod = guild.get_role(cfg.roles['admin']), guild.get_role(cfg.roles['mod'])
         online = await census.get_chars_list_online_status(chars_list)
+        ping = ""
+        if self.last_online_check.keys() not in online.keys():
+            ping = admin.mention, mod.mention
+
         if online:
-            await usage_channel.send(content="", embed=display.embeds.account_online_check(online))
+            await usage_channel.send(content=ping, embed=display.embeds.account_online_check(online))
 
     @online_check.before_loop
     async def before_online_check(self):
