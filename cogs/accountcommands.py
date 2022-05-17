@@ -155,12 +155,13 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         guild = self.bot.get_guild(cfg.general['guild_id'])
         admin, mod = guild.get_role(cfg.roles['admin']), guild.get_role(cfg.roles['mod'])
         online = await census.get_chars_list_online_status(chars_list)
+        if not online:
+            return
         ping = ""
         if self.last_online_check.keys() not in online.keys():
             ping = admin.mention, mod.mention
 
-        if online:
-            await usage_channel.send(content=ping, embed=display.embeds.account_online_check(online))
+        await usage_channel.send(content=ping, embed=display.embeds.account_online_check(online))
 
     @online_check.before_loop
     async def before_online_check(self):
