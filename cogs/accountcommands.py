@@ -75,6 +75,11 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         else:
             await ctx.respond(f"An error has occurred, ping Colin")
 
+    @msg_assign_account.error
+    async def msg_assign_account_concurrency_error(self, ctx, error):
+        if isinstance(error, commands.MaxConcurrencyReached):
+            await ctx.respond('Someone else is using this command right now, try again soon!', ephemeral=True)
+
     @commands.slash_command(name="assignact", guild_ids=[cfg.general['guild_id']], default_permission=False)
     @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def slash_assign_account(self,
