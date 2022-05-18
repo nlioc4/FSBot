@@ -73,7 +73,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
             await ctx.respond(f"{message.author.mention} has not accepted the rules!", ephemeral=True)
             await message.add_reaction("\u274C")
         else:
-            await ctx.respond(f"An error has occurred, ping Colin")
+            await ctx.respond('An error has occurred, ping Colin')
 
     @msg_assign_account.error
     async def msg_assign_account_concurrency_error(self, ctx, error):
