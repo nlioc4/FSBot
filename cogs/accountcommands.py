@@ -34,6 +34,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
     def __init__(self, bot):
         self.bot = bot
         self.last_online_check = dict()
+        self.last_online_check_timestamp = False
         self.midnight_init.start()
         self.online_check.start()
 
@@ -144,11 +145,11 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
 
     @tasks.loop(time=midnight_eastern)
     async def midnight_init(self):
-        asyncio.sleep(15)
+        await asyncio.sleep(15)
         print("Automatically", end=" ")
         modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, self.bot)
 
-    @tasks.loop(minutes=5)
+    @tasks.loop(minutes=1)
     async def online_check(self):
         chars_list = census.get_account_chars_list(modules.accounts_handler_simple._available_accounts)
         usage_channel = self.bot.get_partial_messageable(cfg.channels['usage'])
@@ -162,9 +163,11 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         if not any(item in self.last_online_check.keys() for item in online.keys()):
             ping = f'{jaeger_accounts_role.mention}'
 
-        self.last_online_check = online
+        if datetime.now() >= (self.last_online_check_timestamp + timedelta(minutes=15)):
+            await usage_channel.send(content=ping, embed=display.embeds.account_online_check(online))
 
-        await usage_channel.send(content=ping, embed=display.embeds.account_online_check(online))
+        self.last_online_check = online
+        self.last_online_check_timestamp = datetime.now()
 
     @online_check.before_loop
     async def before_online_check(self):
