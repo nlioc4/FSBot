@@ -155,7 +155,7 @@ def set_account(a_player: discord.member, acc: classes.Account):
     print(f'Giving account [{acc.id}] to player: ID: [{a_player.id}], name: [{a_player.name}]')
     acc.a_player = a_player
     acc.unique_usages.append(a_player.id)
-    acc.last_usage.update({"id": a_player.id, "time_string": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+    acc.last_usage.update({"id": a_player.id, "time_string": datetime.now().strftime("%m/%d"),
                       "timestamp": datetime.now()})
 
     # Update GSheet with Usage
