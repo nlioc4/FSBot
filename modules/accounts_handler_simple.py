@@ -32,7 +32,7 @@ USAGE_OFFSET = 7
 _guild = None
 
 def init(service_account_path: str, client: discord.bot):
-    print('Initialized')
+    print('Initialized Accounts')
     # load discord guild
     global _guild
     _guild = client.get_guild(cfg.general["guild_id"])

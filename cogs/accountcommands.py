@@ -88,7 +88,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
                                    force: discord.Option(bool, "Force account send, regardless of "
                                                                "role/current account", default=False)):
         """
-            Assign a Jaeger Account to a user, via @mention
+            Assign a Jaeger Account to a user, via @mention. Option to force assign a user a second account.
         """
         registered_role = user.guild.get_role(cfg.roles["registered"])
         usage_channel = self.bot.get_partial_messageable(cfg.channels['usage'])
@@ -151,7 +151,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
     @tasks.loop(time=midnight_eastern)
     async def midnight_init(self):
         await asyncio.sleep(15)
-        print("Automatically", end=" ")
+        print(f"{datetime.now().strftime('%m/%d/%Y, %H:%M:%S')} : Automatically", end=" ")
         modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, self.bot)
 
     @tasks.loop(minutes=1)
