@@ -55,4 +55,3 @@ async def get_chars_list_online_status(chars_list: list):
             return False
     return online_dict
 
-accounts_dict_test = {16: ['FlightClub16VS', 'FlightClub16NC', 'FlightClub16TR'], 14: ['FlightClub14VS', 'FlightClub14NC', 'FlightClub14TR'], 15: ['FlightClub15VS', 'FlightClub15NC', 'FlightClub15TR']}
