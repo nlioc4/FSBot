@@ -168,7 +168,8 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         if not any(item in self.last_online_check.keys() for item in online.keys()):
             ping = f'{jaeger_accounts_role.mention}'
 
-        if datetime.now() >= (self.last_online_check_timestamp + timedelta(minutes=15)):
+        if not self.last_online_check_timestamp or datetime.now() \
+                >= (self.last_online_check_timestamp + timedelta(minutes=15)):
             await usage_channel.send(content=ping, embed=display.embeds.account_online_check(online))
 
         self.last_online_check = online
