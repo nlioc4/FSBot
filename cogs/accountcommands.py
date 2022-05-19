@@ -148,7 +148,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         running = self.midnight_init.is_running()
         print(f'Midnight init {"Running" if running else "Stopped"}')
 
-    @tasks.loop(time=midnight_eastern)
+    @tasks.loop(time=datetime.time(hour=0, minute=0).astimezone(eastern))
     async def midnight_init(self):
         await asyncio.sleep(15)
         print(f"{datetime.now().strftime('%m/%d/%Y, %H:%M:%S')} : Automatically", end=" ")
