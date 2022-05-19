@@ -5,7 +5,7 @@ import modules.config as cfg
 from datetime import timedelta, datetime
 import pytz
 
-# midnight EST
+# midnight tomorrow EST
 eastern = pytz.timezone('US/Eastern')
 midnight_eastern = (datetime.now().astimezone(eastern) + timedelta(days=1)).replace(hour=0, minute=0, microsecond=0, second=0)
 formatted_time = discord.utils.format_dt(midnight_eastern, style="t")
