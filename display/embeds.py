@@ -81,7 +81,7 @@ def accountcheck(ctx, available, used, usages, online):
 
 
 def account_online_check(online):
-    """Automatic Online Check
+    """Automatic Online Check Embed
     """
     embed = Embed(
         colour=Color.red(),
