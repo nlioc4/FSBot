@@ -124,7 +124,10 @@ def pick_account(a_player: discord.member) -> object:
         max_value = max_obj.unique_usages.count(a_player.id)
         for acc in potential:
             usages = acc.unique_usages.count(a_player.id)
-            if usages > max_value:
+            if usages == max_value and acc.nb_unique_usages < max_obj.nb_unique_usages:
+                max_obj = acc
+                max_value = usages
+            elif usages > max_value:
                 max_obj = acc
                 max_value = usages
         set_account(a_player, max_obj)
@@ -155,8 +158,8 @@ def set_account(a_player: discord.member, acc: classes.Account):
     print(f'Giving account [{acc.id}] to player: ID: [{a_player.id}], name: [{a_player.name}]')
     acc.a_player = a_player
     acc.unique_usages.append(a_player.id)
-    acc.last_usage.update({"id": a_player.id, "time_string": datetime.now().strftime("%m/%d"),
-                      "timestamp": datetime.now()})
+    acc.last_usage.update({"id": a_player.id, "time_string": datetime.now().astimezone(eastern).strftime("%m/%d, %H:%M "),
+                      "timestamp": datetime.now().astimezone(eastern)})
 
     # Update GSheet with Usage
     gc = service_account(cfg.GAPI_SERVICE) # connection
