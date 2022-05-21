@@ -70,7 +70,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
             await ctx.respond(f"{message.author.mention} has already been assigned an account!", ephemeral=True)
             await message.add_reaction("\u274C")
         elif registered_role not in message.author.roles:
-            await ctx.respond(f"{message.author.mention} has not accepted the rules!", ephemeral=True)
+            await ctx.respond(f"{message.author.mention} has not accepted the rules!", ephemeral=False)
             await message.add_reaction("\u274C")
         else:
             await ctx.respond('An error has occurred, ping Colin')
@@ -148,7 +148,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         running = self.midnight_init.is_running()
         print(f'Midnight init {"Running" if running else "Stopped"}')
 
-    @tasks.loop(time=midnight_eastern.timetz())
+    @tasks.loop(time=time(hour=5, minute=0, second=0))
     async def midnight_init(self):
         await asyncio.sleep(15)
         print(f"{datetime.now().strftime('%m/%d/%Y, %H:%M:%S')} : Automatically", end=" ")
