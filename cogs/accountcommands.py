@@ -53,6 +53,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         """
         registered_role = ctx.guild.get_role(cfg.roles['registered'])
         usage_channel = self.bot.get_partial_messageable(cfg.channels['usage'])
+        rules_channel = self.bot.get_channel(cfg.channels['rules'])
         await ctx.defer(ephemeral=True)
         if registered_role in message.author.roles and not modules.accounts_handler_simple.has_account(message.author):
             account = modules.accounts_handler_simple.pick_account(message.author)
@@ -70,7 +71,9 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
             await ctx.respond(f"{message.author.mention} has already been assigned an account!", ephemeral=True)
             await message.add_reaction("\u274C")
         elif registered_role not in message.author.roles:
-            await ctx.respond(f"{message.author.mention} has not accepted the rules!", ephemeral=False)
+            await message.reply(f"{message.author.mention} please read and accept the Jaeger Certified"
+                                f" rules in {rules_channel.mention}!")
+            await ctx.respond(f"{message.author.mention} has not accepted the rules!", ephemeral=True)
             await message.add_reaction("\u274C")
         else:
             await ctx.respond('An error has occurred, ping Colin')
