@@ -115,7 +115,8 @@ def anomaly(world, zone, timestamp, state):
     )
 
     embed.add_field(name=f'Server: {world}',
-                    value=f'Continent: {zone}\nStarted: <R:{timestamp}>\nState: {state}',
+                    value=f'Continent: {zone}\nStarted: {discord.utils.format_dt(timestamp, style="R")}'
+                          f'\nState: {state}',
                     inline=False)
 
     embed.add_field(name='Register',
