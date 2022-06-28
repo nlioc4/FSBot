@@ -30,7 +30,7 @@ intents.message_content = True
 
 
 
-bot = commands.Bot(command_prefix=cfg.general['command_prefix'], intents=intents)
+bot = commands.Bot(intents=intents)
 
 
 

@@ -6,10 +6,8 @@ Cog built to watch Aerial Anomalies on most servers, pinging when events start
 import asyncio
 from discord.ext import commands, tasks
 import discord
-from discord.commands import permissions
 from logging import getLogger
 from datetime import timedelta, datetime, time, timezone
-import pytz
 import auraxium
 
 # Internal imports
@@ -41,24 +39,55 @@ class AnomalyEvent:
         return repr(f'{self.world_id}-{self.instance_id}')
 
 
+class AnomalyRegisterButton(discord.ui.Button):
+    def __init__(self, role: discord.Role, label: str()):
+        """A button to assign a role / register for a servers notify"""
+        super().__init__(
+            label=label,
+            style=discord.ButtonStyle.blurple,
+            custom_id=str(role.id)
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        """Function that runs when user clicks button, assigns/unassigns role"""
+        user = interaction.user
+        # user to be given role
+        role = interaction.guild.get_role(int(self.custom_id))
+        # role to be given
+        server_name = WORLD_DICT[int(role.name[-2:])]
+        # used in user notification
+
+        # Add role, notify user
+        if role not in user.roles:
+            await user.add_roles(role)
+            await interaction.response.send_message(
+                f'You have registered for Anomaly Notifications from {server_name}.',
+                ephemeral=True
+            )
+        else:
+            await user.remove_roles(role)
+            await interaction.response.send_message(
+                f'You have deregistered for Anomaly Notifications from {server_name}',
+                ephemeral=True
+            )
+
+
 class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
     def __init__(self, bot):
         self.bot = bot
         self.notif_channel = None
-        self.notif_role = None
+        self.notif_roles = None
+        self.notif_register_msg = None
         self.active_events = {}
-
-    @commands.slash_command(name="anomalyinit", guild_ids=[cfg.general['guild_id']], default_permission=False)
-    async def anomaly_init(self, ctx: discord.ApplicationContext,
-                           channel: discord.Option(discord.TextChannel, "Notification Channel", required=True),
-                           role: discord.Option(discord.Role, "Notification Role", required=True)):
-        "Sets a Channel and Role for the Anomaly Notifier"
-        self.notif_channel = channel
-        self.notif_role = role
         self.anomaly_check.start()
-        print("Initialized Anomaly Checker")
-        await ctx.respond(f"Started Anomaly Check with role: {role.mention}, and channel: {channel.mention}",
-                          ephemeral=True)
+
+    @commands.slash_command(name="anomalychannel", guild_ids=[cfg.general['guild_id']], default_permission=False)
+    async def anomaly_channel(self, ctx: discord.ApplicationContext,
+                              channel: discord.Option(discord.TextChannel, "Notification Channel", required=True),
+                              ):
+        "Sets a Channel for the Anomaly Notifier"
+        self.notif_channel = channel
+        await ctx.respond(f"Set Anomaly Notifier channel: {channel.mention}", ephemeral=True)
 
     @tasks.loop(minutes=1)
     async def anomaly_check(self):
@@ -80,7 +109,7 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
                     instance_id = int(event['instance_id'])
                     state_id = int(event['metagame_event_state'])
                     new_events[f'{world_id}-{instance_id}'] = (AnomalyEvent(event_id, timestamp, zone_id,
-                                                           world_id, instance_id, state_id))
+                                                                            world_id, instance_id, state_id))
 
             # update master event list
             for event in new_events:
@@ -92,28 +121,33 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
             # Send or Update Message and remove dict entry
             for event in list(self.active_events):
                 current_event = self.active_events[event]
+                ping = self.notif_roles[current_event.world_id].mention
                 if ((not current_event.message) and current_event.state_id == 135):
-                    current_event.message = await self.notif_channel.send(content=f'{self.notif_role.mention}',
-                                                                  embed=display.embeds.anomaly(
-                                                                      world=WORLD_DICT[current_event.world_id],
-                                                                      zone=ZONE_DICT[current_event.zone_id],
-                                                                      timestamp=current_event.timestamp,
-                                                                      state=STATE_DICT[current_event.state_id])
-                                                                  )
+                    current_event.message = await self.notif_channel.send(content=ping,
+                                                                          embed=display.embeds.anomaly(
+                                                                              world=WORLD_DICT[current_event.world_id],
+                                                                              zone=ZONE_DICT[current_event.zone_id],
+                                                                              timestamp=current_event.timestamp,
+                                                                              state=STATE_DICT[current_event.state_id])
+                                                                          )
 
                 elif current_event.message and current_event.state_id == 138:
-                    await current_event.message.edit(content='',
-                                             embed=display.embeds.anomaly(
-                                                 world=WORLD_DICT[current_event.world_id],
-                                                 zone=ZONE_DICT[current_event.zone_id],
-                                                 timestamp=current_event.timestamp,
-                                                 state=STATE_DICT[current_event.state_id]
-                                             ))
+                    await current_event.message.edit(content=ping,
+                                                     embed=display.embeds.anomaly(
+                                                         world=WORLD_DICT[current_event.world_id],
+                                                         zone=ZONE_DICT[current_event.zone_id],
+                                                         timestamp=current_event.timestamp,
+                                                         state=STATE_DICT[current_event.state_id]
+                                                     ))
                     self.active_events.pop(event)
 
     @anomaly_check.before_loop
     async def before_anomaly_check(self):
         await self.bot.wait_until_ready()
+        guild = self.bot.get_guild(cfg.general['guild_id'])
+        self.notif_roles = {i: guild.get_role(cfg.roles[f'anom{i}']) for i in WORLD_DICT.keys()}
+        self.notif_channel = self.bot.get_channel(cfg.channels["anomaly-notification"])
+        print("Initialized Anomaly Checker")
 
     @commands.slash_command(name="anomalystatus", guild_ids=[cfg.general['guild_id']], default_permission=False)
     async def anomlystatus(self, ctx: discord.ApplicationContext,
@@ -121,35 +155,46 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
                                                   choices=("Start", "Stop", "Status"),
                                                   required=True)):
         """Provides Info on the status of the Anomaly Checker"""
+        is_running = self.anomaly_checker.is_running()
         match action:
-            case "Start":
-                if self.anomaly_check.is_running():
+            case "Start" if is_running:
                     await ctx.respond(
-                        f"Anomaly Check is running with role:{self.notif_role} and channel: {self.notif_channel}",
-                        ephemeral=True)
-                else:
+                        f"Anomaly Check is running with channel: {self.notif_channel}", ephemeral=True)
+            case "Start" if not is_running:
                     await ctx.respond(
-                        f"Anomaly Check started with role:{self.notif_role} and channel: {self.notif_channel}",
-                        ephemeral=True)
+                        f"Anomaly Check started with channel: {self.notif_channel}", ephemeral=True)
                     self.anomaly_check.start()
-            case "Stop":
-                if self.anomaly_check.is_running():
+            case "Stop" if is_running:
                     await ctx.respond(f"Anomaly Check stopped", ephemeral=True)
                     self.anomaly_check.cancel()
-                else:
+            case "Stop" if not is_running:
                     await ctx.respond("Anomaly Check already stopped", ephemeral=True)
             case "Status":
                 await ctx.respond(f"Anomaly Check running: {self.anomaly_check.is_running()}", ephemeral=True)
 
-    @commands.slash_command(name="anomalynotify", guild_ids=[cfg.general['guild_id']], default_permission=True)
-    async def anomalynotify(self, ctx):
-        """Enrolls or Unenrolls you from Aerial Anomaly Notifications"""
-        if self.notif_role in ctx.user.roles:
-            await ctx.user.remove_roles(self.notif_role)
-            await ctx.respond("You have unenrolled from Aerial Anomaly notifications.", ephemeral=True)
-        else:
-            await ctx.user.add_roles(self.notif_role)
-            await ctx.respond("You have enrolled in Aerial Anomaly notifications", ephemeral=True)
+    @commands.slash_command(name="anomalyregistercreate", guild_ids=[cfg.general['guild_id']], default_permission=True)
+    async def anomalyregistercreate(self, ctx: discord.ApplicationContext):
+        """Creates anomaly notifcation registration message"""
+
+        view = discord.ui.View(timeout=None)
+
+        for world in self.notif_roles:
+            role = self.notif_roles[world]
+            label = WORLD_DICT[world]
+            view.add_item(AnomalyRegisterButton(role, label))
+        await ctx.respond("Click a button to register for notifications when an"
+                          " Aerial Anomaly is detected on that server!", view=view)
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        """Called on bot restart, listents to and creates view as before or loads existing view."""
+        view = discord.ui.View(timeout=None)
+
+        for world in self.notif_roles:
+            role = self.notif_roles[world]
+            label = WORLD_DICT[world]
+            view.add_item(AnomalyRegisterButton(role, label))
+        self.bot.add_view(view)
 
 
 def setup(client):
