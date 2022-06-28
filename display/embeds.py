@@ -100,3 +100,20 @@ def account_online_check(online):
                     inline=False
                     )
     return embed
+
+def anomaly(world, zone, timestamp, state):
+    """Aerial Anomaly Notification Embed
+    """
+    colour = Color.blurple()
+    if state == "Ended":
+        colour = Color.red()
+
+    embed = Embed(
+        colour=colour,
+        title="Aerial Anomaly Detected",
+        description=""
+    )
+
+    embed.add_field(name=f'Server: {world}',
+                    value=f'Continent: {zone}\nStarted: <R:{timestamp}>\nState: {state}',
+                    inline=False)
