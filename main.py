@@ -30,7 +30,7 @@ intents.message_content = True
 
 
 
-bot = commands.Bot(command_prefix=cfg.general['command_prefix'], intents=intents)
+bot = commands.Bot(intents=intents)
 
 
 
@@ -44,7 +44,6 @@ async def on_ready():
 
 
 @bot.slash_command(name="filtercontentplug", guild_ids=[cfg.general['guild_id']], default_permission=False)
-@discord.commands.permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
 async def filtercontentplug(ctx: discord.ApplicationContext,
                             selection: discord.Option(str, "Enable or Disable", choices=("Enable", "Disable"))):
     """Enable or Disable the #content-plug filter"""
@@ -66,5 +65,6 @@ async def filtercontentplug(ctx: discord.ApplicationContext,
 
 bot.load_extension("cogs.contentplug")
 bot.load_extension("cogs.accountcommands")
+bot.load_extension("cogs.anomalychecker")
 bot.run(cfg.general['token'])
 

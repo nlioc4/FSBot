@@ -44,9 +44,8 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
     #     return commands.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
 
     @commands.message_command(name="Assign Account", guild_ids=[cfg.general['guild_id']], default_permission=False)
-    @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
-    @permissions.permission(cfg.roles['admin'], permission=True)
-    @commands.max_concurrency(number=1, wait=False)
+    @commands.max_concurrency(number=1, wait=True)
+    @commands.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def msg_assign_account(self, ctx, message):
         """
             Assign an account via Message Interaction
@@ -84,7 +83,6 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
             await ctx.respond('Someone else is using this command right now, try again soon!', ephemeral=True)
 
     @commands.slash_command(name="assignact", guild_ids=[cfg.general['guild_id']], default_permission=False)
-    @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def slash_assign_account(self,
                                    ctx: discord.ApplicationContext,
                                    user: discord.Option(discord.Member, "Recipients @mention"),
@@ -114,7 +112,6 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
             await ctx.respond(f"An error has occurred, ping Colin")
 
     @commands.slash_command(name="accountcheck", guild_ids=[cfg.general['guild_id']], default_permission=False)
-    @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def accountcheck(self, ctx):
         """Account status info"""
         await ctx.defer()
@@ -124,7 +121,6 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         await ctx.respond(content="", embed=display.embeds.accountcheck(ctx, available, used, usage, online))
 
     @commands.slash_command(name="initialize", guild_ids=[cfg.general['guild_id']], default_permission=False)
-    @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def initialize(self, ctx):
         """Reloads all accounts from the Account Sheet"""
         print("Manually", end=' ')
@@ -132,7 +128,6 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         await ctx.respond("Reinitialized Account Sheet")
 
     @commands.slash_command(name="midnightinit", guild_ids=[cfg.general['guild_id']], default_permission=False)
-    @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def midnight_init_toggle(self, ctx: discord.ApplicationContext,
                                    action: discord.Option(str, "Start, Stop or Status",
                                                           choices=("Start", "Stop", "Status"),

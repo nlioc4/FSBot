@@ -35,7 +35,6 @@ GAPI_SERVICE = ""
 general = {
     "token": "",
     "api_key": "",
-    "command_prefix": "",
     "rules_msg_id": "",
     "guild_id": ""
 }
@@ -49,14 +48,22 @@ channels = {
     "staff": "",
     "spam": "",
     "usage": "",
-    "content-plug": ""
+    "content-plug": "",
+    "anomaly-notification": ""
 }
 
 # Discord Role ID's
 roles = {
     "admin": "",
     "mod": "",
-    "registered": ""
+    "app_admin": "",
+    "registered": "",
+    "anom1": "",
+    "anom10": "",
+    "anom13": "",
+    "anom17": "",
+
+
 }
 
 # Stored Data Config
