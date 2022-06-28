@@ -173,8 +173,9 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
             case "Status":
                 await ctx.respond(f"Anomaly Check running: {self.anomaly_check.is_running()}", ephemeral=True)
 
-    @commands.slash_command(name="anomalyregistercreate", guild_ids=[cfg.general['guild_id']], default_permission=True)
-    async def anomalyregistercreate(self, ctx: discord.ApplicationContext):
+    @commands.slash_command(name="anomalyregistercreate", guild_ids=[cfg.general['guild_id']], default_permission=False)
+    async def anomalyregistercreate(self, ctx: discord.ApplicationContext,
+                                          channel: discord.Option(discord.TextChannel, "Register Channel", required=True)):
         """Creates anomaly notifcation registration message"""
 
         view = discord.ui.View(timeout=None)
@@ -183,7 +184,7 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
             role = self.notif_roles[world]
             label = WORLD_DICT[world]
             view.add_item(AnomalyRegisterButton(role, label))
-        await ctx.respond("Click a button to register for notifications when an"
+        await channel.send("Click a button to register for notifications when an"
                           " Aerial Anomaly is detected on that server!", view=view)
 
     @commands.Cog.listener()
