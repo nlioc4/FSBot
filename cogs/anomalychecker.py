@@ -45,7 +45,7 @@ class AnomalyRegisterButton(discord.ui.Button):
         super().__init__(
             label=label,
             style=discord.ButtonStyle.blurple,
-            custom_id=str(role.id)
+            custom_id=str(role.id) # use role ID as custom ID, so the bot knows which role to give
         )
 
     async def callback(self, interaction: discord.Interaction):
@@ -75,9 +75,8 @@ class AnomalyRegisterButton(discord.ui.Button):
 class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
     def __init__(self, bot):
         self.bot = bot
-        self.notif_channel = None
-        self.notif_roles = {}
-        self.notif_register_msg = None
+        self.notif_channel = None # Channel to post notifications to, pulled from config on_ready
+        self.notif_roles = {} # Roles to notify, pulled from server or created on_ready
         self.active_events = {}
         self.anomaly_check.start()
 
@@ -111,7 +110,7 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
                     new_events[f'{world_id}-{instance_id}'] = (AnomalyEvent(event_id, timestamp, zone_id,
                                                                             world_id, instance_id, state_id))
 
-            # update master event list
+            # update active event list
             for event in new_events:
                 if new_events[event].state_id == 135 and not event in self.active_events:
                     self.active_events[event] = new_events[event]
@@ -143,6 +142,7 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
 
     @anomaly_check.before_loop
     async def before_anomaly_check(self):
+        # check roles have been loaded and bot is ready
         if not self.notif_roles:
             return
         await self.bot.wait_until_ready()
@@ -156,7 +156,7 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
                                                   choices=("Start", "Stop", "Status"),
                                                   required=True)):
         """Provides Info on the status of the Anomaly Checker"""
-        is_running = self.anomaly_checker.is_running()
+        is_running = self.anomaly_check.is_running()
         match action:
             case "Start" if is_running:
                     await ctx.respond(
@@ -190,6 +190,7 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
     async def on_ready(self):
         """Called on bot restart, initializees, listents to and creates view as before or loads existing view."""
         guild = self.bot.get_guild(cfg.general['guild_id'])
+        # dynamically retrieve or create roles for each world
         role_names = {i: f'{v} Anomalies' for i, v in WORLD_DICT.items()}
         for world_id in role_names:
             current_role = discord.utils.get(guild.roles, name=role_names[world_id])
@@ -197,9 +198,11 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
                 self.notif_roles[world_id] = current_role
             else:
                 self.notif_roles[world_id] = await guild.create_role(name=role_names[world_id])
+        # set notification channel
         self.notif_channel = guild.get_channel(cfg.channels['anomaly-notification'])
         print("Initialized Anomaly Notifications")
 
+        # Load view on restart, create button for each world
         view = discord.ui.View(timeout=None)
 
         for world in self.notif_roles:
