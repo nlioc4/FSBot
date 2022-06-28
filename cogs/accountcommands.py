@@ -44,8 +44,6 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
     #     return commands.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
 
     @commands.message_command(name="Assign Account", guild_ids=[cfg.general['guild_id']], default_permission=False)
-    @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
-    @permissions.permission(cfg.roles['admin'], permission=True)
     @commands.max_concurrency(number=1, wait=False)
     async def msg_assign_account(self, ctx, message):
         """
@@ -84,7 +82,6 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
             await ctx.respond('Someone else is using this command right now, try again soon!', ephemeral=True)
 
     @commands.slash_command(name="assignact", guild_ids=[cfg.general['guild_id']], default_permission=False)
-    @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def slash_assign_account(self,
                                    ctx: discord.ApplicationContext,
                                    user: discord.Option(discord.Member, "Recipients @mention"),
@@ -114,7 +111,6 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
             await ctx.respond(f"An error has occurred, ping Colin")
 
     @commands.slash_command(name="accountcheck", guild_ids=[cfg.general['guild_id']], default_permission=False)
-    @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def accountcheck(self, ctx):
         """Account status info"""
         await ctx.defer()
@@ -124,7 +120,6 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         await ctx.respond(content="", embed=display.embeds.accountcheck(ctx, available, used, usage, online))
 
     @commands.slash_command(name="initialize", guild_ids=[cfg.general['guild_id']], default_permission=False)
-    @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def initialize(self, ctx):
         """Reloads all accounts from the Account Sheet"""
         print("Manually", end=' ')
@@ -132,7 +127,6 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         await ctx.respond("Reinitialized Account Sheet")
 
     @commands.slash_command(name="midnightinit", guild_ids=[cfg.general['guild_id']], default_permission=False)
-    @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def midnight_init_toggle(self, ctx: discord.ApplicationContext,
                                    action: discord.Option(str, "Start, Stop or Status",
                                                           choices=("Start", "Stop", "Status"),
@@ -162,7 +156,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         chars_list = census.get_account_chars_list(modules.accounts_handler_simple._available_accounts)
         usage_channel = self.bot.get_partial_messageable(cfg.channels['usage'])
         guild = self.bot.get_guild(cfg.general['guild_id'])
-        jaeger_accounts_role = guild.get_role(806655027333693471)  ##TODO fix hardcoding JaegerAccounts role
+        jaeger_accounts_role = guild.get_role(cfg.roles['app_admin'])
         online = await census.get_chars_list_online_status(chars_list)
         if not online:
             self.last_online_check = dict()

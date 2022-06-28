@@ -56,6 +56,7 @@ channels = {
 roles = {
     "admin": "",
     "mod": "",
+    "app_admin": "",
     "registered": ""
 }
 
