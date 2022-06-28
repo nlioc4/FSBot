@@ -117,3 +117,8 @@ def anomaly(world, zone, timestamp, state):
     embed.add_field(name=f'Server: {world}',
                     value=f'Continent: {zone}\nStarted: <R:{timestamp}>\nState: {state}',
                     inline=False)
+
+    embed.add_field(name='Register',
+                    value='Use /anomalynotify to be pinged on these alerts!',
+                    inline=False)
+    return embed

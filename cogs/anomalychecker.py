@@ -74,7 +74,7 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
 
 
 
-    @tasks.loop(minutes=3)
+    @tasks.loop(minutes=1)
     async def anomaly_check(self):
         async with auraxium.Client(service_id=cfg.general['api_key']) as client:
             # build query
@@ -83,6 +83,7 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
                 query.add_term('world_id', i)
             query.limit(500)
             data = await client.request(query)
+            print(query)
             # sort out anomalies from all world events, create AnomalyEvent instances
             for event in data['world_event_list']:
                 if 'metagame_event_id' in event and event['metagame_event_id'] in event_ids:
@@ -124,6 +125,42 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
     @anomaly_check.before_loop
     async def before_anomaly_check(self):
         await self.bot.wait_until_ready()
+
+    @commands.slash_command(name="anomalystatus", guild_ids=[cfg.general['guild_id']], default_permission=False)
+    async def anomlystatus(self, ctx: discord.ApplicationContext,
+                           action: discord.Option(str, "Start, Stop or Status",
+                                                          choices=("Start", "Stop", "Status"),
+                                                          required=True)):
+        """Provides Info on the status of the Anomaly Checker"""
+        match action:
+            case "Start":
+                if self.anomaly_check.is_running():
+                    await ctx.respond(f"Anomaly Check is running with role:{self.notif_role} and channel: {self.notif_channel}")
+                else:
+                    await ctx.respond(f"Anomaly Check started with role:{self.notif_role} and channel: {self.notif_channel}")
+                    self.anomaly_check.start()
+            case "Stop":
+                if self.anomaly_check.is_running():
+                    await ctx.respond(f"Anomaly Check stopped")
+                    self.anomaly_check.cancel()
+                else:
+                    await ctx.respond("Anomaly Check already stopped")
+            case "Status":
+                await ctx.respond(f'Anomaly Check running: {self.anomaly_check.is_running()}')
+
+
+
+    @commands.slash_command(name="anomalynotify", guild_ids=[cfg.general['guild_id']], default_permission=True)
+    async def anomalynotify(self, ctx):
+        """Enroles or Unenroles you from Aerial Anomaly Notifications"""
+        if self.notif_role in ctx.user.roles:
+            await ctx.user.remove_roles(self.notif_role)
+            await ctx.respond("You have unenrolled from Aerial Anomaly notifications.", ephemeral=True)
+        else:
+            await ctx.user.add_roles(self.notif_role)
+            await ctx.respond("You have enrolled in Arial Anomaly notifications", ephemeral=True)
+
+
 
 
 def setup(client):
