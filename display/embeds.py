@@ -114,6 +114,8 @@ def anomaly(world, zone, timestamp, state):
         description=""
     )
 
+    embed.set_thumbnail(url="https://i.imgur.com/Ch8QAZJ.png")
+
     embed.add_field(name=f'Server: {world}',
                     value=f'Continent: {zone}\nStarted: {discord.utils.format_dt(timestamp, style="R")}'
                           f'\nState: {state}',
