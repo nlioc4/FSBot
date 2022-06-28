@@ -57,7 +57,13 @@ roles = {
     "admin": "",
     "mod": "",
     "app_admin": "",
-    "registered": ""
+    "registered": "",
+    "anom1": "",
+    "anom10": "",
+    "anom13": "",
+    "anom17": "",
+
+
 }
 
 # Stored Data Config

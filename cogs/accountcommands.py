@@ -45,6 +45,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
 
     @commands.message_command(name="Assign Account", guild_ids=[cfg.general['guild_id']], default_permission=False)
     @commands.max_concurrency(number=1, wait=True)
+    @commands.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def msg_assign_account(self, ctx, message):
         """
             Assign an account via Message Interaction
