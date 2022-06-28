@@ -113,6 +113,7 @@ def anomaly(world, zone, timestamp, state):
         title="Aerial Anomaly Detected",
         description=""
     )
+    embed.set_image("https://i.imgur.com/Ch8QAZJ.png")
 
     embed.add_field(name=f'Server: {world}',
                     value=f'Continent: {zone}\nStarted: {discord.utils.format_dt(timestamp, style="R")}'
