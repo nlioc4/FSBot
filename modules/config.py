@@ -57,11 +57,7 @@ roles = {
     "admin": "",
     "mod": "",
     "app_admin": "",
-    "registered": "",
-    "anom1": "",
-    "anom10": "",
-    "anom13": "",
-    "anom17": "",
+    "registered": ""
 
 
 }

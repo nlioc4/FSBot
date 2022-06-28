@@ -54,7 +54,7 @@ class AnomalyRegisterButton(discord.ui.Button):
         # user to be given role
         role = interaction.guild.get_role(int(self.custom_id))
         # role to be given
-        server_name = WORLD_DICT[int(role.name[-2:])]
+        server_name = role.name[:-10]
         # used in user notification
 
         # Add role, notify user
@@ -76,7 +76,7 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
     def __init__(self, bot):
         self.bot = bot
         self.notif_channel = None
-        self.notif_roles = None
+        self.notif_roles = {}
         self.notif_register_msg = None
         self.active_events = {}
         self.anomaly_check.start()
@@ -143,11 +143,12 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
 
     @anomaly_check.before_loop
     async def before_anomaly_check(self):
+        if not self.notif_roles:
+            return
         await self.bot.wait_until_ready()
-        guild = self.bot.get_guild(cfg.general['guild_id'])
-        self.notif_roles = {i: guild.get_role(cfg.roles[f'anom{i}']) for i in WORLD_DICT.keys()}
-        self.notif_channel = self.bot.get_channel(cfg.channels["anomaly-notification"])
-        print("Initialized Anomaly Checker")
+
+
+
 
     @commands.slash_command(name="anomalystatus", guild_ids=[cfg.general['guild_id']], default_permission=False)
     async def anomlystatus(self, ctx: discord.ApplicationContext,
@@ -187,7 +188,18 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        """Called on bot restart, listents to and creates view as before or loads existing view."""
+        """Called on bot restart, initializees, listents to and creates view as before or loads existing view."""
+        guild = self.bot.get_guild(cfg.general['guild_id'])
+        role_names = {i: f'{v} Anomalies' for i, v in WORLD_DICT.items()}
+        for world_id in role_names:
+            current_role = discord.utils.get(guild.roles, name=role_names[world_id])
+            if current_role:
+                self.notif_roles[world_id] = current_role
+            else:
+                self.notif_roles[world_id] = await guild.create_role(name=role_names[world_id])
+        self.notif_channel = guild.get_channel(cfg.channels['anomaly-notification'])
+        print("Initialized Anomaly Notifications")
+
         view = discord.ui.View(timeout=None)
 
         for world in self.notif_roles:
