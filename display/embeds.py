@@ -121,6 +121,6 @@ def anomaly(world, zone, timestamp, state):
                     inline=False)
 
     embed.add_field(name='Register',
-                    value='Use /anomalynotify to be pinged on these alerts!',
+                    value='Register in #roles',
                     inline=False)
     return embed
