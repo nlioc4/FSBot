@@ -162,7 +162,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         chars_list = census.get_account_chars_list(modules.accounts_handler_simple._available_accounts)
         usage_channel = self.bot.get_partial_messageable(cfg.channels['usage'])
         guild = self.bot.get_guild(cfg.general['guild_id'])
-        jaeger_accounts_role = guild.get_role(806655027333693471)  ##TODO fix hardcoding JaegerAccounts role
+        jaeger_accounts_role = guild.get_role(cfg.roles['app_admin'])
         online = await census.get_chars_list_online_status(chars_list)
         if not online:
             self.last_online_check = dict()
