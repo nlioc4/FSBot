@@ -62,13 +62,13 @@ class AnomalyRegisterButton(discord.ui.Button):
             await user.add_roles(role)
             await interaction.response.send_message(
                 f'You have registered for Anomaly Notifications from {server_name}.',
-                ephemeral=True
+                ephemeral=True, delete_after=10
             )
         else:
             await user.remove_roles(role)
             await interaction.response.send_message(
                 f'You have deregistered for Anomaly Notifications from {server_name}',
-                ephemeral=True
+                ephemeral=True, delete_after=10
             )
 
 
