@@ -38,7 +38,12 @@ async def get_chars_list_online_status(chars_list: list):
         join = query.create_join('characters_online_status')
         query.show('character_id', 'name.first')
         query.limit(100)
-        data = await client.request(query)
+        try:
+            data = await client.request(query)
+        except auraxium.errors.ServiceUnavailableError:
+            log.error('API unreachable during online check')
+            return false
+
         # pull data from dict response
         online_names = list()
         for a_return in data['character_list']:

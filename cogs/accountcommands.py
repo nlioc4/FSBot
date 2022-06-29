@@ -148,7 +148,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
 
     @tasks.loop(time=midnight_eastern.astimezone(timezone.utc).time())
     async def midnight_init(self):
-        await asyncio.sleep(15)
+        await asyncio.sleep(5) # to ensure google sheet has flipped to next day
         print(f"{datetime.now().strftime('%m/%d/%Y, %H:%M:%S')} : Automatically", end=" ")
         modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, self.bot)
 
