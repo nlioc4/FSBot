@@ -32,7 +32,6 @@ USAGE_OFFSET = 7
 _guild = None
 
 def init(service_account_path: str, client: discord.bot):
-    print('Initialized Accounts')
     # load discord guild
     global _guild
     _guild = client.get_guild(cfg.general["guild_id"])
@@ -99,6 +98,7 @@ def init(service_account_path: str, client: discord.bot):
     global _all_accounts
     _all_accounts = _available_accounts | _busy_accounts
 
+    print('Initialized Accounts:', len(_all_accounts))
 
 
 def pick_account(a_player: discord.member) -> object:
