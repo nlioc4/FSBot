@@ -67,7 +67,7 @@ class SkillLevelDropdown(discord.ui.Select):
     def __init__(self):
         options = []
         for level in list(classes.players.SkillLevel):
-            options.append(discord.SelectOption(label=level.name, description=level.description()))
+            options.append(discord.SelectOption(label=str(level), value=level.name, description=level.description))
 
         super().__init__(placeholder="Choose your own skill level...",
                          min_values=1,
@@ -80,7 +80,7 @@ class SkillLevelDropdown(discord.ui.Select):
         p: classes.Player = classes.Player.get(interaction.user.id)
         p.skill_level = classes.players.SkillLevel[self.values[0]]
         await p.db_update('skill_level')
-        await interaction.response.send_message(content=f"Your skill level as been set to {p.skill_level.name}",
+        await interaction.response.send_message(content=f"Your skill level as been set to {str(p.skill_level)}",
                                                 ephemeral=True, delete_after=15)
 
 

@@ -44,11 +44,9 @@ class Account:
     def nb_unique_usages(self):
         return len(self.__unique_usages)
 
-
     def last_usage(self):
         return self.__last_usage
 
-
     def clean(self):
-        self.__a_player = None
+        self.a_player = None
         self.__last_usage = None

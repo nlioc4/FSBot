@@ -27,9 +27,16 @@ class SkillLevel(Enum):
         self.rank = rank
         self.description = description
 
+    def __str__(self):
+        first = self.name[0]
+        rest = self.name[1:].lower()
+        return first + rest
+
+    @property
     def rank(self):
         return self.value[0]
 
+    @property
     def description(self):
         return self.value[1]
 

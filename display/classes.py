@@ -145,4 +145,4 @@ class FollowupContext(ContextWrapper):
     async def send(self, **kwargs):
         if self.ephemeral:
             kwargs['ephemeral'] = True
-        return await self.send('send', kwargs)
+        return await self._do_send('send', kwargs)

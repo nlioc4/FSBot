@@ -20,7 +20,7 @@ eastern = pytz.timezone('US/Eastern')
 
 _busy_accounts = dict()
 _available_accounts = dict()
-_all_accounts = dict()
+_all_accounts = _busy_accounts | _available_accounts
 
 #Sheet Offsets
 Y_OFFSET = 2
@@ -75,33 +75,26 @@ def init(service_account_path: str, client: discord.bot):
         else:
             # account has yet to be initialised
             unique_usages_raw = sheet_imported[i * Y_SKIP + Y_OFFSET:i * Y_SKIP + Y_OFFSET + 3, USAGE_OFFSET:]
-            a_unique_usages_id = list()
-            a_unique_usages_date = list()
+            unique_usages = list()
             for use in range(len(unique_usages_raw[2])):
                 if unique_usages_raw[2][use] == "":
                     pass
                 else:
-                    a_unique_usages_id.append(int(unique_usages_raw[2][use]))
-                    a_unique_usages_date.append(unique_usages_raw[0][use])
+                    unique_usages.append(int(unique_usages_raw[2][use]))
                 # check if account is marked "used"
             if raw_use == "OPEN":
                 _available_accounts[a_id] = classes.Account(a_id, a_username, a_password,
-                                                            a_in_game, a_unique_usages_id)
-                _available_accounts[a_id].last_usage = {"id": a_unique_usages_id[-1],
-                                                   "time_string": a_unique_usages_date[-1]}
+                                                            a_in_game, unique_usages)
+
             if raw_use == "USED":
                 _busy_accounts[a_id] = classes.Account(a_id, a_username, a_password,
-                                                       a_in_game, a_unique_usages_id)
-                _busy_accounts[a_id].last_usage = {"id": a_unique_usages_id[-1],
-                                                        "time_string": a_unique_usages_date[-1]}
-                _busy_accounts[a_id].a_player = _guild.get_member(a_unique_usages_id[-1])
-    global _all_accounts
-    _all_accounts = _available_accounts | _busy_accounts
+                                                       a_in_game, unique_usages)
+                _busy_accounts[a_id].a_player = _guild.get_member(unique_usages[-1])  # TODO change to Player
 
     print('Initialized Accounts:', len(_all_accounts))
 
 
-def pick_account(a_player: discord.member) -> object:
+def pick_account(a_player: discord.member) -> object: # TODO typecheck for Player
     """
     Pick the account that the player has used the most, or the least used account
     Avoid players using multiple accounts if possible
