@@ -7,10 +7,12 @@ import pytz
 
 # midnight tomorrow EST
 eastern = pytz.timezone('US/Eastern')
-midnight_eastern = (datetime.now().astimezone(eastern) + timedelta(days=1)).replace(hour=0, minute=0, microsecond=0, second=0)
+midnight_eastern = (datetime.now().astimezone(eastern) + timedelta(days=1)).replace(hour=0, minute=0, microsecond=0,
+                                                                                    second=0)
 formatted_time = discord.utils.format_dt(midnight_eastern, style="t")
 
 _guild = None
+
 
 def init(client: discord.bot):
     # load discord guild
@@ -18,9 +20,7 @@ def init(client: discord.bot):
     _guild = client.get_guild(cfg.general["guild_id"])
 
 
-
-
-def account(ctx, acc):
+def account(ctx, acc) -> discord.Embed:
     """Jaeger Account Embed
     """
     embed = Embed(
@@ -44,7 +44,7 @@ def account(ctx, acc):
     return embed
 
 
-def accountcheck(ctx, available, used, usages, online):
+def accountcheck(ctx, available, used, usages, online) -> discord.Embed:
     """Jaeger Account Embed
     """
     embed = Embed(
@@ -80,7 +80,7 @@ def accountcheck(ctx, available, used, usages, online):
     return embed
 
 
-def account_online_check(online):
+def account_online_check(online) -> discord.Embed:
     """Automatic Online Check Embed
     """
     embed = Embed(
@@ -101,7 +101,8 @@ def account_online_check(online):
                     )
     return embed
 
-def anomaly(world, zone, timestamp, state):
+
+def anomaly(world, zone, timestamp, state) -> discord.Embed:
     """Aerial Anomaly Notification Embed
     """
     colour = Color.blurple()
@@ -124,4 +125,10 @@ def anomaly(world, zone, timestamp, state):
     embed.add_field(name='Register',
                     value='Register in #roles',
                     inline=False)
+    return embed
+
+
+def duel_dashboard(active_players, ) -> discord.Embed:
+    """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels"""
+
     return embed

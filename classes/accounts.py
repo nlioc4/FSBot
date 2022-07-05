@@ -52,5 +52,3 @@ class Account:
     def clean(self):
         self.__a_player = None
         self.__last_usage = None
-
-

@@ -11,6 +11,8 @@ import logging
 # internal imports
 import modules.config as cfg
 import modules.accounts_handler_simple
+import modules.discord_obj
+import modules.database
 import classes
 import display
 
@@ -41,6 +43,7 @@ async def on_ready():
     print("--------------------------------------------")
     modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, bot)
     display.embeds.init(bot)
+    modules.discord_obj.init(bot)
 
 
 @bot.slash_command(name="filtercontentplug", guild_ids=[cfg.general['guild_id']], default_permission=False)
@@ -66,5 +69,10 @@ async def filtercontentplug(ctx: discord.ApplicationContext,
 bot.load_extension("cogs.contentplug")
 bot.load_extension("cogs.accountcommands")
 bot.load_extension("cogs.anomalychecker")
-bot.run(cfg.general['token'])
+bot.load_extension("cogs.register")
 
+# database init
+modules.database.init(cfg.database)
+modules.database.get_all_elements(classes.Player.new_from_data, 'users')
+print("Loaded Players from Database:", len(classes.Player.get_all_players()))
+bot.run(cfg.general['token'])

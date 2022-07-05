@@ -10,9 +10,8 @@ import discord
 from discord.commands import permissions
 from logging import getLogger
 from datetime import timedelta, datetime, time, timezone
+from zoneinfo import ZoneInfo
 import pytz
-
-log = getLogger("fs_bot")
 
 # Internal imports
 import modules.config as cfg
@@ -20,6 +19,8 @@ import modules.accounts_handler_simple
 import modules.census as census
 import classes
 import display
+
+log = getLogger("fs_bot")
 
 # Midnight Eastern for Account reset
 eastern = pytz.timezone('US/Eastern')
@@ -30,7 +31,8 @@ midnight_eastern = (datetime.now().astimezone(eastern)
                                                  second=0)
 
 
-class AccountCommands(commands.Cog, name="AccountCommands"):
+class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(guild_ids=[cfg.general['guild_id']],
+                                                                               default_permission=False)):
     def __init__(self, bot):
         self.bot = bot
         self.last_online_check = dict()
@@ -38,12 +40,12 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         self.midnight_init.start()
         self.online_check.start()
 
-    ##TODO cog_check for @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
+    # TODO cog_check for @permissions.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     # async def cog_check(self, ctx):+
     #     print(commands.has_any_role(cfg.roles['admin'], cfg.roles['mod']))
     #     return commands.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
 
-    @commands.message_command(name="Assign Account", guild_ids=[cfg.general['guild_id']], default_permission=False)
+    @commands.message_command(name="Assign Account")
     @commands.max_concurrency(number=1, wait=True)
     @commands.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def msg_assign_account(self, ctx, message):
@@ -82,7 +84,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         if isinstance(error, commands.MaxConcurrencyReached):
             await ctx.respond('Someone else is using this command right now, try again soon!', ephemeral=True)
 
-    @commands.slash_command(name="assignact", guild_ids=[cfg.general['guild_id']], default_permission=False)
+    @commands.slash_command(name="assignacccount")
     async def slash_assign_account(self,
                                    ctx: discord.ApplicationContext,
                                    user: discord.Option(discord.Member, "Recipients @mention"),
@@ -111,7 +113,7 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         else:
             await ctx.respond(f"An error has occurred, ping Colin")
 
-    @commands.slash_command(name="accountcheck", guild_ids=[cfg.general['guild_id']], default_permission=False)
+    @commands.slash_command(name="accountcheck")
     async def accountcheck(self, ctx):
         """Account status info"""
         await ctx.defer()
@@ -120,14 +122,14 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
         online = await census.get_chars_list_online_status(chars_list)
         await ctx.respond(content="", embed=display.embeds.accountcheck(ctx, available, used, usage, online))
 
-    @commands.slash_command(name="initialize", guild_ids=[cfg.general['guild_id']], default_permission=False)
+    @commands.slash_command(name="initialize")
     async def initialize(self, ctx):
         """Reloads all accounts from the Account Sheet"""
         print("Manually", end=' ')
         modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, self.bot)
         await ctx.respond("Reinitialized Account Sheet")
 
-    @commands.slash_command(name="midnightinit", guild_ids=[cfg.general['guild_id']], default_permission=False)
+    @commands.slash_command(name="midnightinit")
     async def midnight_init_toggle(self, ctx: discord.ApplicationContext,
                                    action: discord.Option(str, "Start, Stop or Status",
                                                           choices=("Start", "Stop", "Status"),
@@ -176,7 +178,6 @@ class AccountCommands(commands.Cog, name="AccountCommands"):
     @online_check.before_loop
     async def before_online_check(self):
         await self.bot.wait_until_ready()
-
 
 
 def setup(client):
