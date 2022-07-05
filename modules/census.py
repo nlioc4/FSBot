@@ -15,7 +15,6 @@ import modules.config as cfg
 import modules.accounts_handler_simple as accounts
 
 
-
 log = getLogger('fs_bot')
 
 def get_account_chars_list(account_dict: dict):
@@ -60,3 +59,15 @@ async def get_chars_list_online_status(chars_list: list):
             return False
     return online_dict
 
+async def get_char_info(char_name) -> list[str, int, int, int]:
+    """
+
+    :param char_name: character name to be searched
+    :return: [Character name, ID, faction and world].  Empty list if no character found
+    """
+    async with auraxium.Client(service_id=cfg.general['api_key']) as client:
+        char = await client.get_by_name(auraxium.ps2.Character, char_name)
+        if not char:
+            return None
+        char_world = await char.world()
+        return [char.name.first, char.id, char.faction_id, char_world.id]
