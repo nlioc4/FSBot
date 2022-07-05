@@ -18,10 +18,10 @@ WORLD_ID = 19  # Jaeger ID
 
 class SkillLevel(Enum):
     # skill levels to be self perscribed
-    BEGINNER = (0, "Still learning how to handle an ESF, much less be duel one")
+    BEGINNER = (0, "Still learning how to handle an ESF, much less duel one")
     NOVICE = (1, "Has the basics down, but still working on tuning skills")
     PROFICIENT = (2, "Capable of taking on all but the most skilled pilots")
-    EXPERT = (3, "Peak skill, duelling every day and winning.")
+    EXPERT = (3, "Peak skill, effortlessly lead targets while dodging")
 
     def __int__(self, rank, description):
         self.rank = rank

@@ -85,7 +85,8 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
         self.notif_roles = {}  # Roles to notify, pulled from server or created on_ready
         self.active_events: dict[str, AnomalyEvent] = {}
         self.websocket_ended = False
-        self.anomaly_check_task = None
+        self.event_client: auraxium.event.EventClient = None
+        self.anomaly_check.start()
 
     @commands.slash_command(name="anomalychannel", guild_ids=[cfg.general['guild_id']], default_permission=False)
     async def anomaly_channel(self, ctx: discord.ApplicationContext,
@@ -96,9 +97,10 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
         self.notif_channel = channel
         await ctx.respond(f"Set Anomaly Notifier channel: {channel.mention}", ephemeral=True)
 
-
+    @tasks.loop(count=1)
     async def anomaly_check(self):
-        client = auraxium.EventClient(service_id=cfg.general['api_key'])
+        client = auraxium.event.EventClient(service_id=cfg.general['api_key'], no_ssl_certs=True)
+        self.event_client = client
 
         # Anomaly Only Check
         def anomaly_check(event: auraxium.event.MetagameEvent):
@@ -108,6 +110,7 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
             # create AnomalyEvent class
             anom = AnomalyEvent(evt.metagame_event_id, evt.timestamp, evt.zone_id,
                                 evt.world_id, evt.instance_id, evt.metagame_event_state)
+
             # set ping according to world
             ping = self.notif_roles[anom.world_id].mention
 
@@ -135,74 +138,27 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
                                                        )
                 del self.active_events[old_anom.__str__()]
 
-        # create trigger for anomaly event
+        # create trigger for anomaly event and add it to the client
         anomaly_trigger = auraxium.Trigger(auraxium.event.MetagameEvent,
                                            worlds=WORLD_DICT.keys(),
                                            conditions=[anomaly_check],
                                            action=anomaly_event)
-
         client.add_trigger(anomaly_trigger)
-        while self.websocket_ended:
+
+        if self.websocket_ended:
             await client.close()
-            await d_obj.channels['logs'].send(content='Anomaly Checker websocket has been closed')
+            await d_obj.channels['logs'].send(content='Anomaly Checker web-socket has been closed')
 
-    # @tasks.loop(minutes=1)
-    # async def anomaly_check(self):
-    #     async with auraxium.Client(service_id=cfg.general['api_key']) as client:
-    #         # build query
-    #         query = auraxium.census.Query('world_event', service_id=cfg.general['api_key'])
-    #         for i in WORLD_DICT.keys():
-    #             query.add_term('world_id', i)
-    #         query.limit(500)
-    #         data = await client.request(query)
-    #         new_events: AnomalyEvent = {}
-    #         # sort out anomalies from all world events, create AnomalyEvent instances
-    #         for event in data['world_event_list']:
-    #             if 'metagame_event_id' in event and event['metagame_event_id'] in ANOMALY_IDS_STR:
-    #                 event_id = int(event['metagame_event_id'])
-    #                 timestamp = datetime.fromtimestamp(int(event['timestamp']))
-    #                 zone_id = int(event['zone_id'])
-    #                 world_id = int(event['world_id'])
-    #                 instance_id = int(event['instance_id'])
-    #                 state_id = int(event['metagame_event_state'])
-    #                 new_events[f'{world_id}-{instance_id}'] = (AnomalyEvent(event_id, timestamp, zone_id,
-    #                                                                         world_id, instance_id, state_id))
-    #
-    #         # update active event list
-    #         for event in new_events:
-    #             if new_events[event].state_id == 135 and event not in self.active_events:
-    #                 self.active_events[event] = new_events[event]
-    #             elif new_events[event].state_id == 138 and event in self.active_events:
-    #                 self.active_events[event].state_id = new_events[event].state_id
-    #
-    #         # Send or Update Message and remove dict entry
-    #         for event in list(self.active_events):
-    #             current_event = self.active_events[event]
-    #             ping = self.notif_roles[current_event.world_id].mention
-    #             if (not current_event.message) and current_event.state_id == 135:
-    #                 current_event.message = await self.notif_channel.send(content=ping,
-    #                                                                       embed=display.embeds.anomaly(
-    #                                                                           world=WORLD_DICT[current_event.world_id],
-    #                                                                           zone=ZONE_DICT[current_event.zone_id],
-    #                                                                           timestamp=current_event.timestamp,
-    #                                                                           state=STATE_DICT[current_event.state_id])
-    #                                                                       )
-    #
-    #             elif current_event.message and (current_event.state_id == 138 or
-    #                                             current_event.timestamp <= datetime.now() - timedelta(minutes=30)):
-    #                 await current_event.message.edit(content=ping,
-    #                                                  embed=display.embeds.anomaly(
-    #                                                      world=WORLD_DICT[current_event.world_id],
-    #                                                      zone=ZONE_DICT[current_event.zone_id],
-    #                                                      timestamp=current_event.timestamp,
-    #                                                      state=STATE_DICT[current_event.state_id]
-    #                                                  ))
-    #                 self.active_events.pop(event)
 
-    @commands.Cog.listener()
-    async def on_ready(self):
+    @anomaly_check.before_loop
+    async def before_anomaly_check(self):
         # check roles have been loaded and bot is ready
-        await self.bot.loop.create_task(self.anomaly_check)
+        await self.bot.wait_until_ready()
+
+    @anomaly_check.after_loop
+    async def after_anomaly_check(self):
+        for anom in self.active_events.values():
+            await anom.message.delete()
 
     @commands.slash_command(name="anomalystatus", guild_ids=[cfg.general['guild_id']], default_permission=False)
     async def anomlystatus(self, ctx: discord.ApplicationContext,
@@ -210,7 +166,7 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
                                                   choices=("Start", "Stop", "Status"),
                                                   required=True)):
         """Provides Info on the status of the Anomaly Checker"""
-        is_running = self.anomaly_check.is_running()
+        is_running = bool(self.event_client.triggers)
         match action:
             case "Start" if is_running:
                 await ctx.respond(f"Anomaly Check is running with channel: {self.notif_channel}", ephemeral=True)
@@ -221,12 +177,13 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
             case "Stop" if is_running:
                 await ctx.respond(f"Anomaly Check stopped", ephemeral=True)
                 self.websocket_ended = True
-                await asyncio.sleep(2)
+                await asyncio.sleep(1)
                 self.anomaly_check.cancel()
             case "Stop" if not is_running:
                 await ctx.respond("Anomaly Check already stopped", ephemeral=True)
             case "Status":
-                await ctx.respond(f"Anomaly Check running: {self.anomaly_check.is_running()}", ephemeral=True)
+                await ctx.respond(f"Anomaly Check running: {is_running}"
+                                  f"Last Trigger: {self.event_client.triggers[0].last_run}", ephemeral=True)
 
     @commands.slash_command(name="anomalyregistercreate", guild_ids=[cfg.general['guild_id']], default_permission=False)
     async def anomalyregistercreate(self, ctx: discord.ApplicationContext,

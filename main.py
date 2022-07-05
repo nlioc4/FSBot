@@ -75,4 +75,6 @@ bot.load_extension("cogs.register")
 modules.database.init(cfg.database)
 modules.database.get_all_elements(classes.Player.new_from_data, 'users')
 print("Loaded Players from Database:", len(classes.Player.get_all_players()))
+
+
 bot.run(cfg.general['token'])
