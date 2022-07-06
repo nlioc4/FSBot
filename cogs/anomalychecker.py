@@ -126,10 +126,10 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
                 self.active_events[anom.__str__()] = anom
 
             # if previously tracked anomaly, edit message and remove from dict
-            elif anom in self.active_events.items():
-                old_anom = self.active_events[anom.__str__()]
+            elif anom in self.active_events:
+                old_anom = self.active_events[str(anom)]
                 old_anom.state_id = anom.state_id
-                anom.message = await anom.message.edit(content=ping,
+                anom.message = await old_anom.message.edit(content=ping,
                                                        embed=display.embeds.anomaly(
                                                            world=WORLD_DICT[old_anom.world_id],
                                                            zone=ZONE_DICT[old_anom.zone_id],

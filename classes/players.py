@@ -111,6 +111,7 @@ class Player:
         self.__hidden = False
         self.__timeout = 0
         self.skill_level: SkillLevel = SkillLevel.BEGINNER
+        self.pref_factions: list[str] = ["VS", "NC", "TR"]
         Player._all_players[p_id] = self  # adding to all players dictionary
 
     @classmethod
@@ -162,6 +163,8 @@ class Player:
                 await db.async_db_call(db.set_field, 'users', self.id, {'timeout': self.__timeout})
             case 'skill_level':
                 await db.async_db_call(db.set_field, 'users', self.id, {'skill_level': self.skill_level.name})
+            case 'pref_factions':
+                await db.async_db_call(db.set_field, 'users', self.id, {'pref_factions': self.pref_factions})
             case 'hidden':
                 await db.async_db_call(db.set_field, 'users', self.id, {'hidden': self.__hidden})
             case _:

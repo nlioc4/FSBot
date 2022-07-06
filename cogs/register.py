@@ -84,6 +84,35 @@ class SkillLevelDropdown(discord.ui.Select):
                                                 ephemeral=True, delete_after=15)
 
 
+class PreferredFactionDropdown(discord.ui.Select):
+    """Select Menu for Register View, defines player skill level"""
+    def __init__(self):
+        options = []
+        for faction in cfg.factions.values():
+            options.append(discord.SelectOption(label=faction, emoji=cfg.emojis[faction]))
+
+        super().__init__(placeholder="Choose your preferred faction(s)...",
+                         min_values=1,
+                         max_values=3,
+                         options=options,
+                         custom_id="register-pref_faction"
+                         )
+
+    async def callback(self, interaction: discord.Interaction):
+        p: classes.Player = classes.Player.get(interaction.user.id)
+        p.pref_factions.clear()
+        p.pref_factions = self.values
+        await p.db_update('pref_factions')
+        factions_str = ''
+        for fac in self.values:
+            factions_str += f'[{fac}:{cfg.emojis[fac]}]'
+        string = f"Your preferred faction is now: {factions_str}" if len(self.values) == 1 else \
+            f"Your preferred factions are now: {factions_str}"
+        await interaction.response.send_message(content=string,
+                                                ephemeral=True, delete_after=15)
+
+
+
 class RegisterCharacterModal(discord.ui.Modal):
     def __init__(self) -> None:
         super().__init__(
@@ -138,6 +167,7 @@ class RegisterView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
         self.add_item(SkillLevelDropdown())
+        self.add_item(PreferredFactionDropdown())
 
     @discord.ui.button(label="Register: Personal Jaeger Account", custom_id="register-own_account",
                        style=discord.ButtonStyle.green)

@@ -31,19 +31,18 @@ intents.members = True
 intents.message_content = True
 
 
-
 bot = commands.Bot(intents=intents)
-
-
 
 
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     print("--------------------------------------------")
-    modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, bot)
-    display.embeds.init(bot)
     modules.discord_obj.init(bot)
+    display.embeds.init(bot)
+    await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, bot)
+
+
 
 
 @bot.slash_command(name="filtercontentplug", guild_ids=[cfg.general['guild_id']], default_permission=False)

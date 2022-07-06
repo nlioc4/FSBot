@@ -52,12 +52,12 @@ async def get_chars_list_online_status(chars_list: list):
         online_dict = dict()
         for name in online_names:
             a_id = int(name[-4:-2])
-            online_dict[a_id] = [name, accounts._all_accounts[a_id].last_usage['id'],
-                                 accounts._all_accounts[a_id].last_usage["time_string"]]
+            online_dict[a_id] = [name, accounts.all_accounts[a_id].unique_usages[-1]]
         # if no online accounts return False
         if len(online_dict.keys()) == 0:
             return False
     return online_dict
+
 
 async def get_char_info(char_name) -> list[str, int, int, int]:
     """
@@ -71,3 +71,36 @@ async def get_char_info(char_name) -> list[str, int, int, int]:
             return None
         char_world = await char.world()
         return [char.name.first, char.id, char.faction_id, char_world.id]
+
+
+async def get_ids_facs_from_chars(chars_list) -> dict[str, tuple[int, int]] | bool:
+    """
+
+    :param chars_list, list of characters to return ids for
+    :return: dict of str(char_name): int(id).  returns only chars that exist
+    """
+    names_string = ','.join(chars_list)
+    async with auraxium.Client(service_id=cfg.general['api_key']) as client:
+        # build query
+        query = auraxium.census.Query('character', service_id=cfg.general['api_key'])
+        query.add_term('name.first_lower', names_string.lower())
+        query.show('character_id', 'name.first', 'faction_id')
+        query.limit(100)
+        try:
+            data = await client.request(query)
+        except auraxium.errors.ServiceUnavailableError:
+            log.error('API unreachable during online check')
+            return False
+
+        char_dict = dict()
+        for a_return in data['character_list']:
+            char_name = a_return['name']['first']
+            char_id = int(a_return['character_id'])
+            char_fac_id = int(a_return['faction_id'])
+            char_dict[char_name] = (char_id, char_fac_id)
+
+        return char_dict
+
+
+
+

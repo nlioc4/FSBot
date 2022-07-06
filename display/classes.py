@@ -70,6 +70,10 @@ class ContextWrapper:
             message = ctx.message
             original_ctx = ctx.original_ctx
             return cls(author, channel_id, message, original_ctx)
+        elif isinstance(ctx, discord.Interaction.followup):
+            return FollowupContext(ctx)
+        elif isinstance(ctx, discord.Interaction):
+            return InteractionContext(ctx)
         try:
             channel_id = ctx.channel.id
         except AttributeError:

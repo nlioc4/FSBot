@@ -1,9 +1,17 @@
+'''Contains Embeds and embed templates for use throughout the bot'''
+
+# External Imports
 from discord import Embed, Color
 import discord
 import discord.utils
-import modules.config as cfg
+
 from datetime import timedelta, datetime
 import pytz
+
+# Internal Imports
+import modules.config as cfg
+import classes.players as players
+
 
 # midnight tomorrow EST
 eastern = pytz.timezone('US/Eastern')
@@ -18,6 +26,20 @@ def init(client: discord.bot):
     # load discord guild
     global _guild
     _guild = client.get_guild(cfg.general["guild_id"])
+
+
+def bot_info() -> discord.Embed:
+    """Bot Info Embed"""
+    embed = Embed(
+        colour=Color.blue(),
+        title="Flight School Bot Information",
+        description=""
+    )
+
+    embed.add_field(name='Account Information',
+                    value='Loaded Accounts')
+
+    return embed
 
 
 def account(ctx, acc) -> discord.Embed:
@@ -68,11 +90,11 @@ def accountcheck(ctx, available, used, usages, online) -> discord.Embed:
                     inline=False
                     )
     if online:
-        string = '*Character Name : Last Player : Last Assignment*\n'
+        string = '*Character Name : Last Player*\n'
         for acc in online:
-            char_name, time_string = online[acc][0], online[acc][2]
+            char_name = online[acc][0]
             last_player = _guild.get_member(online[acc][1])
-            string = string + f'{char_name} : {last_player.mention} : {time_string} \n'
+            string = string + f'{char_name} : {last_player.mention}\n'
         embed.add_field(name='Currently Online Accounts',
                         value=string,
                         inline=False
@@ -89,11 +111,11 @@ def account_online_check(online) -> discord.Embed:
         description=""
     )
 
-    string = '*Character Name : Last Player : Last Assignment*\n'
+    string = '*Character Name : Last Player *\n'
     for acc in online:
-        char_name, time_string = online[acc][0], online[acc][2]
+        char_name = online[acc][0]
         last_player = _guild.get_member(online[acc][1])
-        string = string + f'{char_name} : {last_player.mention} : {time_string} \n'
+        string = string + f'{char_name} : {last_player.mention}\n'
 
     embed.add_field(name='Currently Online Accounts',
                     value=string,
@@ -128,7 +150,31 @@ def anomaly(world, zone, timestamp, state) -> discord.Embed:
     return embed
 
 
-def duel_dashboard(active_players, ) -> discord.Embed:
-    """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels"""
+def duel_dashboard() -> discord.Embed:
+    """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels.
+    Base Embed, to be modified by calling method"""
+
+    embed = Embed(
+        colour=Color.green(),
+        title="Flight School Bot Duel Dashboard",
+        description="Your source for organized ESF duels"
+    )
+
+    # Dashboard Description
+    skill_level_shorthands = [f'{level.rank}: {level.display}' for level in list(players.SkillLevel)]
+    string = ''
+    for i in skill_level_shorthands:
+        string += f'{i}/n'
+    embed.add_field(
+        name='Skill Level Ranks',
+        value=string
+    )
+
+    # Player_list Header
+    embed.add_field(
+        name='---------------------Unranked Lobby---------------------',
+        value='@Mention [Preferred Faction(s)][Skill Level][Requested Skill Level(s)]\n'
+              '**-----------------------------------------------------**'
+    )
 
     return embed

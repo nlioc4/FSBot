@@ -12,9 +12,11 @@ class Account:
         self.__username = username
         self.__password = password
         self.__in_game = in_game
+        self.__in_game_ids = [0, 0, 0]
         self.a_player = None
         self.__last_usage = dict()
         self.__unique_usages = unique_usages
+        self.message = None
 
     def update(self, username, password):
         self.__username = username
@@ -35,6 +37,14 @@ class Account:
     @property
     def in_game(self):
         return self.__in_game
+
+    @property
+    def in_game_ids(self):
+        return self.__in_game_ids
+
+    @property
+    def in_game_names(self):
+        return [f'{self.__in_game}VS', f'{self.__in_game}NC', f'{self.__in_game}TR']
 
     @property
     def unique_usages(self):

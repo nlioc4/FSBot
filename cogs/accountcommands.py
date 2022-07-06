@@ -118,7 +118,7 @@ class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(g
         """Account status info"""
         await ctx.defer()
         available, used, usage = modules.accounts_handler_simple.accounts_info()
-        chars_list = census.get_account_chars_list(modules.accounts_handler_simple._all_accounts)
+        chars_list = census.get_account_chars_list(modules.accounts_handler_simple.all_accounts)
         online = await census.get_chars_list_online_status(chars_list)
         await ctx.respond(content="", embed=display.embeds.accountcheck(ctx, available, used, usage, online))
 
