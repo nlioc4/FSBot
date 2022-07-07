@@ -15,6 +15,10 @@ class AllStrings(Enum):
 
 
 
+    MATCH_CREATE = Message("Match created: ID: {}, Invited {}")
+    MATCH_END = Message("Match ID: {} Ended, closing match channels...")
+
+
 
     async def send(self, ctx, *args, **kwargs):
         """

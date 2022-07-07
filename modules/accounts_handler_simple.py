@@ -137,7 +137,7 @@ async def init(service_account_path: str, client: discord.bot):
 
 
 
-    print('Initialized Accounts:', len(all_accounts), len(_account_char_ids))
+    print('Initialized Accounts:', len(all_accounts))
 
 
 

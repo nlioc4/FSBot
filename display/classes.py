@@ -53,6 +53,12 @@ class Message:
 
         return elements
 
+    def string(self, args):
+        if self.__string:
+            return self.__string.format(*args)
+        else:
+            return False
+
 
 class ContextWrapper:
 

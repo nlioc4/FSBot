@@ -5,11 +5,13 @@ Player Classes, representing registered users, and related methods
 import modules.config as cfg
 import modules.database as db
 import modules.census as census
+import Lib.tools as tools
 
 # External Imports
 from logging import getLogger
 import re
 from enum import Enum
+from datetime import datetime
 
 log = getLogger("fs_Bot")
 
@@ -110,6 +112,9 @@ class Player:
         self.__is_registered = False
         self.__hidden = False
         self.__timeout = 0
+        self.__lobbied_timestamp = 0
+        self.__active = None
+        self.__match = None
         self.skill_level: SkillLevel = SkillLevel.BEGINNER
         self.pref_factions: list[str] = ["VS", "NC", "TR"]
         Player._all_players[p_id] = self  # adding to all players dictionary
@@ -199,11 +204,61 @@ class Player:
         return self.__has_own_account
 
     @property
-    def is_timeout(self):
+    def timeout(self):
         return self.__timeout
+
+    @timeout.setter
+    def timeout(self, time):
+        self.__timeout = time
+
+    @property
+    def is_timeout(self):
+        return self.__timeout > datetime.now().timestamp()
 
     def hidden(self):
         return self.__hidden
+
+    @property
+    def match(self):
+        return self.__match
+
+    @property
+    def active(self):
+        return self.__active
+
+    @property
+    def lobbied_timestamp(self):
+        return self.__lobbied_timestamp
+
+    @property
+    def is_lobbied(self):
+        return self.__lobbied_timestamp != 0
+
+    def on_lobby_add(self):
+        self.__lobbied_timestamp = tools.timestamp_now()
+
+    def reset_lobby_timestamp(self):
+        self.__lobbied_timestamp = tools.timestamp_now()
+
+    def on_lobby_leave(self):
+        self.__lobbied_timestamp = 0
+
+    def on_player_clean(self):
+        self.__match = None
+        self.__active = None
+        if not self.__has_own_account:
+            self.__ig_names = ["N/A", "N/A", "N/A"]
+            self.__ig_ids = [0, 0, 0]
+
+    def on_playing(self, match):
+        self.__match = match
+        self.__active = ActivePlayer(self)
+        return self.__active
+
+    def on_quit(self):
+        self.__match = None
+        self.__active = None
+
 
     async def register(self, char_list: list | None) -> bool:
         """
@@ -295,3 +350,45 @@ class Player:
             self.__has_own_account = True
 
         return updated
+
+
+class ActivePlayer:
+    """
+    ActivePlayer class has added attributes and methods relevant to their current match.
+    Called after a player starts a match
+    """
+    def __init__(self, player: Player):
+        self.__player = player
+        self.__match = player.match
+        self.__account = None
+        self.__current_faction = None
+        self.__round_wins = 0
+        self.__round_losses = 0
+
+    @property
+    def player(self):
+        return self.__player
+
+    @property
+    def match(self):
+        return self.__match
+
+    @property
+    def account(self):
+        return elf.__account
+
+    @property
+    def current_faction(self):
+        return self.__current_faction
+
+    @current_faction.setter
+    def set_current_faction(self, faction):
+        self.__current_faction = faction
+        return self.__current_faction
+
+    def leave_match(self):
+        self.__match.leave_match(self)
+        self.__player.on_quit()
+
+
+

@@ -88,8 +88,11 @@ class PreferredFactionDropdown(discord.ui.Select):
     """Select Menu for Register View, defines player skill level"""
     def __init__(self):
         options = []
+        esfs_dict = {'VS': 'Scythe', 'NC': 'Reaver', 'TR': 'Mosquito'}
         for faction in cfg.factions.values():
-            options.append(discord.SelectOption(label=faction, emoji=cfg.emojis[faction]))
+            options.append(discord.SelectOption(label=faction,
+                                                description=esfs_dict[faction],
+                                                emoji=cfg.emojis[faction]))
 
         super().__init__(placeholder="Choose your preferred faction(s)...",
                          min_values=1,

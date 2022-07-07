@@ -25,7 +25,8 @@ class ConfigError(Exception):
 
 name_regex = r"^[ -■]{1,32}$"
 
-JAEGER_CALENDAR_URL = "https://docs.google.com/spreadsheets/d/1eA4ybkAiz-nv_mPxu_laL504nwTDmc-9GnsojnTiSRE/edit#gid=38315545"
+JAEGER_CALENDAR_URL = "https://docs.google.com/spreadsheets/d/1eA4ybkAiz-nv_mPxu_laL504nwTDmc-9GnsojnTiSRE/edit#gid" \
+                      "=38315545 "
 
 #: Dictionary to retrieve faction name by id.
 factions = {

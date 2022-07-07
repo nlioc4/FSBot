@@ -126,17 +126,17 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
                 self.active_events[anom.__str__()] = anom
 
             # if previously tracked anomaly, edit message and remove from dict
-            elif anom in self.active_events:
+            elif str(anom) in self.active_events:
                 old_anom = self.active_events[str(anom)]
                 old_anom.state_id = anom.state_id
                 anom.message = await old_anom.message.edit(content=ping,
-                                                       embed=display.embeds.anomaly(
-                                                           world=WORLD_DICT[old_anom.world_id],
-                                                           zone=ZONE_DICT[old_anom.zone_id],
-                                                           timestamp=old_anom.timestamp,
-                                                           state=STATE_DICT_INT[old_anom.state_id])
-                                                       )
-                del self.active_events[old_anom.__str__()]
+                                                           embed=display.embeds.anomaly(
+                                                               world=WORLD_DICT[old_anom.world_id],
+                                                               zone=ZONE_DICT[old_anom.zone_id],
+                                                               timestamp=old_anom.timestamp,
+                                                               state=STATE_DICT_INT[old_anom.state_id])
+                                                           )
+                del self.active_events[str(old_anom)]
 
         # create trigger for anomaly event and add it to the client
         anomaly_trigger = auraxium.Trigger(auraxium.event.MetagameEvent,
@@ -148,7 +148,6 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
         if self.websocket_ended:
             await client.close()
             await d_obj.channels['logs'].send(content='Anomaly Checker web-socket has been closed')
-
 
     @anomaly_check.before_loop
     async def before_anomaly_check(self):

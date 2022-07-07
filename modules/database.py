@@ -4,6 +4,7 @@ Taken from POGBot, https://github.com/yakMM/POG-bot
 """
 
 # External modules
+import pymongo.collection
 from pymongo import MongoClient
 from asyncio import get_event_loop
 from logging import getLogger
@@ -12,7 +13,7 @@ from typing import Callable
 log = getLogger("fs_bot")
 
 # dict for the collections
-_collections = dict()
+_collections: dict[str, pymongo.collection.Collection] = dict()
 
 
 class DatabaseError(Exception):
@@ -136,6 +137,13 @@ def get_element(collection: str, item_id: int) -> (dict, None):
     if _collections[collection].count_documents({"_id": item_id}) == 0:
         return
     item = _collections[collection].find_one({"_id": item_id})
+    return item
+
+
+def get_last_element(collection: str) -> (dict, None):
+    if _collections[collection].count_documents() == 0:
+        return
+    item = _collections[collection].find_one.sort(['$natural', -1])
     return item
 
 
