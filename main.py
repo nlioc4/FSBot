@@ -41,6 +41,7 @@ async def on_ready():
     modules.discord_obj.init(bot)
     display.embeds.init(bot)
     await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, bot)
+    bot.load_extension("cogs.duel_lobby")
 
 
 
@@ -69,6 +70,7 @@ bot.load_extension("cogs.contentplug")
 bot.load_extension("cogs.accountcommands")
 bot.load_extension("cogs.anomalychecker")
 bot.load_extension("cogs.register")
+
 
 # database init
 modules.database.init(cfg.database)

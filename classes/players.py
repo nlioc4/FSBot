@@ -5,6 +5,7 @@ Player Classes, representing registered users, and related methods
 import modules.config as cfg
 import modules.database as db
 import modules.census as census
+from classes.accounts import Account
 import Lib.tools as tools
 
 # External Imports
@@ -107,16 +108,19 @@ class Player:
         self.__name = name
         self.__id = p_id
         self.__has_own_account = False
+        self.__account = None
         self.__ig_names = ["N/A", "N/A", "N/A"]
         self.__ig_ids = [0, 0, 0]
         self.__is_registered = False
         self.__hidden = False
         self.__timeout = 0
         self.__lobbied_timestamp = 0
+        self.__f_lobbied_timestamp = 0
         self.__active = None
         self.__match = None
         self.skill_level: SkillLevel = SkillLevel.BEGINNER
         self.pref_factions: list[str] = ["VS", "NC", "TR"]
+        self.requested_skill_level = None
         Player._all_players[p_id] = self  # adding to all players dictionary
 
     @classmethod
@@ -231,21 +235,33 @@ class Player:
         return self.__lobbied_timestamp
 
     @property
+    def f_lobbied_timestamp(self):
+        return self.__f_lobbied_timestamp
+
+    @property
     def is_lobbied(self):
         return self.__lobbied_timestamp != 0
 
     def on_lobby_add(self):
         self.__lobbied_timestamp = tools.timestamp_now()
+        self.__f_lobbied_timestamp = tools.timestamp_now()
 
     def reset_lobby_timestamp(self):
         self.__lobbied_timestamp = tools.timestamp_now()
 
     def on_lobby_leave(self):
         self.__lobbied_timestamp = 0
+        self.__f_lobbied_timestamp = 0
+
+    def set_account(self, account: Account):
+        self.__account = account
+        self.__ig_names = account.ig_names
+        self.__ig_ids = account.ig_ids
 
     def on_player_clean(self):
         self.__match = None
         self.__active = None
+        self.__account = None
         if not self.__has_own_account:
             self.__ig_names = ["N/A", "N/A", "N/A"]
             self.__ig_ids = [0, 0, 0]
@@ -361,9 +377,9 @@ class ActivePlayer:
         self.__player = player
         self.__match = player.match
         self.__account = None
-        self.__current_faction = None
-        self.__round_wins = 0
-        self.__round_losses = 0
+        self.__current_faction = 0
+        self.round_wins = 0
+        self.round_losses = 0
 
     @property
     def player(self):
@@ -375,7 +391,11 @@ class ActivePlayer:
 
     @property
     def account(self):
-        return elf.__account
+        return self.__account
+
+    @property
+    def id(self):
+        return self.__player.id
 
     @property
     def current_faction(self):
@@ -385,6 +405,32 @@ class ActivePlayer:
     def set_current_faction(self, faction):
         self.__current_faction = faction
         return self.__current_faction
+
+    @property
+    def ig_names(self):
+        return self.player.ig_names
+
+    @property
+    def ig_ids(self):
+        return self.player.ig_ids
+
+    @property
+    def current_faction_id(self):
+        return cfg.i_factions[self.__current_faction]
+
+    @property
+    def current_ig_name(self):
+        if self.player.has_own_account:
+            return self.ig_names[self.current_faction_id - 1]
+        else:
+            return self.account.ig_names[self.current_faction_id - 1]
+
+    @property
+    def current_ig_id(self):
+        if self.player.has_own_account:
+            return self.ig_ids[self.current_faction_id - 1]
+        else:
+            return self.account.ig_ids[self.current_faction_id - 1]
 
     def leave_match(self):
         self.__match.leave_match(self)

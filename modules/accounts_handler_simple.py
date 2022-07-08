@@ -107,19 +107,19 @@ async def init(service_account_path: str, client: discord.bot):
     # Make list of all char names,
     all_chars = []
     for acc_id in all_accounts:
-        all_chars.extend(all_accounts[acc_id].in_game_names)
+        all_chars.extend(all_accounts[acc_id].ig_names)
     # get mapping of char_name: (char_id, char_faction) for existing chars
     char_id_map = await census.get_ids_facs_from_chars(all_chars)
     # List comprehension, for all acc_id, for all char_names per acc_id
     for acc_id, char_name in [(acc_id, char_name) for acc_id in all_accounts
-                              for char_name in all_accounts[acc_id].in_game_names]:
+                              for char_name in all_accounts[acc_id].ig_names]:
         if char_name in char_id_map:
-            all_accounts[acc_id].in_game_ids[char_id_map[char_name][1] - 1] = char_id_map[char_name][0]
+            all_accounts[acc_id].ig_ids[char_id_map[char_name][1] - 1] = char_id_map[char_name][0]
 
     # Check for '0' ID's, add to queued delete list
     to_drop = []
     for acc_id, char_id in [(acc_id, char_id) for acc_id in all_accounts
-                            for char_id in all_accounts[acc_id].in_game_ids]:
+                            for char_id in all_accounts[acc_id].ig_ids]:
         if char_id == 0 and acc_id not in to_drop:
             string = f'Account ID: {acc_id} has a missing character! Dropping account object...'
             print(string)

@@ -6,18 +6,20 @@ from enum import Enum
 
 # Internal Imports
 from .classes import ContextWrapper, FollowupContext, InteractionContext, Message
+from .embeds import *
 import modules.config as cfg
 
 
 class AllStrings(Enum):
 
     LOBBY_NOT_PLAYER = Message("You are not registered {}, please go to {} first!")
-
+    LOBBY_INVITED = Message("{} you have been invited to a match by {}! Accept or decline below!")
+    LOBBY_JOIN = Message("{} you have joined the lobby!")
+    LOBBY_LEAVE = Message("{} you have left the lobby!")
 
 
     MATCH_CREATE = Message("Match created: ID: {}, Invited {}")
     MATCH_END = Message("Match ID: {} Ended, closing match channels...")
-
 
 
     async def send(self, ctx, *args, **kwargs):

@@ -11,8 +11,8 @@ class Account:
         self.__id = a_id
         self.__username = username
         self.__password = password
-        self.__in_game = in_game
-        self.__in_game_ids = [0, 0, 0]
+        self.__ig_name = in_game
+        self.__ig_ids = [0, 0, 0]
         self.a_player = None
         self.__last_usage = dict()
         self.__unique_usages = unique_usages
@@ -35,16 +35,16 @@ class Account:
         return self.__id
 
     @property
-    def in_game(self):
-        return self.__in_game
+    def ig_name(self):
+        return self.__ig_name
 
     @property
-    def in_game_ids(self):
-        return self.__in_game_ids
+    def ig_ids(self):
+        return self.__ig_ids
 
     @property
-    def in_game_names(self):
-        return [f'{self.__in_game}VS', f'{self.__in_game}NC', f'{self.__in_game}TR']
+    def ig_names(self):
+        return [f'{self.__ig_name}VS', f'{self.__ig_name}NC', f'{self.__ig_name}TR']
 
     @property
     def unique_usages(self):

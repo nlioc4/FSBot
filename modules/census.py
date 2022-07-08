@@ -21,7 +21,7 @@ def get_account_chars_list(account_dict: dict):
     """Builds a list of IGN's from the currently available Jaeger accounts"""
     chars_list = list()
     for acc in account_dict:
-        name = account_dict[acc].in_game
+        name = account_dict[acc].ig_name
         names = [f'{name}VS', f'{name}NC', f'{name}TR']
         chars_list.extend(names)
     return chars_list

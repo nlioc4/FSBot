@@ -85,7 +85,7 @@ class SkillLevelDropdown(discord.ui.Select):
 
 
 class PreferredFactionDropdown(discord.ui.Select):
-    """Select Menu for Register View, defines player skill level"""
+    """Select Menu for Register View, defines player preferred faction"""
     def __init__(self):
         options = []
         esfs_dict = {'VS': 'Scythe', 'NC': 'Reaver', 'TR': 'Mosquito'}
@@ -113,7 +113,6 @@ class PreferredFactionDropdown(discord.ui.Select):
             f"Your preferred factions are now: {factions_str}"
         await interaction.response.send_message(content=string,
                                                 ephemeral=True, delete_after=15)
-
 
 
 class RegisterCharacterModal(discord.ui.Modal):

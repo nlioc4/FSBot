@@ -19,7 +19,7 @@ class Message:
 
     def get_string(self, ctx, elements, args):
         if self.__string:
-            string = self.string.format(*args)
+            string = self.__string.format(*args)
 
         if self.__ping:
             try:
@@ -30,7 +30,7 @@ class Message:
 
         elements['content'] = string
 
-    def get_ui(self, ctx, elements, **kwargs):
+    def get_ui(self, ctx, elements, kwargs):
         if self.__embed:
             embed = self.__embed(ctx, **kwargs)
 
