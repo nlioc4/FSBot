@@ -78,7 +78,8 @@ class Player:
 
     @classmethod
     def get(cls, p_id):
-        return cls._all_players.get(p_id)
+        player: Player = cls._all_players.get(p_id)
+        return player
 
     def remove(self):
         if self.__has_own_account:

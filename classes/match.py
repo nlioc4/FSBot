@@ -9,7 +9,6 @@ import modules.discord_obj as d_obj
 import modules.config as cfg
 import Lib.tools as tools
 from classes.players import Player, ActivePlayer
-from display import ContextWrapper, AllStrings as disp
 import modules.database as db
 
 log = getLogger('fs_bot')
@@ -71,9 +70,8 @@ class BaseMatch:
         player.player.on_quit()
 
     async def end_match(self):
-        ctx = ContextWrapper(None, self.text_channel.id, None, self.text_channel)
         self.end_stamp = tools.timestamp_now()
-        await disp.MATCH_END.send(ctx, self.id)
+        # add match end message
         await asyncio.sleep(10)
         await self.voice_channel.delete(reason='Match Ended')
         await self.text_channel.delete(reason='Match Ended')

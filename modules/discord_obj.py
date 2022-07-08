@@ -11,6 +11,7 @@ import discord
 # Internal Imports
 import modules.config as cfg
 import classes.players
+from display import AllStrings as disp
 
 # Bot and guild global variables
 bot = None
@@ -38,9 +39,9 @@ def init(client):
     print("Initialized Channels:", [channel.name for channel in channels.values()])
 
 
-def is_admin(user: discord.Member) -> bool:
+def is_admin(member: discord.Member) -> bool:
     """Simple check for admin permissions, returns True if passed"""
-    if any(roles['admin'], roles['mod'], roles['app_admin']) in user.roles:
+    if any(roles['admin'], roles['mod'], roles['app_admin']) in member.roles:
         return True
     else:
         return False
@@ -52,4 +53,12 @@ def is_player(user: discord.Member) -> bool:
     else:
         return False
 
+def is_registered(ctx, user: discord.Member | discord.User) -> bool:
+    """Checks if a user is a registered player, returns True if passed and sends a response if not."""
+    player = classes.Player.get(user.id)
+    if player.is_registered:
+        return True
+    else:
+        disp.NOT_REGISTERED.send(ctx, user.mention, channels['register'].mention, ephemeral=True)
+        return False
 

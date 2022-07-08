@@ -5,48 +5,53 @@ import discord
 from enum import Enum
 
 # Internal Imports
-from .classes import ContextWrapper, FollowupContext, InteractionContext, Message
-from .embeds import *
 import modules.config as cfg
 
 
 class AllStrings(Enum):
 
-    LOBBY_NOT_PLAYER = Message("You are not registered {}, please go to {} first!")
-    LOBBY_INVITED = Message("{} you have been invited to a match by {}! Accept or decline below!")
-    LOBBY_JOIN = Message("{} you have joined the lobby!")
-    LOBBY_LEAVE = Message("{} you have left the lobby!")
+    NOT_REGISTERED = "You are not registered {}, please go to {} first!"
+    NOT_PLAYER = "You are not a player {}, please go to {} first!"
 
 
-    MATCH_CREATE = Message("Match created: ID: {}, Invited {}")
-    MATCH_END = Message("Match ID: {} Ended, closing match channels...")
+    LOBBY_INVITED = "{} you have been invited to a match by {}! Accept or decline below!"
+    LOBBY_INVITED_SELF = "{} you can't invite yourself to a match!"
+    LOBBY_JOIN = "{} you have joined the lobby!"
+    LOBBY_LEAVE = "{} you have left the lobby!"
+    LOBBY_NOT_IN = "{} you are not in this lobby!"
+    LOBBY_ALREADY_IN = "{} you are already in this lobby!"
+
+
+    MATCH_CREATE = "Match created: ID: {}, Invited {}"
+    MATCH_END = "Match ID: {} Ended, closing match channels..."
+
+
+    def __init__(self, string, embed=None):
+        self.__string = string
+        self.__embed = embed
+
+
+    def __call__(self, *args):
+        return self.__string.format(*args)
 
 
     async def send(self, ctx, *args, **kwargs):
-        """
-        Send the message
+        string = self.__string.format(*args) if self.__string else None
+        embed = kwargs.get('embed') if kwargs.get('embed') else self.__embed
+        view = kwargs.get('view') if kwargs.get('view') else None
+        delete_after = kwargs.get('delete_after') if kwargs.get('delete_after') else None
+        ephemeral = kwargs.get('ephemeral') if kwargs.get('ephemeral') else False
 
-        :param ctx: context.
-        :param args: Additional strings to format the main string with.
-        :param kwargs: Keywords arguments to pass to the embed function.
-        :return: The message sent.
-        """
-        if not isinstance(ctx, ContextWrapper):
-            ctx = ContextWrapper.wrap(ctx)
-        kwargs = self.value.get_elements(ctx, string_args=args, ui_kwargs=kwargs)
-        return await ctx.send(**kwargs)
+        match type(ctx):
+            case discord.abc.Messageable:
+                await ctx.send(content=string, embed=embed, view=view, delete_after=delete_after)
 
-    async def edit(self, msg, *args, **kwargs):
-        """
-        Edit the message
+            case discord.InteractionResponse:
+                await ctx.send_message(content=string, embed=embed, view=view, ephemeral=ephemeral)
 
-        :param msg: Message to edit.
-        :param args: Additional strings to format the main string with.
-        :param kwargs: Keywords arguments to pass to the embed function.
-        :return: The message edited.
-        """
-        if not isinstance(msg, ContextWrapper):
-            msg = ContextWrapper.wrap(msg)
-        kwargs = self.value.get_elements(msg, string_args=args, ui_kwargs=kwargs)
-        return await msg.edit(**kwargs)
+            case discord.Interaction:
+                await ctx.response.send_message(content=string, embed=embed, view=view, ephemeral=ephemeral)
+
+
+
 

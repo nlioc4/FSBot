@@ -5,7 +5,7 @@ from discord import Embed, Color
 import discord
 import discord.utils
 
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime as dt
 import pytz
 
 # Internal Imports
@@ -15,7 +15,7 @@ from classes.players import Player, ActivePlayer, SkillLevel
 
 # midnight tomorrow EST
 eastern = pytz.timezone('US/Eastern')
-midnight_eastern = (datetime.now().astimezone(eastern) + timedelta(days=1)).replace(hour=0, minute=0, microsecond=0,
+midnight_eastern = (dt.now().astimezone(eastern) + timedelta(days=1)).replace(hour=0, minute=0, microsecond=0,
                                                                                     second=0)
 formatted_time = discord.utils.format_dt(midnight_eastern, style="t")
 
@@ -31,7 +31,7 @@ def init(client: discord.bot):
     _guild = client.get_guild(cfg.general["guild_id"])
 
 
-def bot_info(ctx) -> discord.Embed:
+def bot_info() -> discord.Embed:
     """Bot Info Embed"""
     embed = Embed(
         colour=Color.blue(),
@@ -125,7 +125,7 @@ def accountcheck(ctx, available, used, usages, online) -> discord.Embed:
     return embed
 
 
-def account_online_check(ctx, online) -> discord.Embed:
+def account_online_check(online) -> discord.Embed:
     """Automatic Online Check Embed
     """
     embed = Embed(
@@ -152,7 +152,7 @@ def account_online_check(ctx, online) -> discord.Embed:
     return embed
 
 
-def anomaly(ctx, world, zone, timestamp, state) -> discord.Embed:
+def anomaly(world, zone, timestamp, state) -> discord.Embed:
     """Aerial Anomaly Notification Embed
     """
     colour = Color.blurple()
@@ -183,7 +183,7 @@ def anomaly(ctx, world, zone, timestamp, state) -> discord.Embed:
     return embed
 
 
-def duel_dashboard(ctx, lobbied_players: list[Player]) -> discord.Embed:
+def duel_dashboard(lobbied_players: list[Player], logs: list[str]) -> discord.Embed:
     """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels.
     Base Embed, to be modified by calling method"""
 
@@ -199,10 +199,10 @@ def duel_dashboard(ctx, lobbied_players: list[Player]) -> discord.Embed:
                               "/pfp.png")
 
     # Dashboard Description
-    skill_level_shorthands = [f'{level.rank}: {str(level)}' for level in list(SkillLevel)]
+    skill_level_shorthands = [f'**{level.rank}**: {str(level)}' for level in list(SkillLevel)]
     string = ''
     for i in skill_level_shorthands:
-        string += f'{i}/n'
+        string += f'[{i}] '
     embed.add_field(
         name='Skill Level Ranks',
         value=string,
@@ -211,24 +211,30 @@ def duel_dashboard(ctx, lobbied_players: list[Player]) -> discord.Embed:
 
     # Player_list Header
     embed.add_field(
-        name='---------------------Unranked Lobby---------------------',
-        value='@Mention [Preferred Faction(s)][Skill Level][Requested Skill Level(s)]\n'
-              '**--------------------------------------------------------------**',
+        name='-------------------------Unranked Lobby-------------------------',
+        value='@Mention [Preferred Faction(s)][Skill Level][Wanted Level(s)][Time]\n',
         inline=False
     )
-
-    players_string = 'a\n'
-    for player in lobbied_players:
-        mention = player.mention
-        preferred_fac = ''.join([cfg.emojis[fac] for fac in player.pref_factions])
-        skill_level = player.skill_level.rank
-        req_skill_level = ''.join(
-            [level.rank for level in player.requested_skill_level]) if player.requested_skill_level else 'Any'
-        f_lobbied_stamp = discord.utils.format_dt(datetime.utcfromtimestamp(player.f_lobbied_timestamp))
-        string = f'{mention} [{preferred_fac}][{skill_level}][{req_skill_level}] Queued at: {f_lobbied_stamp}'
-        players_string.join(string)
     if lobbied_players:
-        embed.add_field(name="d   ",
+        players_string = ''
+        for player in lobbied_players:
+            preferred_fac = ''.join([cfg.emojis[fac] for fac in player.pref_factions])
+            req_skill_level = ''.join(
+                [level.rank for level in player.requested_skill_level]) if player.requested_skill_level else 'Any'
+            f_lobbied_stamp = discord.utils.format_dt(dt.fromtimestamp(player.f_lobbied_timestamp), style="t")
+            string = f'{player.mention}({player.name}) [{preferred_fac}][{player.skill_level.rank}][{req_skill_level}][{f_lobbied_stamp}]\n'
+            players_string += string
+
+        embed.add_field(name="----------------------------------------------------------------------",
                         value=players_string,
+                        inline=False)
+
+    if logs:
+        log_str = ''
+        for log in logs:
+            time_formatted = discord.utils.format_dt(dt.fromtimestamp(log[0]), 'T')
+            log_str += f'[{time_formatted}]{log[1]}\n'
+        embed.add_field(name="Recent Activity",
+                        value=log_str,
                         inline=False)
     return embed
