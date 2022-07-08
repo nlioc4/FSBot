@@ -21,6 +21,7 @@ guild = None
 # Dicts containing role and channel objects
 roles: dict[str, discord.Role] = {}
 channels: dict[str, Union[discord.TextChannel, discord.VoiceChannel]] = {}
+categories = {'user': None, 'admin': None}
 
 
 def init(client):
@@ -38,13 +39,23 @@ def init(client):
         channels[channel] = guild.get_channel(cfg.channels[channel])
     print("Initialized Channels:", [channel.name for channel in channels.values()])
 
+    categories['user'] = channels['dashboard'].category
+    categories['admin'] = channels['staff'].category
+
 
 def is_admin(member: discord.Member) -> bool:
-    """Simple check for admin permissions, returns True if passed"""
-    if any(roles['admin'], roles['mod'], roles['app_admin']) in member.roles:
+    """Simple check for admin permissions, returns True if admin"""
+    if any([roles['admin'], roles['mod'], roles['app_admin']]) in member.roles:
         return True
     else:
         return False
+
+def is_not_admin(member: discord.Member) -> bool:
+    """Simple check for admin permissions, returns True if not admin"""
+    if any([roles['admin'], roles['mod'], roles['app_admin']]) in member.roles:
+        return False
+    else:
+        return True
 
 def is_player(user: discord.Member) -> bool:
     """Simple check if a user is a player, returns True if passed"""
@@ -53,12 +64,12 @@ def is_player(user: discord.Member) -> bool:
     else:
         return False
 
-def is_registered(ctx, user: discord.Member | discord.User) -> bool:
+async def is_registered(ctx, user: discord.Member | discord.User) -> bool:
     """Checks if a user is a registered player, returns True if passed and sends a response if not."""
     player = classes.Player.get(user.id)
     if player.is_registered:
         return True
     else:
-        disp.NOT_REGISTERED.send(ctx, user.mention, channels['register'].mention, ephemeral=True)
+        await disp.NOT_REGISTERED.send_priv(ctx, user.mention, channels['register'].mention)
         return False
 

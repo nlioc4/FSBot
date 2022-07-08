@@ -211,21 +211,21 @@ def duel_dashboard(lobbied_players: list[Player], logs: list[str]) -> discord.Em
 
     # Player_list Header
     embed.add_field(
-        name='-------------------------Unranked Lobby-------------------------',
+        name='----------------------Unranked Lobby----------------------',
         value='@Mention [Preferred Faction(s)][Skill Level][Wanted Level(s)][Time]\n',
         inline=False
     )
     if lobbied_players:
         players_string = ''
-        for player in lobbied_players:
-            preferred_fac = ''.join([cfg.emojis[fac] for fac in player.pref_factions])
-            req_skill_level = ''.join(
-                [level.rank for level in player.requested_skill_level]) if player.requested_skill_level else 'Any'
-            f_lobbied_stamp = discord.utils.format_dt(dt.fromtimestamp(player.f_lobbied_timestamp), style="t")
-            string = f'{player.mention}({player.name}) [{preferred_fac}][{player.skill_level.rank}][{req_skill_level}][{f_lobbied_stamp}]\n'
+        for p in lobbied_players:
+            preferred_facs = ''.join([cfg.emojis[fac] for fac in p.pref_factions]) if p.pref_factions else 'Any'
+            req_skill_levels = ' '.join([str(level.rank) for level in p.req_skill_levels])\
+                if p.req_skill_levels else 'Any'
+            f_lobbied_stamp = discord.utils.format_dt(dt.fromtimestamp(p.f_lobbied_timestamp), style="t")
+            string = f'{p.mention}({p.name}) [{preferred_facs}][**{p.skill_level.rank}**][**{req_skill_levels}**][{f_lobbied_stamp}]\n'
             players_string += string
 
-        embed.add_field(name="----------------------------------------------------------------------",
+        embed.add_field(name="----------------------------------------------------------------",
                         value=players_string,
                         inline=False)
 

@@ -43,6 +43,9 @@ class SkillLevel(Enum):
     def description(self):
         return self.value[1]
 
+    def sort(self):
+        return self.value[0]
+
 
 class CharInvalidWorld(Exception):
     def __init__(self, char):
@@ -120,8 +123,8 @@ class Player:
         self.__active = None
         self.__match = None
         self.skill_level: SkillLevel = SkillLevel.BEGINNER
-        self.pref_factions: list[str] = ["VS", "NC", "TR"]
-        self.requested_skill_level = None
+        self.pref_factions: list[str] = []
+        self.req_skill_levels = None
         Player._all_players[p_id] = self  # adding to all players dictionary
 
     @classmethod
@@ -143,6 +146,10 @@ class Player:
             obj.__timeout = data['timeout']
         if 'hidden' in data:
             obj.__hidden = data['hidden']
+        if 'pref_factions' in data:
+            obj.pref_factions = data['pref_factions']
+        if 'req_skill_levels' in data:
+            obj.req_skill_levels = [SkillLevel[level] for level in data['req_skill_levels']]
 
     def get_data(self):  # get data for database push
         data = {'_id': self.id, 'name': self.__name,
@@ -155,9 +162,15 @@ class Player:
             data['timeout'] = self.__timeout
         if self.__hidden:
             data['hidden'] = self.__hidden
+        if self.pref_factions:
+            data['pref_factions'] = self.pref_factions
+        if self.req_skill_levels:
+            data['req_skill_levels'] = self.req_skill_levels
         return data
 
     async def db_update(self, arg):
+        '''Update a specific uers database element.  Options are name, register, account, timeout,
+         skill_level, req_skill_levels, pref_factions, pref_factions, hidden: '''
         match arg:
             case 'name':
                 await db.async_db_call(db.set_field, 'users', self.id, {'name', self.__name})
@@ -173,6 +186,8 @@ class Player:
                 await db.async_db_call(db.set_field, 'users', self.id, {'timeout': self.__timeout})
             case 'skill_level':
                 await db.async_db_call(db.set_field, 'users', self.id, {'skill_level': self.skill_level.name})
+            case 'req_skill_levels':
+                await db.async_db_call(db.set_field, 'users', self.id, {'req_skill_levels': [level.name for level in self.req_skill_levels]})
             case 'pref_factions':
                 await db.async_db_call(db.set_field, 'users', self.id, {'pref_factions': self.pref_factions})
             case 'hidden':
@@ -397,6 +412,10 @@ class ActivePlayer:
     @property
     def id(self):
         return self.__player.id
+
+    @property
+    def name(self):
+        return self.__player.name
 
     @property
     def current_faction(self):

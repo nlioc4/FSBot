@@ -5,7 +5,9 @@ Cog to handle registration, de-registration and parameter modification,
 # Internal Imports
 import modules.config as cfg
 import classes
+from classes.players import Player, SkillLevel
 import modules.database as db
+from display import AllStrings as disp
 import modules.discord_obj as d_obj
 
 # External Imports
@@ -66,7 +68,7 @@ class SkillLevelDropdown(discord.ui.Select):
 
     def __init__(self):
         options = []
-        for level in list(classes.players.SkillLevel):
+        for level in list(SkillLevel):
             options.append(discord.SelectOption(label=str(level), value=level.name, description=level.description))
 
         super().__init__(placeholder="Choose your own skill level...",
@@ -76,16 +78,50 @@ class SkillLevelDropdown(discord.ui.Select):
                          custom_id="register-skill_level"
                          )
 
-    async def callback(self, interaction: discord.Interaction):
-        p: classes.Player = classes.Player.get(interaction.user.id)
-        p.skill_level = classes.players.SkillLevel[self.values[0]]
+    async def callback(self, inter: discord.Interaction):
+        p: classes.Player = classes.Player.get(inter.user.id)
+        p.skill_level = SkillLevel[self.values[0]]
         await p.db_update('skill_level')
-        await interaction.response.send_message(content=f"Your skill level as been set to {str(p.skill_level)}",
-                                                ephemeral=True, delete_after=15)
+        await disp.SKILL_LEVEL.send_priv(inter, str(p.skill_level))
+
+
+class RequestedSkillLevelDropdown(discord.ui.Select):
+    """Select Menu for Register View, defines requested player skill level"""
+
+    def __init__(self):
+        options = [discord.SelectOption(label='Any', description='No preference on opponent skill level')]
+        for level in list(SkillLevel):
+            options.append(discord.SelectOption(label=str(level), value=level.name, description=level.description))
+
+        super().__init__(placeholder="Choose the level(s) you'd like to duel...",
+                         min_values=1,
+                         max_values=1+len(list(SkillLevel)),
+                         options=options,
+                         custom_id="register-requested_skill_level"
+                         )
+
+    async def callback(self, inter: discord.Interaction):
+        p: classes.Player = classes.Player.get(inter.user.id)
+        if 'Any' in self.values or len(self.values) >= len(list(SkillLevel)):
+            p.req_skill_levels = []
+            await p.db_update('req_skill_levels')
+            await disp.SKILL_LEVEL_REQ_ONE.send_priv(inter, 'No Preference')
+            return
+
+        p.req_skill_levels = [SkillLevel[value] for value in self.values]
+        p.req_skill_levels.sort(key=SkillLevel.sort)
+        skill_level_str = ' '.join([f'[{level.rank}:{str(level)}]' for level in p.req_skill_levels])
+        await p.db_update('req_skill_levels')
+
+        if len(self.values) > 1:
+            await disp.SKILL_LEVEL_REQ_MORE.send_priv(inter, skill_level_str)
+        elif len(self.values) == 1:
+            await disp.SKILL_LEVEL_REQ_ONE.send_priv(inter, skill_level_str)
 
 
 class PreferredFactionDropdown(discord.ui.Select):
     """Select Menu for Register View, defines player preferred faction"""
+
     def __init__(self):
         options = []
         esfs_dict = {'VS': 'Scythe', 'NC': 'Reaver', 'TR': 'Mosquito'}
@@ -129,36 +165,30 @@ class RegisterCharacterModal(discord.ui.Modal):
 
         )
 
-    async def callback(self, interaction: discord.Interaction):
-        p: classes.Player = classes.Player.get(interaction.user.id)
+    async def callback(self, inter: discord.Interaction):
+        p: classes.Player = classes.Player.get(inter.user.id)
         char_list = self.children[0].value.split(',')
         for char in char_list:
             char.strip()
-        await interaction.response.defer(ephemeral=True)
+        await inter.response.defer(ephemeral=True)
+        inter = inter.followup
         if len(char_list) == 1 or len(char_list) == 3:  # if base char name, or individual names provided
             try:
                 registered = await p.register(char_list)
                 if registered:
-                    await interaction.followup.send(
-                        content='Successfully registered with characters: {}, {}, {}'.format(*p.ig_names))
+                    await disp.REG_SUCCESSFUL_CHARS.send_priv(inter, *p.ig_names)
                 else:
-                    await interaction.followup.send(
-                        content='Already registered with characters: {}, {}, {}'.format(*p.ig_names))
+                    await disp.REG_ALREADY_CHARS.send_priv(inter, *p.ig_names)
             except classes.players.CharMissingFaction as e:
-                await interaction.followup.send(
-                    content=f'Registration Failed: Missing a character for faction {e.faction}!')
+                await disp.REG_MISSING_FACTION.send_priv(inter, e.faction)
             except classes.players.CharAlreadyRegistered as e:
-                await interaction.followup.send(
-                    content=f'Registration Failed: Character: {e.char} already registered by {e.player.name}')
+                await disp.REG_ALREADY_CHARS.send_priv(inter, e.char, e.player)
             except classes.players.CharInvalidWorld as e:
-                await interaction.followup.send(
-                    content=f'Registration Failed: Character: {e.char} is not from Jaeger, invalid registration!')
+                await disp.REG_NOT_JAEGER.send_priv(inter, e.char)
             except classes.players.CharNotFound as e:
-                await interaction.followup.send(
-                    content=f'Registration Failed: Character: {e.char} not found in the Census API')
+                await disp.REG_CHAR_NOT_FOUND.send_priv(inter, e.char)
         else:  # if any other format provided
-            await interaction.followup.send(content=f'Incorrect Character Entry Format!')
-            return
+            await disp.REG_WRONG_FORMAT.send_priv(inter)
 
 
 class RegisterView(discord.ui.View):
@@ -169,6 +199,7 @@ class RegisterView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
         self.add_item(SkillLevelDropdown())
+        self.add_item(RequestedSkillLevelDropdown())
         self.add_item(PreferredFactionDropdown())
 
     @discord.ui.button(label="Register: Personal Jaeger Account", custom_id="register-own_account",
@@ -178,14 +209,13 @@ class RegisterView(discord.ui.View):
 
     @discord.ui.button(label="Register: No Jaeger Account", custom_id="register-no_account",
                        style=discord.ButtonStyle.green)
-    async def register_no_account_button(self, button: discord.ui.Button, interaction: discord.Interaction):
-        p = classes.Player.get(interaction.user.id)
+    async def register_no_account_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        p = classes.Player.get(inter.user.id)
         registered = await p.register(None)
         if registered:
-            await interaction.response.send_message(content="Successfully registered with no Jaeger Account",
-                                                    ephemeral=True)
+            await disp.REG_SUCCESFUL_NO_CHARS.send_priv(inter)
         else:
-            await interaction.response.send_message(content="Already Registered with no Jaeger Account", ephemeral=True)
+            await disp.REG_ALREADY_NO_CHARS.send_priv(inter)
 
 
 class RegisterCog(discord.Cog, name='RegisterCog', command_attrs=dict(guild_ids=[cfg.general['guild_id']],

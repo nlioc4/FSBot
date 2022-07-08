@@ -97,9 +97,9 @@ class AnomalyChecker(commands.Cog, name="AnomalyChecker"):
         self.notif_channel = channel
         await ctx.respond(f"Set Anomaly Notifier channel: {channel.mention}", ephemeral=True)
 
-    @tasks.loop(count=1)
+    @tasks.loop(count=5)
     async def anomaly_check(self):
-        client = auraxium.event.EventClient(service_id=cfg.general['api_key'], no_ssl_certs=True)
+        client = auraxium.event.EventClient(service_id=cfg.general['api_key'])
         self.event_client = client
 
         # Anomaly Only Check
