@@ -13,6 +13,7 @@ import modules.config as cfg
 import modules.accounts_handler_simple as accounts
 from classes.players import Player, ActivePlayer, SkillLevel
 
+
 # midnight tomorrow EST
 eastern = pytz.timezone('US/Eastern')
 midnight_eastern = (dt.now().astimezone(eastern) + timedelta(days=1)).replace(hour=0, minute=0, microsecond=0,
@@ -238,3 +239,18 @@ def duel_dashboard(lobbied_players: list[Player], logs: list[str]) -> discord.Em
                         value=log_str,
                         inline=False)
     return embed
+
+
+def match_info(match) -> discord.Embed:
+    """Match info for match channel, should go along with match control View"""
+    embed = Embed(
+        colour=Color.green(),
+        title=f"Match Info for Match: {match.id}",
+        description=""
+    )
+
+    embed.set_author(name="FS Bot",
+                     url="https://www.discord.gg/flightschool",
+                     icon_url="https://cdn.discordapp.com/attachments/875624069544939570/993393648559476776"
+                              "/pfp.png")
+

@@ -45,5 +45,6 @@ class MatchesCog(commands.Cog, name="MatchesCog",
 
     def __init__(self, bot):
         self.bot = bot
-        self.matches = []
+
+
 

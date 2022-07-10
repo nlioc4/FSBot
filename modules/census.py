@@ -41,7 +41,7 @@ async def get_chars_list_online_status(chars_list: list):
             data = await client.request(query)
         except auraxium.errors.ServiceUnavailableError:
             log.error('API unreachable during online check')
-            return false
+            return False
 
         # pull data from dict response
         online_names = list()

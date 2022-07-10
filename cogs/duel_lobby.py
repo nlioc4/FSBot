@@ -33,15 +33,10 @@ class ChallengeDropdown(discord.ui.Select):
         for player in _lobbied_players:
             option = discord.SelectOption(label=player.name, value=str(player.id))
             options.append(option)
-        if _lobbied_players:
-            disabled = False
-        else:
-            disabled = True
 
         super().__init__(placeholder="Pick Player(s) in the lobby to challenge...",
                          custom_id='dashboard-challenge',
                          options=options,
-                         disabled=disabled,
                          min_values=1,
                          max_values=len(options),
                          )
@@ -85,7 +80,7 @@ class DashboardView(discord.ui.View):
         if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, player):
             return
         elif player in _lobbied_players:
-            player.reset_lobby_timestamp()
+            _cog.lobby_timeout_reset(player)
             await disp.LOBBY_TIMEOUT_RESET.send_temp(inter, player.mention)
         else:
             await disp.LOBBY_NOT_IN.send_temp(inter, player.mention)
@@ -110,8 +105,8 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
         self.dashboard_channel = d_obj.channels['dashboard']
         # Dynamics
         self.dashboard_msg = None
-        self.matches: list[BaseMatch] = []
         self.lobby_logs: list[(int, str)] = []
+        self.recent_log_length = 8
         self._warned_players: list[Player] = []
         self.timeout_minutes = 30
         self.dashboard_loop.start()
@@ -122,7 +117,7 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
 
     @property
     def logs_recent(self):
-        return self.lobby_logs[-5:]
+        return self.lobby_logs[-self.recent_log_length:]
 
     def log(self, message):
         self.lobby_logs.append((tools.timestamp_now(), message))
@@ -137,6 +132,15 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
             return True
         else:
             return False
+
+    def lobby_timeout_reset(self, player):
+        """Resets player lobbied timestamp, returns True if player was in lobby"""
+        if player in _lobbied_players:
+            player.reset_lobby_timestamp()
+            if player in self._warned_players:
+                self._warned_players.remove(player)
+            return True
+        return False
 
     def lobby_leave(self, player):
         """Removes from lobby list, executes player lobby leave method, returns True if removed"""
@@ -159,12 +163,14 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
             return False
 
     def dashboard_purge_check(self, message: discord.Message):
+        """Checks if messages are either the dashboard message, or an admin message before purging them"""
         if message != self.dashboard_msg and d_obj.is_not_admin(message.author):
             return True
         else:
             return False
 
     async def create_dashboard(self):
+        """Purges the channel, and then creates dashboard Embed w/ view"""
         await self.dashboard_channel.purge(check=self.dashboard_purge_check)
         self.dashboard_msg = await self.dashboard_channel.send(content="",
                                                                embed=embeds.duel_dashboard(_lobbied_players,
@@ -172,6 +178,7 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
                                                                view=DashboardView())
 
     async def update_dashboard(self):
+        """Checks if dashboard exists, if not creates one, else purges messages older than 5 minutes and updates dashboard"""
         if not self.dashboard_msg:
             await self.create_dashboard()
             return
@@ -180,15 +187,15 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
         await self.dashboard_msg.edit(embed=embeds.duel_dashboard(_lobbied_players, self.logs_recent),
                                       view=DashboardView())
 
-    async def create_match(self, creator, players: list[Player]):
-        match = BaseMatch.create(creator, players)
-        await asyncio.sleep(2)
-        self.matches.append(match)
-        self.log(f'Match: {match.id} created by {match.owner.name}')
-        return match
+    # async def create_match(self, creator, players: list[Player]):
+    #     match = BaseMatch.create(creator, players)
+    #     await asyncio.sleep(2)
+    #     self.log(f'Match: {match.id} created by {match.owner.name}')
+    #     return match
 
-    @tasks.loop(seconds=5)
+    @tasks.loop(seconds=10)
     async def dashboard_loop(self):
+        """Loop to check lobby timeouts, also updates dashboard in-case preference changes are made"""
         for p in _lobbied_players:
             stamp_dt = dt.fromtimestamp(p.lobbied_timestamp)
             if stamp_dt < (dt.now() - timedelta(minutes=self.timeout_minutes)):
@@ -196,7 +203,8 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
                 await disp.LOBBY_TIMEOUT.send(self.dashboard_channel, p.mention, delete_after=30)
             elif stamp_dt < (dt.now() - timedelta(minutes=self.timeout_minutes - 5)) and p not in self._warned_players:
                 self._warned_players.append(p)
-                await disp.LOBBY_TIMEOUT_SOON.send(self.dashboard_channel, p.mention, delete_after=10)
+                self.log(f'{p.name} will soon be timed out of the lobby')
+                await disp.LOBBY_TIMEOUT_SOON.send(self.dashboard_channel, p.mention, delete_after=30)
 
         await self.update_dashboard()
 

@@ -47,12 +47,11 @@ class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(g
 
     @commands.message_command(name="Assign Account")
     @commands.max_concurrency(number=1, wait=True)
-    @commands.has_any_role(cfg.roles['admin'], cfg.roles['mod'])
     async def msg_assign_account(self, ctx, message):
         """
             Assign an account via Message Interaction
         """
-        registered_role = ctx.guild.get_role(cfg.roles['registered'])
+        registered_role = ctx.guild.get_role(cfg.roles['view_channels'])
         usage_channel = self.bot.get_partial_messageable(cfg.channels['usage'])
         rules_channel = self.bot.get_channel(cfg.channels['rules'])
         await ctx.defer(ephemeral=True)
@@ -93,7 +92,7 @@ class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(g
         """
             Assign a Jaeger Account to a user, via @mention. Option to force assign a user a second account.
         """
-        registered_role = user.guild.get_role(cfg.roles["registered"])
+        registered_role = user.guild.get_role(cfg.roles["view_channels"])
         usage_channel = self.bot.get_partial_messageable(cfg.channels['usage'])
         await ctx.defer(ephemeral=True)
         if force:
@@ -126,7 +125,7 @@ class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(g
     async def initialize(self, ctx):
         """Reloads all accounts from the Account Sheet"""
         print("Manually", end=' ')
-        modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, self.bot)
+        await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, self.bot)
         await ctx.respond("Reinitialized Account Sheet")
 
     @commands.slash_command(name="midnightinit")
@@ -152,7 +151,7 @@ class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(g
     async def midnight_init(self):
         await asyncio.sleep(5) # to ensure google sheet has flipped to next day
         print(f"{datetime.now().strftime('%m/%d/%Y, %H:%M:%S')} : Automatically", end=" ")
-        modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, self.bot)
+        await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, self.bot)
 
     @tasks.loop(minutes=1)
     async def online_check(self):
