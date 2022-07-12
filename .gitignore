@@ -65,4 +65,5 @@ Scripts/
 /Scripts/
 
 .idea/
-/Scripts/
+Scripts/
+.tmp.driveupload/
