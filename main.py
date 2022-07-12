@@ -68,7 +68,7 @@ async def filtercontentplug(ctx: discord.ApplicationContext,
 
 bot.load_extension("cogs.contentplug")
 bot.load_extension("cogs.accountcommands")
-bot.load_extension("cogs.anomalychecker")
+# bot.load_extension("cogs.anomalychecker") #disabled, anomalies disabled
 bot.load_extension("cogs.register")
 
 
