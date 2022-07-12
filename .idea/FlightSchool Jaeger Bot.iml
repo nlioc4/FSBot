@@ -4,6 +4,7 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/Lib/site-packages" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
+      <excludeFolder url="file://$MODULE_DIR$/.tmp.driveupload" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.10 (FSBot)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

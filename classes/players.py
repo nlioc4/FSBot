@@ -6,7 +6,7 @@ import modules.config as cfg
 import modules.database as db
 import modules.census as census
 from classes.accounts import Account
-import Lib.tools as tools
+import modules.tools as tools
 
 # External Imports
 from logging import getLogger
@@ -416,6 +416,10 @@ class ActivePlayer:
     @property
     def name(self):
         return self.__player.name
+
+    @property
+    def mention(self):
+        return self.player.mention
 
     @property
     def current_faction(self):

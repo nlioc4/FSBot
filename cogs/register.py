@@ -95,7 +95,7 @@ class RequestedSkillLevelDropdown(discord.ui.Select):
 
         super().__init__(placeholder="Choose the level(s) you'd like to duel...",
                          min_values=1,
-                         max_values=1+len(list(SkillLevel)),
+                         max_values=1 + len(list(SkillLevel)),
                          options=options,
                          custom_id="register-requested_skill_level"
                          )
@@ -156,7 +156,8 @@ class RegisterCharacterModal(discord.ui.Modal):
         super().__init__(
             discord.ui.InputText(
                 label="Input Character(s)",
-                placeholder="Examples: AIMxColin or AIMxColinVS,AIMxColinNC,AIMxColinTR",
+                placeholder="1 generic character or 3 factioned characters\n"
+                            "Eg: AIMxColin OR AIMxColinVS,AIMxColinNC,AIMxColinTR",
                 style=discord.InputTextStyle.long,
                 min_length=2,
                 max_length=150

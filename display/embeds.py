@@ -1,7 +1,7 @@
 '''Contains Embeds and embed templates for use throughout the bot'''
 
 # External Imports
-from discord import Embed, Color
+from discord import Embed, Colour
 import discord
 import discord.utils
 
@@ -11,7 +11,9 @@ import pytz
 # Internal Imports
 import modules.config as cfg
 import modules.accounts_handler_simple as accounts
+from modules.tools import format_time_from_stamp as format_stamp
 from classes.players import Player, ActivePlayer, SkillLevel
+from classes.match import BaseMatch, MatchState
 
 
 # midnight tomorrow EST
@@ -35,7 +37,7 @@ def init(client: discord.bot):
 def bot_info() -> discord.Embed:
     """Bot Info Embed"""
     embed = Embed(
-        colour=Color.blue(),
+        colour=Colour.blue(),
         title="Flight School Bot Information",
         description=""
     )
@@ -58,7 +60,7 @@ def account(ctx, acc) -> discord.Embed:
     """Jaeger Account Embed
     """
     embed = Embed(
-        colour=Color.blue(),
+        colour=Colour.blue(),
         title="Flight School Jaeger Account",
         description=f"\nYou've been assigned a Jaeger Account by {ctx.user.mention} \n"
                     f"This account is not to be used after: {formatted_time} \n"
@@ -88,7 +90,7 @@ def accountcheck(ctx, available, used, usages, online) -> discord.Embed:
     """Jaeger Account Embed
     """
     embed = Embed(
-        colour=Color.blue(),
+        colour=Colour.blue(),
         title="Flight School Jaeger Accounts Info",
         description=""
     )
@@ -130,7 +132,7 @@ def account_online_check(online) -> discord.Embed:
     """Automatic Online Check Embed
     """
     embed = Embed(
-        colour=Color.red(),
+        colour=Colour.red(),
         title="Unassigned Accounts Detected Online",
         description=""
     )
@@ -156,9 +158,9 @@ def account_online_check(online) -> discord.Embed:
 def anomaly(world, zone, timestamp, state) -> discord.Embed:
     """Aerial Anomaly Notification Embed
     """
-    colour = Color.blurple()
+    colour = Colour.blurple()
     if state == "Ended":
-        colour = Color.red()
+        colour = Colour.red()
 
     embed = Embed(
         colour=colour,
@@ -174,7 +176,7 @@ def anomaly(world, zone, timestamp, state) -> discord.Embed:
     embed.set_thumbnail(url="https://i.imgur.com/Ch8QAZJ.png")
 
     embed.add_field(name=f'Server: {world}',
-                    value=f'Continent: {zone}\nStarted: {discord.utils.format_dt(timestamp, style="R")}'
+                    value=f'Continent: {zone}\nStarted: {format_stamp(timestamp, "r")}'
                           f'\nState: {state}',
                     inline=False)
 
@@ -187,9 +189,10 @@ def anomaly(world, zone, timestamp, state) -> discord.Embed:
 def duel_dashboard(lobbied_players: list[Player], logs: list[str]) -> discord.Embed:
     """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels.
     Base Embed, to be modified by calling method"""
+    colour = Colour.blurple() if lobbied_players else Colour.greyple()
 
     embed = Embed(
-        colour=Color.green(),
+        colour=colour,
         title="Flight School Bot Duel Dashboard",
         description="Your source for organized ESF duels"
     )
@@ -222,8 +225,8 @@ def duel_dashboard(lobbied_players: list[Player], logs: list[str]) -> discord.Em
             preferred_facs = ''.join([cfg.emojis[fac] for fac in p.pref_factions]) if p.pref_factions else 'Any'
             req_skill_levels = ' '.join([str(level.rank) for level in p.req_skill_levels])\
                 if p.req_skill_levels else 'Any'
-            f_lobbied_stamp = discord.utils.format_dt(dt.fromtimestamp(p.f_lobbied_timestamp), style="t")
-            string = f'{p.mention}({p.name}) [{preferred_facs}][**{p.skill_level.rank}**][**{req_skill_levels}**][{f_lobbied_stamp}]\n'
+            f_lobbied_stamp = format_stamp(p.f_lobbied_timestamp)
+            string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}][{req_skill_levels}][{f_lobbied_stamp}]\n'
             players_string += string
 
         embed.add_field(name="----------------------------------------------------------------",
@@ -233,7 +236,7 @@ def duel_dashboard(lobbied_players: list[Player], logs: list[str]) -> discord.Em
     if logs:
         log_str = ''
         for log in logs:
-            time_formatted = discord.utils.format_dt(dt.fromtimestamp(log[0]), 'T')
+            time_formatted = format_stamp(log[0], 'T')
             log_str += f'[{time_formatted}]{log[1]}\n'
         embed.add_field(name="Recent Activity",
                         value=log_str,
@@ -241,10 +244,47 @@ def duel_dashboard(lobbied_players: list[Player], logs: list[str]) -> discord.Em
     return embed
 
 
-def match_info(match) -> discord.Embed:
-    """Match info for match channel, should go along with match control View"""
+def longer_lobby_logs(logs: list[str]) -> discord.Embed:
+    """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels.
+    Base Embed, to be modified by calling method"""
+
     embed = Embed(
-        colour=Color.green(),
+        colour=Colour.blurple(),
+        title="Flight School Bot Extended History",
+        description="Your source for organized ESF duels"
+    )
+
+    embed.set_author(name="FS Bot",
+                     url="https://www.discord.gg/flightschool",
+                     icon_url="https://cdn.discordapp.com/attachments/875624069544939570/993393648559476776"
+                              "/pfp.png")
+
+    if logs:
+        log_str = ''
+        for log in logs:
+            time_formatted = format_stamp(log[0], 'T')
+            log_str += f'[{time_formatted}]{log[1]}\n'
+        embed.add_field(name="Extended Recent Activity",
+                        value=log_str,
+                        inline=False)
+    return embed
+
+
+def match_info(match: BaseMatch) -> discord.Embed:
+    """Match info for match channel, should go along with match control View"""
+    colour = None
+    match match.status:
+        case MatchState.INVITING:
+            colour = Colour.dark_blue()
+        case MatchState.GETTING_READY:
+            colour = Colour.blurple()
+        case MatchState.Playing:
+            colour = Colour.green()
+        case MatchState.ENDED:
+            colour = Colour.red()
+
+    embed = Embed(
+        colour=Colour.green(),
         title=f"Match Info for Match: {match.id}",
         description=""
     )
@@ -254,3 +294,28 @@ def match_info(match) -> discord.Embed:
                      icon_url="https://cdn.discordapp.com/attachments/875624069544939570/993393648559476776"
                               "/pfp.png")
 
+    match_info_str = (f"Owner: {match.owner.mention}\n"
+                     f"Match status: {match.status}\n"
+                     f"Match Start Time: {format_stamp(match.start_stamp)}\n"
+                     )
+
+    if match.end_stamp:
+        base_info_str += f'Match End Time: {format_stamp(match.end_stamp)}'
+
+    embed.add_field(name="Match Info",
+                    value=match_info_str,
+                    inline=False)
+
+    if match.invited:
+        embed.add_field(name="Invited Players",
+                        value='\n'.join([p.mention for p in match.invited]),
+                        inline=False
+        )
+
+    if match.invited:
+        embed.add_field(name="Players",
+                        value='\n'.join([p.mention for p in match.players]),
+                        inline=False)
+
+
+    return embed

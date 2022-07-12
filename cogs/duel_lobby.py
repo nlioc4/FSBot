@@ -7,18 +7,17 @@ import discord
 from discord.ext import commands, tasks
 from datetime import datetime as dt, timedelta
 from logging import getLogger
-import asyncio
 
 # Internal Imports
 import modules.config as cfg
 import modules.discord_obj as d_obj
 from modules.spam_detector import is_spam
-from classes.players import Player, SkillLevel
+from classes.players import Player
 from classes.match import BaseMatch
-from display import AllStrings as disp
-import display.embeds as embeds
+from display import AllStrings as disp, embeds, views
 
-import Lib.tools as tools
+
+import modules.tools as tools
 
 log = getLogger('fs_bot')
 
@@ -53,9 +52,12 @@ class ChallengeDropdown(discord.ui.Select):
             if player in _lobbied_players:
                 _cog.lobby_leave(player)
             match = await BaseMatch.create(player, invited_players)
+            invited_string = ' '.join([p.mention for p in invited_players])
+            await disp.MATCH_INFO.send(match.voice_channel, match=match)
+            await disp.MATCH_INVITED.send(match.voice_channel, invited_string, match.owner.mention, view=views.InviteView(match))
+            _cog.log(f"Match {match.id} created by {match.owner.name}, invited: {','.join([p.name for p in invited_players])}")
             await _cog.update_dashboard()
-            await disp.MATCH_CREATE.send_temp(inter, match.id, ' '.join([p.mention for p in invited_players]))
-
+            await disp.MATCH_CREATE.send_temp(inter.response, player.mention, match.id)
 
 class DashboardView(discord.ui.View):
     def __init__(self):
@@ -85,6 +87,15 @@ class DashboardView(discord.ui.View):
         else:
             await disp.LOBBY_NOT_IN.send_temp(inter, player.mention)
 
+    @discord.ui.button(label="Extended History", custom_id='dashboard-history', style=discord.ButtonStyle.blurple)
+    async def history_lobby_button(self, button:discord.Button, inter: discord.Interaction):
+        if await is_spam(inter, inter.user):
+            return
+        if len(_cog.lobby_logs) <= len(_cog.logs_recent):
+            await disp.LOBBY_NO_HISTORY.send_temp(inter, inter.user.mention)
+            return
+        await disp.LOBBY_LONGER_HISTORY.send(inter, inter.user.mention, logs=_cog.logs_longer, delete_after=20)
+
     @discord.ui.button(label="Leave Lobby", custom_id='dashboard-leave', style=discord.ButtonStyle.red)
     async def leave_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         player: Player = Player.get(inter.user.id)
@@ -102,13 +113,17 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
     def __init__(self, bot):
         #  Statics
         self.bot = bot
-        self.dashboard_channel = d_obj.channels['dashboard']
+        self.dashboard_channel: discord.TextChannel = d_obj.channels['dashboard']
         # Dynamics
-        self.dashboard_msg = None
-        self.lobby_logs: list[(int, str)] = []
-        self.recent_log_length = 8
+        self.dashboard_msg: discord.Message = None
+
+        self.lobby_logs: list[(int, str)] = []  # lobby logs recorded as a list of tuples, (timestamp, message)
+        self.recent_log_length: int = 8
+        self.longer_log_length: int = 25
+
+        self.timeout_minutes: int = 30
         self._warned_players: list[Player] = []
-        self.timeout_minutes = 30
+
         self.dashboard_loop.start()
 
     def cog_check(self, ctx):
@@ -119,8 +134,13 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
     def logs_recent(self):
         return self.lobby_logs[-self.recent_log_length:]
 
+    @property
+    def logs_longer(self):
+        return self.lobby_logs[-self.longer_log_length:]
+
     def log(self, message):
         self.lobby_logs.append((tools.timestamp_now(), message))
+        log.info(f'Lobby Log: {message}')
 
     def lobby_timeout(self, player):
         """Removes from lobby list, executes player lobby leave method, returns True if removed"""
@@ -178,7 +198,7 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
                                                                view=DashboardView())
 
     async def update_dashboard(self):
-        """Checks if dashboard exists, if not creates one, else purges messages older than 5 minutes and updates dashboard"""
+        """Checks if dashboard exists and either creates one, or updates the current dashboard and purges messages older than 5 minutes"""
         if not self.dashboard_msg:
             await self.create_dashboard()
             return

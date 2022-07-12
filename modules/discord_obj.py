@@ -64,7 +64,7 @@ def is_player(user: discord.Member) -> bool:
     else:
         return False
 
-async def is_registered(ctx, user: discord.Member | discord.User) -> bool:
+async def is_registered(ctx, user: discord.Member | discord.User | classes.Player) -> bool:
     """Checks if a user is a registered player, returns True if passed and sends a response if not."""
     player = classes.Player.get(user.id)
     if player.is_registered:

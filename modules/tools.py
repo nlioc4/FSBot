@@ -2,6 +2,7 @@
 
 from datetime import datetime as dt
 import pytz
+import discord
 
 from logging import getLogger
 
@@ -47,6 +48,19 @@ def is_al_num(string):
 def timestamp_now():
     return int(dt.timestamp(dt.now()))
 
+def format_time_from_stamp(timestamp: int, type: str ="t") -> str:
+    """converts a timestamp into a time formatted for discord.
+    type indicates what format will be used, options are
+    t| 22:57 |Short Time
+    T| 22:57:58 |Long Time
+    d| 17/05/2016| Short Date
+    D| 17 May 2016 |Long Date
+    f| 17 May 2016 22:57 |Short Date Time
+    F| Tuesday, 17 May 2016 22:57 |Long Date Time
+    R| 5 years ago| Relative Time
+    """
+    time = dt.fromtimestamp(timestamp)
+    return discord.utils.format_dt(time, type)
 
 def time_diff(timestamp):
     lead = timestamp_now() - timestamp

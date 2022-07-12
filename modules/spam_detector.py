@@ -6,10 +6,8 @@ import discord
 from logging import getLogger
 
 # Internal Imports
-import modules.config as cfg
-from classes import Player, ActivePlayer
 from display import AllStrings as disp
-from Lib.tools import timestamp_now
+from modules.tools import timestamp_now
 
 log = getLogger('fs_bot')
 
