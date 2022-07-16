@@ -17,19 +17,16 @@ from display import AllStrings as disp, embeds, views
 class InviteView(discord.ui.View):
     """View to handle accepting or declining match invites"""
 
-    def __init__(self, match):
+    def __init__(self, owner):
         super().__init__()
-        self.match: BaseMatch = match
+        self.owner: Player = owner
 
     @discord.ui.button(label="Accept Invite", style=discord.ButtonStyle.green)
     async def accept_button(self, button: discord.Button, inter: discord.Interaction):
         p: Player = Player.get(inter.user.id)
         if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, p):
             return
-        if not self.match.is_invited(p):
-            await disp.INVITE_WRONG_USER.send_priv(inter)
-            return
-        self.match.accept_invite(p)
+
         await disp.MATCH_ACCEPT.send_temp(inter, p.mention)
         if len(self.match.invited) == 0:
             await inter.message.delete()

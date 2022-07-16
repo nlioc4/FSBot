@@ -15,7 +15,7 @@ from modules.spam_detector import is_spam
 from classes.players import Player
 from classes.match import BaseMatch
 from display import AllStrings as disp, embeds, views
-
+import modules.lobby as lobby
 
 import modules.tools as tools
 
@@ -23,13 +23,11 @@ log = getLogger('fs_bot')
 
 _bot: discord.Bot = None
 
-_lobbied_players: list[Player] = []
-
 
 class ChallengeDropdown(discord.ui.Select):
     def __init__(self):
         options = []
-        for player in _lobbied_players:
+        for player in lobby.lobbied():
             option = discord.SelectOption(label=player.name, value=str(player.id))
             options.append(option)
 
@@ -45,24 +43,21 @@ class ChallengeDropdown(discord.ui.Select):
         if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, player):
             return
         invited_players: list(Player) = [Player.get(int(value)) for value in self.values]
+        invited_players_mentions = ' '.join([p.mention for p in invited_players])
         if player in invited_players:
             await disp.LOBBY_INVITED_SELF.send_temp(inter, player.mention)
             return
         if player and not player.match:
-            if player in _lobbied_players:
-                _cog.lobby_leave(player)
-            match = await BaseMatch.create(player, invited_players)
-            invited_string = ' '.join([p.mention for p in invited_players])
-            await disp.MATCH_INFO.send(match.voice_channel, match=match)
-            await disp.MATCH_INVITED.send(match.voice_channel, invited_string, match.owner.mention, view=views.InviteView(match))
-            _cog.log(f"Match {match.id} created by {match.owner.name}, invited: {','.join([p.name for p in invited_players])}")
-            await _cog.update_dashboard()
-            await disp.MATCH_CREATE.send_temp(inter.response, player.mention, match.id)
+            lobby.invite(player, invited_players)
+            disp.LOBBY_INVITED.send(inter, invited_players_mentions, player.mention)
+        elif player and player.match:
+            lobby.invite(player, invited_players)
+
 
 class DashboardView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
-        if _lobbied_players:
+        if lobby.lobbied():
             self.add_item(ChallengeDropdown())
 
     @discord.ui.button(label="Join Lobby", custom_id='dashboard-join', style=discord.ButtonStyle.green)
@@ -70,7 +65,7 @@ class DashboardView(discord.ui.View):
         player: Player = Player.get(inter.user.id)
         if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, player):
             return
-        elif _cog.lobby_join(player):
+        elif lobby.lobby_join(player):
             await _cog.update_dashboard()
             await disp.LOBBY_JOIN.send_temp(inter, player.mention)
         else:
@@ -81,27 +76,27 @@ class DashboardView(discord.ui.View):
         player: Player = Player.get(inter.user.id)
         if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, player):
             return
-        elif player in _lobbied_players:
-            _cog.lobby_timeout_reset(player)
+        elif player in lobby.lobbied():
+            lobby.lobby_timeout_reset(player)
             await disp.LOBBY_TIMEOUT_RESET.send_temp(inter, player.mention)
         else:
             await disp.LOBBY_NOT_IN.send_temp(inter, player.mention)
 
     @discord.ui.button(label="Extended History", custom_id='dashboard-history', style=discord.ButtonStyle.blurple)
-    async def history_lobby_button(self, button:discord.Button, inter: discord.Interaction):
+    async def history_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         if await is_spam(inter, inter.user):
             return
-        if len(_cog.lobby_logs) <= len(_cog.logs_recent):
+        if len(lobby.lobby_logs) <= len(lobby.logs_recent):
             await disp.LOBBY_NO_HISTORY.send_temp(inter, inter.user.mention)
             return
-        await disp.LOBBY_LONGER_HISTORY.send(inter, inter.user.mention, logs=_cog.logs_longer, delete_after=20)
+        await disp.LOBBY_LONGER_HISTORY.send(inter, inter.user.mention, logs=lobby.logs_longer, delete_after=20)
 
     @discord.ui.button(label="Leave Lobby", custom_id='dashboard-leave', style=discord.ButtonStyle.red)
     async def leave_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         player: Player = Player.get(inter.user.id)
         if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, player):
             return
-        elif _cog.lobby_leave(player):
+        elif lobby.lobby_leave(player):
             await _cog.update_dashboard()
             await disp.LOBBY_LEAVE.send_temp(inter, player.mention)
         else:
@@ -117,70 +112,11 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
         # Dynamics
         self.dashboard_msg: discord.Message = None
 
-        self.lobby_logs: list[(int, str)] = []  # lobby logs recorded as a list of tuples, (timestamp, message)
-        self.recent_log_length: int = 8
-        self.longer_log_length: int = 25
-
-        self.timeout_minutes: int = 30
-        self._warned_players: list[Player] = []
-
         self.dashboard_loop.start()
 
     def cog_check(self, ctx):
         player = Player.get(ctx.user.id)
         return True if player else False
-
-    @property
-    def logs_recent(self):
-        return self.lobby_logs[-self.recent_log_length:]
-
-    @property
-    def logs_longer(self):
-        return self.lobby_logs[-self.longer_log_length:]
-
-    def log(self, message):
-        self.lobby_logs.append((tools.timestamp_now(), message))
-        log.info(f'Lobby Log: {message}')
-
-    def lobby_timeout(self, player):
-        """Removes from lobby list, executes player lobby leave method, returns True if removed"""
-        if player in _lobbied_players:
-            player.on_lobby_leave()
-            _lobbied_players.remove(player)
-            self._warned_players.remove(player)
-            self.log(f'{player.name} was removed from the lobby by timeout.')
-            return True
-        else:
-            return False
-
-    def lobby_timeout_reset(self, player):
-        """Resets player lobbied timestamp, returns True if player was in lobby"""
-        if player in _lobbied_players:
-            player.reset_lobby_timestamp()
-            if player in self._warned_players:
-                self._warned_players.remove(player)
-            return True
-        return False
-
-    def lobby_leave(self, player):
-        """Removes from lobby list, executes player lobby leave method, returns True if removed"""
-        if player in _lobbied_players:
-            player.on_lobby_leave()
-            _lobbied_players.remove(player)
-            self.log(f'{player.name} left the lobby.')
-            return True
-        else:
-            return False
-
-    def lobby_join(self, player):
-        """Adds to lobby list, executes player lobby join method, returns True if added"""
-        if player not in _lobbied_players:
-            player.on_lobby_add()
-            _lobbied_players.append(player)
-            self.log(f'{player.name} joined the lobby.')
-            return True
-        else:
-            return False
 
     def dashboard_purge_check(self, message: discord.Message):
         """Checks if messages are either the dashboard message, or an admin message before purging them"""
@@ -193,8 +129,8 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
         """Purges the channel, and then creates dashboard Embed w/ view"""
         await self.dashboard_channel.purge(check=self.dashboard_purge_check)
         self.dashboard_msg = await self.dashboard_channel.send(content="",
-                                                               embed=embeds.duel_dashboard(_lobbied_players,
-                                                                                           self.logs_recent),
+                                                               embed=embeds.duel_dashboard(lobby.lobbied(),
+                                                                                           lobby.logs_recent()),
                                                                view=DashboardView())
 
     async def update_dashboard(self):
@@ -204,7 +140,8 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
             return
         await d_obj.channels['dashboard'].purge(before=(dt.now() - timedelta(minutes=5)),
                                                 check=self.dashboard_purge_check)
-        await self.dashboard_msg.edit(embed=embeds.duel_dashboard(_lobbied_players, self.logs_recent),
+        await self.dashboard_msg.edit(embed=embeds.duel_dashboard(lobby.lobbied(),
+                                                                  lobby.logs_recent()),
                                       view=DashboardView())
 
     # async def create_match(self, creator, players: list[Player]):
@@ -216,13 +153,13 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
     @tasks.loop(seconds=10)
     async def dashboard_loop(self):
         """Loop to check lobby timeouts, also updates dashboard in-case preference changes are made"""
-        for p in _lobbied_players:
+        for p in lobby.lobbied():
             stamp_dt = dt.fromtimestamp(p.lobbied_timestamp)
-            if stamp_dt < (dt.now() - timedelta(minutes=self.timeout_minutes)):
-                self.lobby_timeout(p)
+            if stamp_dt < (dt.now() - timedelta(minutes=lobby.timeout_minutes)):
+                lobby.lobby_timeout(p)
                 await disp.LOBBY_TIMEOUT.send(self.dashboard_channel, p.mention, delete_after=30)
-            elif stamp_dt < (dt.now() - timedelta(minutes=self.timeout_minutes - 5)) and p not in self._warned_players:
-                self._warned_players.append(p)
+            elif stamp_dt < (dt.now() - timedelta(minutes=lobby.timeout_minutes - 5)) and p not in lobby._warned_players:
+                lobby._warned_players.append(p)
                 self.log(f'{p.name} will soon be timed out of the lobby')
                 await disp.LOBBY_TIMEOUT_SOON.send(self.dashboard_channel, p.mention, delete_after=30)
 

@@ -26,14 +26,13 @@ class BaseMatch:
     _active_matches = dict()
     _recent_matches = dict()
 
-    def __init__(self, owner: Player, invited: list[Player]):
+    def __init__(self, owner: Player):
         self.__id = None
         self.owner = owner
         self.start_stamp = tools.timestamp_now()
         self.end_stamp = None
-        self.__invited = invited
         self.__players: list[ActivePlayer] = [owner.on_playing(self)]  # player list, add owners active_player
-        self.__previous_players = list[Player]
+        self.__previous_players: list[Player] = list()
         self.match_log = list()  # logs recorded as list of tuples, (timestamp, message)
         self.status = MatchState.INVITING
         self.voice_channel: discord.VoiceChannel | None = None
@@ -41,12 +40,10 @@ class BaseMatch:
 
     @classmethod
     async def create(cls, owner: Player, invited: list[Player]):
-        obj = cls(owner, invited)
+        obj = cls(owner)
         # last_match = None  # await db.async_db_call(db.get_last_element, 'matches')
         # print('past db call')
         # obj.set_id(1 if not last_match else last_match['match_id'] + 1)
-        invited_overwrites = {d_obj.guild.get_member(p.id): discord.PermissionOverwrite(view_channel=True)
-                              for p in invited}
 
         overwrites = {
             d_obj.guild.default_role: discord.PermissionOverwrite(view_channel=False),
@@ -55,44 +52,24 @@ class BaseMatch:
             d_obj.roles['mod']: discord.PermissionOverwrite(view_channel=True),
             d_obj.guild.get_member(owner.id): discord.PermissionOverwrite(view_channel=True)
         }
-        overwrites.update(invited_overwrites)
 
         obj.voice_channel = await d_obj.categories['user'].create_voice_channel(
             name=f'Match: {obj.id}',
             overwrites=overwrites)
 
         obj.log(f'Owner:{owner.name}{owner.id}')
-        obj.log(f'Invited: {[player.name for player in invited]}')
         return obj
 
-    def accept_invite(self, player: Player):
-        self.__invited.remove(player)
+    async def join_match(self, player: Player):
+        #  Joins player to match and updates permissions
         self.__players.append(player.on_playing(self))
-        if self.status == MatchState.INVITING:
-            self.status = MatchState.GETTING_READY
-        self.log(f'{player.name} accepted invite')
-
-    async def decline_invite(self, player: Player):
-        self.__invited.remove(player)
-        await self.channel_update()
-        self.log(f'{player.name} declined invite')
-
-    def invite(self, player: Player):
-        if player not in self.__invited or player.active not in self.__players:
-            self.__invited.append(player)
-            self.log(f'Invited: {player.name}')
-            return True
-        else:
-            return False
-
-    def is_invited(self, player: Player):
-        return player in self.__invited
+        await self.channel_update(True)
+        self.log(f'{player.name} joined the match')
 
     async def leave_match(self, player: ActivePlayer):
         self.__previous_players.append(player.player)
         self.__players.remove(player)
-        player_member = d_obj.guild.get_member(player.id)
-        await self.voice_channel.set_permissions(player_member, view_channel=False)
+        await self.channel_update(False)
         player.player.on_quit()
         self.log(f'{player.name} left the match')
 
@@ -116,12 +93,12 @@ class BaseMatch:
                 'owner': self.owner.id, 'players': player_ids, 'match_log': self.match_log}
         return data
 
-    async def channel_update(self):
+    async def channel_update(self, action: bool):
         if not self.__players:
             await self.end_match()
-        players_members = [d_obj.guild.get_member(player.id) for player in self.__players + self.__invited]
+        players_members = [d_obj.guild.get_member(player.id) for player in self.__players]
         for player_member in players_members:
-            await self.voice_channel.set_permissions(player_member, view_channel=True)
+            await self.voice_channel.set_permissions(player_member, view_channel=action)
 
     def log(self, message):
         self.match_log.append((tools.timestamp_now(), message))
@@ -130,10 +107,6 @@ class BaseMatch:
     @property
     def id(self):
         return self.__id
-
-    @property
-    def invited(self):
-        return self.__invited
 
     @property
     def players(self):

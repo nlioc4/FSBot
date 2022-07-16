@@ -119,7 +119,7 @@ class Player:
         self.__hidden = False
         self.__timeout = 0
         self.__lobbied_timestamp = 0
-        self.__f_lobbied_timestamp = 0
+        self.__first_lobbied_timestamp = 0
         self.__active = None
         self.__match = None
         self.skill_level: SkillLevel = SkillLevel.BEGINNER
@@ -251,8 +251,8 @@ class Player:
         return self.__lobbied_timestamp
 
     @property
-    def f_lobbied_timestamp(self):
-        return self.__f_lobbied_timestamp
+    def first_lobbied_timestamp(self):
+        return self.__first_lobbied_timestamp
 
     @property
     def is_lobbied(self):
@@ -260,14 +260,14 @@ class Player:
 
     def on_lobby_add(self):
         self.__lobbied_timestamp = tools.timestamp_now()
-        self.__f_lobbied_timestamp = tools.timestamp_now()
+        self.__first_lobbied_timestamp = tools.timestamp_now()
 
     def reset_lobby_timestamp(self):
         self.__lobbied_timestamp = tools.timestamp_now()
 
     def on_lobby_leave(self):
         self.__lobbied_timestamp = 0
-        self.__f_lobbied_timestamp = 0
+        self.__first_lobbied_timestamp = 0
 
     def set_account(self, account: Account):
         self.__account = account

@@ -39,7 +39,8 @@ def bot_info() -> discord.Embed:
     embed = Embed(
         colour=Colour.blue(),
         title="Flight School Bot Information",
-        description=""
+        description="",
+        timestamp=dt.now()
     )
 
     embed.set_author(name="FS Bot",
@@ -63,7 +64,8 @@ def account(ctx, acc) -> discord.Embed:
         colour=Colour.blue(),
         title="Flight School Jaeger Account",
         description=f"\nYou've been assigned a Jaeger Account by {ctx.user.mention} \n"
-                    f"This account is not to be used after: {formatted_time} \n"
+                    f"This account is not to be used after: {formatted_time} \n",
+        timestamp=dt.now()
     )
 
     embed.set_author(name="FS Bot",
@@ -92,7 +94,8 @@ def accountcheck(ctx, available, used, usages, online) -> discord.Embed:
     embed = Embed(
         colour=Colour.blue(),
         title="Flight School Jaeger Accounts Info",
-        description=""
+        description="",
+        timestamp=dt.now()
     )
 
     embed.set_author(name="FS Bot",
@@ -134,7 +137,8 @@ def account_online_check(online) -> discord.Embed:
     embed = Embed(
         colour=Colour.red(),
         title="Unassigned Accounts Detected Online",
-        description=""
+        description="",
+        timestamp=dt.now()
     )
 
     embed.set_author(name="FS Bot",
@@ -165,7 +169,8 @@ def anomaly(world, zone, timestamp, state) -> discord.Embed:
     embed = Embed(
         colour=colour,
         title="Aerial Anomaly Detected",
-        description=""
+        description="",
+        timestamp=dt.now()
     )
 
     embed.set_author(name="FS Bot",
@@ -194,7 +199,8 @@ def duel_dashboard(lobbied_players: list[Player], logs: list[str]) -> discord.Em
     embed = Embed(
         colour=colour,
         title="Flight School Bot Duel Dashboard",
-        description="Your source for organized ESF duels"
+        description="Your source for organized ESF duels",
+        timestamp=dt.now()
     )
 
     embed.set_author(name="FS Bot",
@@ -225,7 +231,7 @@ def duel_dashboard(lobbied_players: list[Player], logs: list[str]) -> discord.Em
             preferred_facs = ''.join([cfg.emojis[fac] for fac in p.pref_factions]) if p.pref_factions else 'Any'
             req_skill_levels = ' '.join([str(level.rank) for level in p.req_skill_levels])\
                 if p.req_skill_levels else 'Any'
-            f_lobbied_stamp = format_stamp(p.f_lobbied_timestamp)
+            f_lobbied_stamp = format_stamp(p.first_lobbied_timestamp)
             string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}][{req_skill_levels}][{f_lobbied_stamp}]\n'
             players_string += string
 
@@ -251,7 +257,8 @@ def longer_lobby_logs(logs: list[str]) -> discord.Embed:
     embed = Embed(
         colour=Colour.blurple(),
         title="Flight School Bot Extended History",
-        description="Your source for organized ESF duels"
+        description="Your source for organized ESF duels",
+        timestamp=dt.now()
     )
 
     embed.set_author(name="FS Bot",
@@ -286,7 +293,8 @@ def match_info(match: BaseMatch) -> discord.Embed:
     embed = Embed(
         colour=Colour.green(),
         title=f"Match Info for Match: {match.id}",
-        description=""
+        description="",
+        timestamp=dt.now()
     )
 
     embed.set_author(name="FS Bot",
