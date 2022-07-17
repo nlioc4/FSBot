@@ -19,7 +19,7 @@ class InviteView(discord.ui.View):
 
     def __init__(self, owner):
         super().__init__()
-        self.owner: Player = owner
+        self.owner: Player = owner ##TODO broken
 
     @discord.ui.button(label="Accept Invite", style=discord.ButtonStyle.green)
     async def accept_button(self, button: discord.Button, inter: discord.Interaction):

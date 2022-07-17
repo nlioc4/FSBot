@@ -24,11 +24,11 @@ log = getLogger('fs_bot')
 
 # lists for lobby usage
 _lobbied_players: list[Player] = []
-_invites: dict[Player, list[(int, Player)]] = dict()  # list of invites, with key=owner, value=list[tuple(player, timestamp)]
+_invites: dict[Player, list[Player]] = dict()   # list of invites by owner.id: list[invited players]
 
 
 # Logs
-lobby_logs: list[(int, str)] = []  # lobby logs recorded as a list of tuples, (timestamp, message)
+logs: list[(int, str)] = []  # lobby logs recorded as a list of tuples, (timestamp, message)
 recent_log_length: int = 8
 longer_log_length: int = 25
 
@@ -36,26 +36,18 @@ longer_log_length: int = 25
 timeout_minutes: int = 30
 _warned_players: list[Player] = []
 
-# TODO not used
-class Invite:
-    def __init__(self, owner, players, match=None):
-        self.owner = owner
-        self.players = players
-        self.match = match
-        self.timestamp = tools.timestamp_now()
-
 
 # Functions
 
 # logs
 def logs_recent():
-    return lobby_logs[-recent_log_length:]
+    return logs[-recent_log_length:]
 
 def logs_longer():
-    return lobby_logs[-longer_log_length:]
+    return logs[-longer_log_length:]
 
 def lobby_log(message):
-    lobby_logs.append((tools.timestamp_now(), message))
+    logs.append((tools.timestamp_now(), message))
     log.info(f'Lobby Log: {message}')
 
 def lobbied():
@@ -102,17 +94,29 @@ def lobby_join(player):
     else:
         return False
 
-def invite(self, owner:Player, invited:list[Player]):
-    invited_stamps = [(p, tools.timestamp_now()) for p in invited]
-    if owner in self.__invites:
-        for p_t in invited_stamps:
-            if p_t[0] not in self.__invites[owner]:
-                self.__invites[owner].append(p_t)
-    else:
-        self.__invites[owner] = invited_stamps
+def invite(owner:Player, invited:Player):
+    """Invite Player to match, if match already existed returns match.  If player in match but not owner, returns false"""
+    for match in BaseMatch._active_matches:
+        if owner.active and match.owner.id == owner.id:
+            match.invite(invited)
+            return match
+        else:
+            return False
+    if owner.id not in [match.owner.id for match in BaseMatch._active_matches]:
+        try:
+            _invites[owner.id].append(invited)
+        except KeyError:
+            _invites[owner.id] = [invited]
 
-def del_invite(self, owner:Player, invited:list[Player]):
-    if owner in self.__invites:
-        for p in invited:
-            if p[0] not in self.__invites[owner]:
-                self.__invites[owner].remove(p)
+def accept_invite(owner, player):
+    """Accepts invite from owner to player, if match doesn't exist then creates it and returns created match.
+    If owner has since joined a different match, returns false.
+    If existing match joined, returns True"""
+    for match in BaseMatch._active_matches:
+        if match.owner.id == owner.id:
+            match.join_match(player)
+            return True
+    if owner.active:
+        return False
+    else:
+        BaseMatch.create(owner, [player])

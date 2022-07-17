@@ -14,8 +14,8 @@ import classes.players
 from display import AllStrings as disp
 
 # Bot and guild global variables
-bot = None
-guild = None
+bot: discord.Bot = None
+guild: discord.Guild = None
 
 
 # Dicts containing role and channel objects

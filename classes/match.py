@@ -12,7 +12,7 @@ from classes.players import Player, ActivePlayer
 import modules.database as db
 
 log = getLogger('fs_bot')
-match_id_counter = 0
+_match_id_counter = 0
 
 
 class MatchState(Enum):
@@ -26,12 +26,15 @@ class BaseMatch:
     _active_matches = dict()
     _recent_matches = dict()
 
-    def __init__(self, owner: Player):
-        self.__id = None
+    def __init__(self, owner: Player, player: Player):
+        global _match_id_counter
+        _match_id_counter += 1
+        self.__id = _match_id_counter
         self.owner = owner
+        self.__invited = list()
         self.start_stamp = tools.timestamp_now()
         self.end_stamp = None
-        self.__players: list[ActivePlayer] = [owner.on_playing(self)]  # player list, add owners active_player
+        self.__players: list[ActivePlayer] = [owner.on_playing(self), player.on_playing]   # player list, add owners active_player
         self.__previous_players: list[Player] = list()
         self.match_log = list()  # logs recorded as list of tuples, (timestamp, message)
         self.status = MatchState.INVITING
@@ -62,6 +65,7 @@ class BaseMatch:
 
     async def join_match(self, player: Player):
         #  Joins player to match and updates permissions
+        self.__invited.remove(player)
         self.__players.append(player.on_playing(self))
         await self.channel_update(True)
         self.log(f'{player.name} joined the match')
@@ -115,6 +119,11 @@ class BaseMatch:
     @property
     def prev_players(self):
         return self.__previous_players
+
+    def invite(self, invited: Player):
+        if invited not in self.__invited:
+            self.__invited.append(invited)
+
 
     # @id.setter
     # def set_id(self, a_id: int):

@@ -15,6 +15,9 @@ class AllStrings(Enum):
     NOT_PLAYER = "You are not a player {}, please go to {} first!"
     STOP_SPAM = "{}: Please stop spamming!"
 
+    DM_INVITED = "{} you have been invited to a match by {}! Accept or decline below!"
+    DM_INVITE_INVALID = "This invite is invalid!"
+
     REG_SUCCESSFUL_CHARS = "Successfully registered with characters: {}, {}, {}"
     REG_SUCCESFUL_NO_CHARS = 'Successfully registered with no Jaeger Account'
     REG_ALREADY_CHARS = "Already registered with characters: {}, {}, {}"
@@ -25,11 +28,14 @@ class AllStrings(Enum):
     REG_NOT_JAEGER = "Registration Failed: Character: {} is not from Jaeger!"
     REG_WRONG_FORMAT = "Incorrect Character Entry Format!"
 
-    LOBBY_INVITED = "{} you have been invited to a match by {}! Accept or decline below!"
     LOBBY_INVITED_SELF = "{} you can't invite yourself to a match!"
+    LOBBY_INVITED = "{} invited {} to a match"
+    LOBBY_INVITED_MATCH = "{} invited {} to match: {}"
     LOBBY_JOIN = "{} you have joined the lobby!"
     LOBBY_LEAVE = "{} you have left the lobby!"
     LOBBY_NOT_IN = "{} you are not in this lobby!"
+    LOBBY_NO_DM = "{} could not be invited as they are refusing DM's from the bot!"
+    LOBBY_NO_DM_ALL = "{} no players could be invited"
     LOBBY_ALREADY_IN = "{} you are already in this lobby!"
     LOBBY_TIMEOUT = "{} you have been removed from the lobby by timeout!"
     LOBBY_TIMEOUT_SOON = "{} you will soon be timed out from the lobby, click above to reset."
@@ -65,6 +71,7 @@ class AllStrings(Enum):
         view = self.__view if not self.__view else kwargs['view']
         delete_after = kwargs.get('delete_after') if kwargs.get('delete_after') else None
         ephemeral = kwargs.get('ephemeral') if kwargs.get('ephemeral') else False
+        allowed_mentions = kwargs.get('allowed_mentions') if kwargs.get('allowed_mentions') else discord.AllowedMentions.all()
         if self.__embed:
             #  Checks if embed, then retrieves only the embed specific kwargs
             embed_sig = inspect.signature(self.__embed)
@@ -72,20 +79,24 @@ class AllStrings(Enum):
             embed = self.__embed(**embed_kwargs)
 
         match type(ctx):
-            case discord.User | discord.TextChannel | discord.VoiceChannel | discord.Thread:
-                return await getattr(ctx, action)(content=string, embed=embed, view=view, delete_after=delete_after)
+            case discord.User| discord.Member | discord.TextChannel | discord.VoiceChannel | discord.Thread:
+                return await getattr(ctx, action)(content=string, embed=embed, view=view, delete_after=delete_after,
+                                                  allowed_mentions=allowed_mentions)
 
             case discord.InteractionResponse:
                 return await getattr(ctx, action + '_message')(content=string, embed=embed, view=view,
-                                                               ephemeral=ephemeral, delete_after=delete_after)
+                                                               ephemeral=ephemeral, delete_after=delete_after,
+                                                               allowed_mentions=allowed_mentions)
 
             case discord.Webhook if ctx.type == discord.WebhookType.application and action == "send":
                 if view:
                     return await getattr(ctx, 'send')(content=string, embed=embed, view=view,
-                                                      ephemeral=ephemeral, delete_after=delete_after)
+                                                      ephemeral=ephemeral, delete_after=delete_after,
+                                                      allowed_mentions=allowed_mentions)
                 else:
                     return await getattr(ctx, 'send')(content=string, embed=embed,
-                                                      ephemeral=ephemeral, delete_after=delete_after)
+                                                      ephemeral=ephemeral, delete_after=delete_after,
+                                                      allowed_mentions=allowed_mentions)
 
             case discord.Webhook if ctx.type == discord.WebhookType.application and action == "edit":  # Probably doesn't work
                 return await getattr(ctx.fetch_message(), 'edit_message')(content=string, embed=embed, view=view,
@@ -94,7 +105,8 @@ class AllStrings(Enum):
 
             case discord.Interaction:
                 return await getattr(ctx.response, action + '_message')(content=string, embed=embed, view=view,
-                                                                        ephemeral=ephemeral, delete_after=delete_after)
+                                                                        ephemeral=ephemeral, delete_after=delete_after,
+                                                                        allowed_mentions=allowed_mentions)
 
     async def send(self, ctx, *args, **kwargs):
         return await self._do_send('send', ctx, *args, **kwargs)
