@@ -59,7 +59,7 @@ def lobby_timeout(player):
     if player in _lobbied_players:
         player.on_lobby_leave()
         _lobbied_players.remove(player)
-        self._warned_players.remove(player)
+        _warned_players.remove(player)
         lobby_log(f'{player.name} was removed from the lobby by timeout.')
         return True
     else:
@@ -70,7 +70,7 @@ def lobby_timeout_reset(player):
     if player in _lobbied_players:
         player.reset_lobby_timestamp()
         if player in self._warned_players:
-            self._warned_players.remove(player)
+            _warned_players.remove(player)
         return True
     return False
 
@@ -108,15 +108,33 @@ def invite(owner:Player, invited:Player):
         except KeyError:
             _invites[owner.id] = [invited]
 
-def accept_invite(owner, player):
-    """Accepts invite from owner to player, if match doesn't exist then creates it and returns created match.
-    If owner has since joined a different match, returns false.
-    If existing match joined, returns True"""
+async def accept_invite(owner, player):
+    """Accepts invite from owner to player, if match doesn't exist then creates it and returns match.
+    If owner has since joined a different match, returns false."""
     for match in BaseMatch._active_matches:
         if match.owner.id == owner.id:
             match.join_match(player)
-            return True
+            lobby_leave(player)
+            return match
     if owner.active:
         return False
     else:
-        BaseMatch.create(owner, [player])
+        lobby_leave(player)
+        match = await BaseMatch.create(owner, player)
+        match.info_message = await disp.MATCH_INFO.send(match.voice_channel, match=match)
+        if owner.id in _invites:
+            _invites[owner.id].remove(player)
+            if _invites[owner.id] == []:
+                del _invites[owner.id]
+
+
+def decline_invite(owner, player):
+    for match in BaseMatch._active_matches:
+        if match.owner.id == owner.id:
+            match.decline_invite(player)
+            return True
+    else:
+        if owner.id in _invites:
+            _invites[owner.id].remove(player)
+            if _invites[owner.id] == []:
+                del _invites[owner.id]

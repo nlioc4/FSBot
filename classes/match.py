@@ -34,16 +34,17 @@ class BaseMatch:
         self.__invited = list()
         self.start_stamp = tools.timestamp_now()
         self.end_stamp = None
-        self.__players: list[ActivePlayer] = [owner.on_playing(self), player.on_playing]   # player list, add owners active_player
+        self.__players: list[ActivePlayer] = [owner.on_playing(self), player.on_playing(self)]   # player list, add owners active_player
         self.__previous_players: list[Player] = list()
         self.match_log = list()  # logs recorded as list of tuples, (timestamp, message)
         self.status = MatchState.INVITING
         self.voice_channel: discord.VoiceChannel | None = None
+        self.info_message: discord.Message | None = None
         BaseMatch._active_matches[self.id] = self
 
     @classmethod
-    async def create(cls, owner: Player, invited: list[Player]):
-        obj = cls(owner)
+    async def create(cls, owner: Player, invited: Player):
+        obj = cls(owner, invited)
         # last_match = None  # await db.async_db_call(db.get_last_element, 'matches')
         # print('past db call')
         # obj.set_id(1 if not last_match else last_match['match_id'] + 1)
@@ -53,7 +54,8 @@ class BaseMatch:
             d_obj.roles['app_admin']: discord.PermissionOverwrite(view_channel=True),
             d_obj.roles['admin']: discord.PermissionOverwrite(view_channel=True),
             d_obj.roles['mod']: discord.PermissionOverwrite(view_channel=True),
-            d_obj.guild.get_member(owner.id): discord.PermissionOverwrite(view_channel=True)
+            d_obj.guild.get_member(owner.id): discord.PermissionOverwrite(view_channel=True),
+            d_obj.guild.get_member(invited.id): discord.PermissionOverwrite(view_channel=True)
         }
 
         obj.voice_channel = await d_obj.categories['user'].create_voice_channel(
@@ -67,15 +69,17 @@ class BaseMatch:
         #  Joins player to match and updates permissions
         self.__invited.remove(player)
         self.__players.append(player.on_playing(self))
-        await self.channel_update(True)
+        await self.channel_update(player, True)
         self.log(f'{player.name} joined the match')
 
     async def leave_match(self, player: ActivePlayer):
         self.__previous_players.append(player.player)
         self.__players.remove(player)
-        await self.channel_update(False)
+        await self.channel_update(player, False)
         player.player.on_quit()
         self.log(f'{player.name} left the match')
+        if not self.__players and not self.end_stamp:  # if no players left, and match not already ended
+            await self.end_match()
 
     async def end_match(self):
         self.end_stamp = tools.timestamp_now()
@@ -97,12 +101,9 @@ class BaseMatch:
                 'owner': self.owner.id, 'players': player_ids, 'match_log': self.match_log}
         return data
 
-    async def channel_update(self, action: bool):
-        if not self.__players:
-            await self.end_match()
-        players_members = [d_obj.guild.get_member(player.id) for player in self.__players]
-        for player_member in players_members:
-            await self.voice_channel.set_permissions(player_member, view_channel=action)
+    async def channel_update(self, player, action: bool):
+        player_member = d_obj.guild.get_member(player.id)
+        await self.voice_channel.set_permissions(player_member, view_channel=action)
 
     def log(self, message):
         self.match_log.append((tools.timestamp_now(), message))
@@ -120,9 +121,17 @@ class BaseMatch:
     def prev_players(self):
         return self.__previous_players
 
-    def invite(self, invited: Player):
-        if invited not in self.__invited:
-            self.__invited.append(invited)
+    @property
+    def invited(self):
+        return self.__invited
+
+    def invite(self, player: Player):
+        if player not in self.__invited:
+            self.__invited.append(player)
+
+    def decline_invite(self, player: Player):
+        if player in self.__invited:
+            self.__invited.remove(player)
 
 
     # @id.setter

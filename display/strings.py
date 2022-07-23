@@ -48,19 +48,23 @@ class AllStrings(Enum):
 
     MATCH_CREATE = "{} Match created ID: {}"
     MATCH_INFO = "", match_info
-    MATCH_INVITED = "{} You've been invited to a match by {}, accept or decline below", None, True
-    MATCH_ACCEPT = "{} You have accepted the invite."
-    MATCH_DECLINE = " {} You have decline the invite."
+    MATCH_INVITED = "{} You've been invited to a match by {}, accept or decline below", None
+    MATCH_ACCEPT = "You have accepted the invite."
+    MATCH_DECLINE = "You have decline the invite."
+    MATCH_JOIN = "{} You have joined the match"
+    MATCH_LEAVE = "{} You have left the match."
     MATCH_END = "Match ID: {} Ended, closing match channels..."
 
     SKILL_LEVEL_REQ_ONE = "Your requested skill level has been set to: {}"
     SKILL_LEVEL_REQ_MORE = "Your requested skill levels have been set to: {}"
     SKILL_LEVEL = "Your skill level has been set to: {}"
 
-    def __init__(self, string, embed=None, view=None):
+
+    ACCOUNT_HAS_OWN = "{} you have registered with your own Jaeger account, you can't request a temporary account."
+
+    def __init__(self, string, embed=None):
         self.__string = string
         self.__embed = embed
-        self.__view = view
 
     def __call__(self, *args):
         return self.__string.format(*args)
@@ -68,7 +72,7 @@ class AllStrings(Enum):
     async def _do_send(self, action, ctx, *args, **kwargs):
         string = self.__string.format(*args) if self.__string else None
         embed = None
-        view = self.__view if not self.__view else kwargs['view']
+        view = kwargs.get('view') if kwargs.get('view') else None
         delete_after = kwargs.get('delete_after') if kwargs.get('delete_after') else None
         ephemeral = kwargs.get('ephemeral') if kwargs.get('ephemeral') else False
         allowed_mentions = kwargs.get('allowed_mentions') if kwargs.get('allowed_mentions') else discord.AllowedMentions.all()

@@ -303,26 +303,44 @@ def match_info(match: BaseMatch) -> discord.Embed:
                               "/pfp.png")
 
     match_info_str = (f"Owner: {match.owner.mention}\n"
-                     f"Match status: {match.status}\n"
+                     f"Match status: {match.status.value}\n"
                      f"Match Start Time: {format_stamp(match.start_stamp)}\n"
                      )
 
     if match.end_stamp:
-        base_info_str += f'Match End Time: {format_stamp(match.end_stamp)}'
+        match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}'
 
     embed.add_field(name="Match Info",
                     value=match_info_str,
                     inline=False)
 
+    embed.add_field(
+        name='----------------------------------------------------------',
+        value='@Mention [Preferred Faction(s)][Skill Level]\n',
+        inline=False
+    )
     if match.invited:
+        invited_string = ''
+        for p in match.invited:
+            preferred_facs = ''.join([cfg.emojis[fac] for fac in p.pref_factions]) if p.pref_factions else 'Any'
+            string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}]\n'
+            invited_string += string
+
         embed.add_field(name="Invited Players",
-                        value='\n'.join([p.mention for p in match.invited]),
+                        value=invited_string,
                         inline=False
         )
 
-    if match.invited:
+    if match.players:
+        players_string = ''
+        for p in match.players:
+            p = p.player
+            preferred_facs = ''.join([cfg.emojis[fac] for fac in p.pref_factions]) if p.pref_factions else 'Any'
+            string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}]\n'
+            players_string += string
+
         embed.add_field(name="Players",
-                        value='\n'.join([p.mention for p in match.players]),
+                        value=players_string,
                         inline=False)
 
 

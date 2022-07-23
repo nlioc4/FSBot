@@ -17,6 +17,8 @@ class Account:
         self.__last_usage = dict()
         self.__unique_usages = unique_usages
         self.message = None
+        self.__validated = False
+        self.__terminated = False
 
     def update(self, username, password):
         self.__username = username
@@ -57,6 +59,12 @@ class Account:
     def last_usage(self):
         return self.__last_usage
 
+    @property
+    def last_user_id(self):
+        return self.__unique_usages[:-1]
+
     def clean(self):
         self.a_player = None
         self.__last_usage = None
+
+

@@ -456,8 +456,8 @@ class ActivePlayer:
         else:
             return self.account.ig_ids[self.current_faction_id - 1]
 
-    def leave_match(self):
-        self.__match.leave_match(self)
+    async def leave_match(self):
+        await self.__match.leave_match(self)
         self.__player.on_quit()
 
 

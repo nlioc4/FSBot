@@ -53,9 +53,7 @@ class ChallengeDropdown(discord.ui.Select):
                 for _ in range(3):
                     try:
                         memb = d_obj.guild.get_member(invited.id)
-                        print(memb.name)
-                        await disp.DM_INVITED.send(d_obj.guild.get_member(invited.id), invited.mention, owner.mention)
-                        print("sent_dm")
+                        await disp.DM_INVITED.send(d_obj.guild.get_member(invited.id), invited.mention, owner.mention, view=views.InviteView(owner))
                         match = lobby.invite(owner, invited)
                         break
                     except discord.Forbidden:
@@ -63,7 +61,7 @@ class ChallengeDropdown(discord.ui.Select):
                             no_dms.append(invited)
             if no_dms:
                 await disp.LOBBY_NO_DM.send_temp(inter.channel, ','.join([p.mention for p in no_dms]))
-                lobby.lobby_log(f'{",".join([p.name for p in no_dms])} could not be invited, no dms')
+                lobby.lobby_log(f'{",".join([p.name for p in no_dms])} could not be invited, as they are not accepting DM\'s')
             remaining = [p for p in invited_players if p not in no_dms]
             remaining_mentions = ",".join([p.mention for p in remaining])
             if remaining and match:
@@ -76,7 +74,7 @@ class ChallengeDropdown(discord.ui.Select):
                 lobby.lobby_log(f'{owner.name} invited {",".join([p.name for p in remaining])} to a match')
             else:
                 await disp.LOBBY_NO_DM_ALL.send_temp(inter, owner.mention)
-
+        await _cog.update_dashboard()
 
 class DashboardView(discord.ui.View):
     def __init__(self):
@@ -110,7 +108,7 @@ class DashboardView(discord.ui.View):
     async def history_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         if await is_spam(inter, inter.user):
             return
-        if len(lobby.logs) <= len(lobby.logs_recent):
+        if len(lobby.logs) <= len(lobby.logs_recent()):
             await disp.LOBBY_NO_HISTORY.send_temp(inter, inter.user.mention)
             return
         await disp.LOBBY_LONGER_HISTORY.send(inter, inter.user.mention, logs=lobby.logs_longer, delete_after=20)
@@ -186,7 +184,7 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
             elif stamp_dt < (
                     dt.now() - timedelta(minutes=lobby.timeout_minutes - 5)) and p not in lobby._warned_players:
                 lobby._warned_players.append(p)
-                self.log(f'{p.name} will soon be timed out of the lobby')
+                lobby.lobby_log(f'{p.name} will soon be timed out of the lobby')
                 await disp.LOBBY_TIMEOUT_SOON.send(self.dashboard_channel, p.mention, delete_after=30)
 
         await self.update_dashboard()
