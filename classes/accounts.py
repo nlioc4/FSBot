@@ -2,6 +2,7 @@
 
 Class to represent Jaeger Accounts available to the app
 '''
+import modules.tools as tools
 
 
 class Account:
@@ -63,8 +64,29 @@ class Account:
     def last_user_id(self):
         return self.__unique_usages[:-1]
 
+    @property
+    def is_validated(self):
+        return self.__validated
+
+    @property
+    def is_terminated(self):
+        return self.__terminated
+
     def clean(self):
         self.a_player = None
-        self.__last_usage = None
+        self.__last_usage = dict()
+        self.__validated = False
+        self.__terminated = False
 
+    def add_usage(self, player):
+        self.a_player = player
+        self.__last_usage.update({"user_id": self.a_player.id, "match_id": self.a_player.match if self.a_player.match else 0})
 
+    def validate(self):
+        self.__validated = True
+        self.__unique_usages.append(self.a_player.id)
+        self.__last_usage.update({"start_time": tools.timestamp_now()})
+
+    def terminate(self):
+        self.__terminated = True
+        self.__last_usage['end_time'] = tools.timestamp_now()

@@ -42,7 +42,7 @@ class ChallengeDropdown(discord.ui.Select):
         owner: Player = Player.get(inter.user.id)
         if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, owner):
             return
-        invited_players: list(Player) = [Player.get(int(value)) for value in self.values]
+        invited_players: list[Player] = [Player.get(int(value)) for value in self.values]
         if owner in invited_players:
             await disp.LOBBY_INVITED_SELF.send_temp(inter, owner.mention)
             return
@@ -53,7 +53,7 @@ class ChallengeDropdown(discord.ui.Select):
                 for _ in range(3):
                     try:
                         memb = d_obj.guild.get_member(invited.id)
-                        await disp.DM_INVITED.send(d_obj.guild.get_member(invited.id), invited.mention, owner.mention, view=views.InviteView(owner))
+                        await disp.DM_INVITED.send(memb, invited.mention, owner.mention, view=views.InviteView(owner))
                         match = lobby.invite(owner, invited)
                         break
                     except discord.Forbidden:
@@ -61,20 +61,22 @@ class ChallengeDropdown(discord.ui.Select):
                             no_dms.append(invited)
             if no_dms:
                 await disp.LOBBY_NO_DM.send_temp(inter.channel, ','.join([p.mention for p in no_dms]))
-                lobby.lobby_log(f'{",".join([p.name for p in no_dms])} could not be invited, as they are not accepting DM\'s')
+                lobby.lobby_log(
+                    f'{",".join([p.name for p in no_dms])} could not be invited, as they are not accepting DM\'s')
             remaining = [p for p in invited_players if p not in no_dms]
             remaining_mentions = ",".join([p.mention for p in remaining])
             if remaining and match:
                 await disp.LOBBY_INVITED_MATCH.send_temp(inter, owner.mention, remaining_mentions, match.id,
-                                                   allowed_mentions=discord.AllowedMentions(users=[inter.user]))
+                                                         allowed_mentions=discord.AllowedMentions(users=[inter.user]))
                 lobby.lobby_log(f'{owner.name} invited {",".join([p.name for p in remaining])} to Match: {match.id}')
             elif remaining and not match:
                 await disp.LOBBY_INVITED.send_temp(inter, owner.mention, remaining_mentions,
-                                                         allowed_mentions=discord.AllowedMentions(users=[inter.user]))
+                                                   allowed_mentions=discord.AllowedMentions(users=[inter.user]))
                 lobby.lobby_log(f'{owner.name} invited {",".join([p.name for p in remaining])} to a match')
             else:
                 await disp.LOBBY_NO_DM_ALL.send_temp(inter, owner.mention)
         await _cog.update_dashboard()
+
 
 class DashboardView(discord.ui.View):
     def __init__(self):
@@ -132,10 +134,9 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
         self.bot = bot
         self.dashboard_channel: discord.TextChannel = d_obj.channels['dashboard']
         # Dynamics
-        self.dashboard_msg: discord.Message = None
+        self.dashboard_msg: discord.Message | None = None
 
         self.dashboard_loop.start()
-
 
     def cog_check(self, ctx):
         player = Player.get(ctx.user.id)

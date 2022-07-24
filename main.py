@@ -42,6 +42,7 @@ async def on_ready():
     display.embeds.init(bot)
     await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, bot)
     bot.load_extension("cogs.duel_lobby")
+    bot.load_extension("cogs.matches")
 
 
 

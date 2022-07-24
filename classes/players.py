@@ -224,6 +224,10 @@ class Player:
         return self.__has_own_account
 
     @property
+    def account(self):
+        return self.__account
+
+    @property
     def timeout(self):
         return self.__timeout
 
@@ -271,16 +275,11 @@ class Player:
 
     def set_account(self, account: Account):
         self.__account = account
-        self.__ig_names = account.ig_names
-        self.__ig_ids = account.ig_ids
 
     def on_player_clean(self):
         self.__match = None
         self.__active = None
         self.__account = None
-        if not self.__has_own_account:
-            self.__ig_names = ["N/A", "N/A", "N/A"]
-            self.__ig_ids = [0, 0, 0]
 
     def on_playing(self, match):
         self.__match = match
@@ -432,29 +431,47 @@ class ActivePlayer:
 
     @property
     def ig_names(self):
-        return self.player.ig_names
+        if self.player.has_own_account:
+            return self.ig_names[self.current_faction_id - 1]
+        elif self.account:
+            return self.account.ig_names[self.current_faction_id - 1]
+        else:
+            return False
 
     @property
     def ig_ids(self):
-        return self.player.ig_ids
+        if self.player.has_own_account:
+            return self.ig_ids
+        elif self.account:
+            return self.account.ig_ids
+        else:
+            return False
 
     @property
     def current_faction_id(self):
-        return cfg.i_factions[self.__current_faction]
+        if self.__current_faction == 0:
+            return False
+        else:
+            return cfg.i_factions[self.__current_faction]
 
     @property
     def current_ig_name(self):
         if self.player.has_own_account:
             return self.ig_names[self.current_faction_id - 1]
-        else:
+        elif self.account:
             return self.account.ig_names[self.current_faction_id - 1]
+        else:
+            return False
 
     @property
     def current_ig_id(self):
         if self.player.has_own_account:
             return self.ig_ids[self.current_faction_id - 1]
-        else:
+        elif self.account:
             return self.account.ig_ids[self.current_faction_id - 1]
+        else:
+            return False
+
 
     async def leave_match(self):
         await self.__match.leave_match(self)

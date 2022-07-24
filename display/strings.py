@@ -60,7 +60,13 @@ class AllStrings(Enum):
     SKILL_LEVEL = "Your skill level has been set to: {}"
 
 
-    ACCOUNT_HAS_OWN = "{} you have registered with your own Jaeger account, you can't request a temporary account."
+    ACCOUNT_HAS_OWN = "You have registered with your own Jaeger account, you can't request a temporary account."
+    ACCOUNT_ALREADY = "You have already been assigned an account, you can't request another."
+    ACCOUNT_SENT = "You have been sent an account, check your DM's"
+    ACCOUNT_LOG_OUT = "Your session has been ended, please log out!"
+    ACCOUNT_NO_DMS = "You must allow the bot to send you DM's in order to recieve an account!"
+    ACCOUNT_NO_ACCOUNT = "Sorry, there are no accounts available at the moment.  Please ping Colin!"
+    ACCOUNT_EMBED = "", account
 
     def __init__(self, string, embed=None):
         self.__string = string
@@ -70,47 +76,45 @@ class AllStrings(Enum):
         return self.__string.format(*args)
 
     async def _do_send(self, action, ctx, *args, **kwargs):
-        string = self.__string.format(*args) if self.__string else None
-        embed = None
-        view = kwargs.get('view') if kwargs.get('view') else None
-        delete_after = kwargs.get('delete_after') if kwargs.get('delete_after') else None
-        ephemeral = kwargs.get('ephemeral') if kwargs.get('ephemeral') else False
-        allowed_mentions = kwargs.get('allowed_mentions') if kwargs.get('allowed_mentions') else discord.AllowedMentions.all()
+        args_dict = {}
+        if self.__string:
+            args_dict['content'] = self.__string.format(*args)
         if self.__embed:
             #  Checks if embed, then retrieves only the embed specific kwargs
             embed_sig = inspect.signature(self.__embed)
             embed_kwargs = {arg: kwargs.get(arg) for arg in embed_sig.parameters}
-            embed = self.__embed(**embed_kwargs)
+            args_dict['embed'] = self.__embed(**embed_kwargs)
+        if kwargs.get('view'):
+            args_dict['view'] = kwargs.get('view')
+        if kwargs.get('delete_after'):
+            args_dict['delete_after'] = kwargs.get('delete_after')
+        if kwargs.get('ephemeral'):
+            args_dict['ephemeral'] = kwargs.get('ephemeral')
+        if kwargs.get('allowed_mentions'):
+            args_dict['allowed_mentions'] = kwargs.get('allowed_mentions')
+        # string = self.__string.format(*args) if self.__string else None
+        # embed = None
+        # view = kwargs.get('view') or None
+        # delete_after = kwargs.get('delete_after') or None
+        # ephemeral = kwargs.get('ephemeral') or False
+        # allowed_mentions = kwargs.get('allowed_mentions') or discord.AllowedMentions.all()
+
 
         match type(ctx):
             case discord.User| discord.Member | discord.TextChannel | discord.VoiceChannel | discord.Thread:
-                return await getattr(ctx, action)(content=string, embed=embed, view=view, delete_after=delete_after,
-                                                  allowed_mentions=allowed_mentions)
+                return await getattr(ctx, action)(**args_dict)
 
             case discord.InteractionResponse:
-                return await getattr(ctx, action + '_message')(content=string, embed=embed, view=view,
-                                                               ephemeral=ephemeral, delete_after=delete_after,
-                                                               allowed_mentions=allowed_mentions)
+                return await getattr(ctx, action + '_message')(**args_dict)
 
             case discord.Webhook if ctx.type == discord.WebhookType.application and action == "send":
-                if view:
-                    return await getattr(ctx, 'send')(content=string, embed=embed, view=view,
-                                                      ephemeral=ephemeral, delete_after=delete_after,
-                                                      allowed_mentions=allowed_mentions)
-                else:
-                    return await getattr(ctx, 'send')(content=string, embed=embed,
-                                                      ephemeral=ephemeral, delete_after=delete_after,
-                                                      allowed_mentions=allowed_mentions)
+                return await getattr(ctx, 'send')(**args_dict)
 
             case discord.Webhook if ctx.type == discord.WebhookType.application and action == "edit":  # Probably doesn't work
-                return await getattr(ctx.fetch_message(), 'edit_message')(content=string, embed=embed, view=view,
-                                                                          ephemeral=ephemeral,
-                                                                          delete_after=delete_after)
+                return await getattr(ctx.fetch_message(), 'edit_message')(**args_dict)
 
             case discord.Interaction:
-                return await getattr(ctx.response, action + '_message')(content=string, embed=embed, view=view,
-                                                                        ephemeral=ephemeral, delete_after=delete_after,
-                                                                        allowed_mentions=allowed_mentions)
+                return await getattr(ctx.response, action + '_message')(**args_dict)
 
     async def send(self, ctx, *args, **kwargs):
         return await self._do_send('send', ctx, *args, **kwargs)

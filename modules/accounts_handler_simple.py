@@ -1,4 +1,4 @@
-'''manages Account objects'''
+'''Manages Account objects'''
 
 # External Imports
 import asyncio
@@ -15,6 +15,8 @@ import classes
 import modules.config as cfg
 import modules.census as census
 import modules.discord_obj as d_obj
+import modules.database as db
+from display import AllStrings as disp, embeds
 
 eastern = pytz.timezone('US/Eastern')
 
@@ -54,9 +56,9 @@ async def init(service_account_path: str, client: discord.bot):
     # import accounts individually
     for i in (range(num_accounts)):
         # get account data
-        a_in_game = sheet_imported[i * Y_SKIP + Y_OFFSET][X_OFFSET + 2] # in-game char name, minus faction tag
-        a_username = sheet_imported[i * Y_SKIP + Y_OFFSET][X_OFFSET] # account username
-        a_password = sheet_imported[i * Y_SKIP + Y_OFFSET][X_OFFSET + 1] # account password
+        a_in_game = sheet_imported[i * Y_SKIP + Y_OFFSET][X_OFFSET + 2]  # in-game char name, minus faction tag
+        a_username = sheet_imported[i * Y_SKIP + Y_OFFSET][X_OFFSET]  # account username
+        a_password = sheet_imported[i * Y_SKIP + Y_OFFSET][X_OFFSET + 1]  # account password
         raw_use = str(sheet_imported[i * Y_SKIP + Y_OFFSET + 1][X_OFFSET - 1])
         a_id = int(a_in_game[-2:])  # integer only account ID
 
@@ -77,29 +79,18 @@ async def init(service_account_path: str, client: discord.bot):
             # account has yet to be initialised
             unique_usages_raw = sheet_imported[i * Y_SKIP + Y_OFFSET:i * Y_SKIP + Y_OFFSET + 3, USAGE_OFFSET:]
             a_unique_usages_id = list()
-            a_unique_usages_date = list()
             for use in range(len(unique_usages_raw[2])):
                 if unique_usages_raw[2][use] == "":
                     pass
                 else:
                     a_unique_usages_id.append(int(unique_usages_raw[2][use]))
-                    a_unique_usages_date.append(unique_usages_raw[0][use])
                 # check if account is marked "used"
             a_acc = classes.Account(a_id, a_username, a_password, a_in_game, a_unique_usages_id)
             if raw_use == "OPEN":
                 _available_accounts[a_id] = a_acc
             if raw_use == "USED":
                 _busy_accounts[a_id] = a_acc
-                _busy_accounts[a_id].last_usage = {"id": a_unique_usages_id[-1],
-                                                   "time_string": a_unique_usages_date[-1]}
-                _busy_accounts[a_id].a_player = _guild.get_member(a_unique_usages_id[-1])  # TODO change to Player
 
-            # for char_name in a_acc.in_game_names:
-            #     char_data = await census.get_char_info(char_name)
-            #     char_id = char_data[1]
-            #     char_faction = char_data[2]
-            #     a_acc.in_game_ids[char_faction - 1] = char_id
-            #     _account_char_ids[char_id] = (a_acc, char_name)
     # Create global all account dict
     global all_accounts
     all_accounts = _busy_accounts | _available_accounts
@@ -134,15 +125,10 @@ async def init(service_account_path: str, client: discord.bot):
     for acc_id in to_drop:
         del all_accounts[acc_id]
 
-
-
-
     print('Initialized Accounts:', len(all_accounts))
 
 
-
-
-def pick_account(a_player: discord.member) -> object: # TODO typecheck for Player
+def pick_account(a_player: classes.Player) -> classes.Account | bool:  # TODO typecheck for Player
     """
     Pick the account that the player has used the most, or the least used account
     Avoid players using multiple accounts if possible
@@ -187,36 +173,104 @@ def pick_account(a_player: discord.member) -> object: # TODO typecheck for Playe
     return min_obj
 
 
-def set_account(a_player: discord.member, acc: classes.Account):
+def set_account(a_player: classes.Player, acc: classes.Account):
     """
-    Set a players current account and track usage
+    Set a players current account
     """
     # Put in busy dict
     del _available_accounts[acc.id]
     _busy_accounts[acc.id] = acc
 
     # adjust Player and Account objects
-    print(f'Giving account [{acc.id}] to player: ID: [{a_player.id}], name: [{a_player.name}]')
-    acc.a_player = a_player
-    acc.unique_usages.append(a_player.id)
-    # acc.last_usage.update({"id": a_player.id, "time_string": datetime.now().astimezone(eastern).strftime("%m/%d, %H:%M "),
-    #                   "timestamp": datetime.now().astimezone(eastern)})
+    acc.add_usage(a_player)
+    a_player.set_account(acc)
+
+
+class ValidateView(discord.ui.View):
+    def __init__(self, acc):
+        super().__init__()
+        self.acc = acc
+        self.end_session_button.disabled = True
+
+    @discord.ui.button(label="Confirm Rules", style=discord.ButtonStyle.green)
+    async def validate_button(self, button: discord.Button, inter: discord.Interaction):
+        validate_account(acc=self.acc)
+        button.disabled = True
+        button.style = discord.ButtonStyle.grey
+        self.end_session_button.disabled = False
+        await disp.ACCOUNT_EMBED.edit(inter, acc=self.acc, view=self)
+
+    @discord.ui.button(label="End Session", style=discord.ButtonStyle.red)
+    async def end_session_button(self, button: discord.Button, inter: discord.Interaction):
+        await terminate_account(acc=self.acc, edit_msg=False)
+        await disp.ACCOUNT_EMBED.edit(inter, acc=self.acc, view=None)
+
+
+async def send_account(acc: classes.Account = None, player: classes.Player = None):
+    """Sends account to player, provide either account or player"""
+    if not acc and not player:
+        raise ValueError("No args provided")
+    if not acc:
+        acc = player.account
+    user = d_obj.bot.get_user(acc.a_player.id)
+    for _ in range(3):
+        try:
+            acc.message = await disp.ACCOUNT_EMBED.send(user, acc=acc, view=ValidateView(acc))
+            if acc.message:
+                break
+        except discord.Forbidden:
+            continue
+    return acc.message
+
+
+def validate_account(acc: classes.Account = None, player: classes.Player = None):
+    """Player accepted account, track usage and update object."""
+    if not acc and not player:
+        raise ValueError("No args provided")
+    if not acc:
+        acc = player.account
+    if not player:
+        player = acc.a_player
+    print(f'Giving account [{acc.id}] to player: ID: [{player.id}], name: [{player.name}]')  # TODO change to log
+
+    # update account object
+    acc.validate()
 
     # Update GSheet with Usage
-    gc = service_account(cfg.GAPI_SERVICE) # connection
-    sh = gc.open_by_key(cfg.database["accounts_id"]) #sheet
-    ws = sh.worksheet(cfg.database["accounts_sheet_name"]) # worksheet
-    row = acc.id * Y_SKIP # row of the account to be updated
-    column = len(ws.row_values(row)) + 1 # updates via counting row values, instead of below counting nb_uniques
+    gc = service_account(cfg.GAPI_SERVICE)  # connection
+    sh = gc.open_by_key(cfg.database["accounts_id"])  # sheet
+    ws = sh.worksheet(cfg.database["accounts_sheet_name"])  # worksheet
+    row = acc.id * Y_SKIP  # row of the account to be updated
+    column = len(ws.row_values(row)) + 1  # updates via counting row values, instead of below counting nb_uniques
     # column = acc.nb_unique_usages + USAGE_OFFSET # column of the account to be updated
-    cells_list = ws.range(row, column, row+2, column)
+    cells_list = ws.range(row, column, row + 2, column)
     date = datetime.now().astimezone(eastern).date().strftime('%m/%d/%Y')
     cells_list[0].value = date
-    cells_list[1].value = a_player.name
-    cells_list[2].value = str(a_player.id)
+    cells_list[1].value = player.name
+    cells_list[2].value = str(player.id)
 
-    ws.update_cells(cells_list, 'USER_ENTERED')  # update the sheet
+    ws.update_cells(cells_list, 'USER_ENTERED')  # actually update the sheet
     ws.format(cells_list[0].address, {"numberFormat": {"type": "DATE", "pattern": "mmmm dd"}})
+
+
+async def terminate_account(acc: classes.Account = None, player: classes.Player = None, edit_msg = True):
+    """Terminates account and sends message to log off, provide either account or player"""
+    if not acc and not player:
+        raise ValueError("No args provided")
+    if not acc:
+        acc = player.account
+    acc.terminate()
+    user = d_obj.bot.get_user(acc.a_player.id)
+    if acc.message:
+        for _ in range(3):
+            try:
+                msg = await disp.ACCOUNT_LOG_OUT.send(user)
+                if msg:
+                    break
+            except discord.Forbidden:
+                continue
+    if edit_msg:
+        await disp.ACCOUNT_EMBED.edit(acc.message, acc=acc, view=None)
 
 
 def has_account(a_player):
@@ -234,11 +288,7 @@ def accounts_info() -> tuple[int, int, list]:
 
     for acc in _busy_accounts:
         i = acc
-        u = _busy_accounts[acc].a_player
+        u = _busy_accounts[acc].a_player or classes.Player.get(_busy_accounts[acc].last_user_id)
         usages.append((i, u.mention))
     usages.sort()
     return available, used, usages
-
-
-
-

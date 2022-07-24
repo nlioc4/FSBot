@@ -86,12 +86,11 @@ class BaseMatch:
         # add match end message
         with self.voice_channel.typing():
             await asyncio.sleep(10)
+        for player in self.__players:
+            await self.leave_match(player)
         await self.voice_channel.delete(reason='Match Ended')
         self.log('Match Ended')
         await db.async_db_call(db.set_element, 'matches', self.get_data())
-        for player in self.__players:
-            await self.leave_match(player)
-
         del BaseMatch._active_matches[self.id]
         BaseMatch._recent_matches[self.id] = self
 
@@ -133,7 +132,3 @@ class BaseMatch:
         if player in self.__invited:
             self.__invited.remove(player)
 
-
-    # @id.setter
-    # def set_id(self, a_id: int):
-    #     self.__id = a_id

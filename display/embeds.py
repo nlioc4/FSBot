@@ -52,20 +52,21 @@ def bot_info() -> discord.Embed:
                     value=accounts.all_accounts)
 
     embed.add_field(name='Enabled Cogs',
-                    value=_client.cogs.keys())
+                    value=','.join([key for key in _client.cogs.keys()]))
 
     return embed
 
 
-def account(ctx, acc) -> discord.Embed:
+def account(acc) -> discord.Embed:
     """Jaeger Account Embed
     """
     embed = Embed(
         colour=Colour.blue(),
         title="Flight School Jaeger Account",
-        description=f"\nYou've been assigned a Jaeger Account by {ctx.user.mention} \n"
-                    f"This account is not to be used after: {formatted_time} \n",
-        timestamp=dt.now()
+        description="\nFollow all Jaeger and [PREY's Flight School Rules](https://www.google.com) while using this account\n"
+                    f"[Be careful not to interfere with other Jaeger users, "
+                    f"check the calendar here]({cfg.JAEGER_CALENDAR_URL})\n"
+                    f"Failure to follow these rules may result in removed access to the entire FSBot system"
     )
 
     embed.set_author(name="FS Bot",
@@ -73,22 +74,32 @@ def account(ctx, acc) -> discord.Embed:
                      icon_url="https://cdn.discordapp.com/attachments/875624069544939570/993393648559476776"
                               "/pfp.png")
 
-    embed.add_field(name='Account Details',
-                    value=f"DO NOT SAVE THESE DETAILS TO YOUR LAUNCHER\n"
-                          f"Username: **{acc.username}**\n"
-                          f"Password: **{acc.password}**\n",
-                    inline=False
-                    )
-    embed.add_field(name="Follow all Jaeger and PREY's Flight School Rules while using this account",
-                    value=
-                    f"[Be careful not to interfere with other Jaeger users, "
-                    f"check the calendar here]({cfg.JAEGER_CALENDAR_URL})",
-                    inline=False
-                    )
+    if acc.is_terminated:
+        embed.colour = Colour.red()
+        embed.add_field(name='Account Session Ended',
+                        value='This account token is no longer valid.',
+                        inline=False)
+
+    elif acc.is_validated:
+        embed.colour = Colour.green()
+        embed.add_field(name='Account Details',
+                        value=f"DO NOT SAVE THESE DETAILS TO YOUR LAUNCHER\n"
+                              f"Username: **{acc.username}**\n"
+                              f"Password: **{acc.password}**\n",
+                        inline=False
+                        )
+    else:
+        embed.colour = Colour.greyple()
+        embed.add_field(name='Account Unvalidated',
+                        value='Click below to confirm you are not going to save this account\'s login details,'
+                              'you will not use this account after this session ends, and that you understand all other'
+                              'previously agreed to rules!',
+                        inline=False)
+
     return embed
 
 
-def accountcheck(ctx, available, used, usages, online) -> discord.Embed:
+def accountcheck(available, used, usages, online) -> discord.Embed:
     """Jaeger Account Embed
     """
     embed = Embed(

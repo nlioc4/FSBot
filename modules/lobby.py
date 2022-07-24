@@ -1,7 +1,5 @@
 """Module to handle lobby and invites """
 
-
-
 # External Imports
 import discord
 from discord.ext import commands, tasks
@@ -19,13 +17,11 @@ import modules.tools as tools
 
 log = getLogger('fs_bot')
 
-
 ## Lobby Variables
 
 # lists for lobby usage
 _lobbied_players: list[Player] = []
-_invites: dict[Player, list[Player]] = dict()   # list of invites by owner.id: list[invited players]
-
+_invites: dict[Player, list[Player]] = dict()  # list of invites by owner.id: list[invited players]
 
 # Logs
 logs: list[(int, str)] = []  # lobby logs recorded as a list of tuples, (timestamp, message)
@@ -43,15 +39,19 @@ _warned_players: list[Player] = []
 def logs_recent():
     return logs[-recent_log_length:]
 
+
 def logs_longer():
     return logs[-longer_log_length:]
+
 
 def lobby_log(message):
     logs.append((tools.timestamp_now(), message))
     log.info(f'Lobby Log: {message}')
 
+
 def lobbied():
     return _lobbied_players
+
 
 # lobby interaction
 def lobby_timeout(player):
@@ -65,14 +65,16 @@ def lobby_timeout(player):
     else:
         return False
 
+
 def lobby_timeout_reset(player):
     """Resets player lobbied timestamp, returns True if player was in lobby"""
     if player in _lobbied_players:
         player.reset_lobby_timestamp()
-        if player in self._warned_players:
+        if player in _warned_players:
             _warned_players.remove(player)
         return True
     return False
+
 
 def lobby_leave(player):
     """Removes from lobby list, executes player lobby leave method, returns True if removed"""
@@ -84,6 +86,7 @@ def lobby_leave(player):
     else:
         return False
 
+
 def lobby_join(player):
     """Adds to lobby list, executes player lobby join method, returns True if added"""
     if player not in _lobbied_players:
@@ -94,9 +97,10 @@ def lobby_join(player):
     else:
         return False
 
-def invite(owner:Player, invited:Player):
+
+def invite(owner: Player, invited: Player):
     """Invite Player to match, if match already existed returns match.  If player in match but not owner, returns false"""
-    for match in BaseMatch._active_matches:
+    for match in BaseMatch._active_matches.values():
         if owner.active and match.owner.id == owner.id:
             match.invite(invited)
             return match
@@ -108,12 +112,14 @@ def invite(owner:Player, invited:Player):
         except KeyError:
             _invites[owner.id] = [invited]
 
+
 async def accept_invite(owner, player):
     """Accepts invite from owner to player, if match doesn't exist then creates it and returns match.
     If owner has since joined a different match, returns false."""
-    for match in BaseMatch._active_matches:
+    for match in BaseMatch._active_matches.values():
         if match.owner.id == owner.id:
-            match.join_match(player)
+            await match.join_match(player)
+            await disp.MATCH_JOIN.send_temp(match.voice_channel, player.mention)
             lobby_leave(player)
             return match
     if owner.active:
@@ -121,7 +127,9 @@ async def accept_invite(owner, player):
     else:
         lobby_leave(player)
         match = await BaseMatch.create(owner, player)
-        match.info_message = await disp.MATCH_INFO.send(match.voice_channel, match=match)
+        match.info_message = await disp.MATCH_INFO.send(match.voice_channel, match=match,
+                                                        view=views.MatchInfoView(match))
+        await disp.MATCH_JOIN.send_temp(match.voice_channel, f'{owner.mention}{player.mention}')
         if owner.id in _invites:
             _invites[owner.id].remove(player)
             if _invites[owner.id] == []:
@@ -129,7 +137,7 @@ async def accept_invite(owner, player):
 
 
 def decline_invite(owner, player):
-    for match in BaseMatch._active_matches:
+    for match in BaseMatch._active_matches.values():
         if match.owner.id == owner.id:
             match.decline_invite(player)
             return True
