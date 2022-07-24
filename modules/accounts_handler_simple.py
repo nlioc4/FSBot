@@ -188,8 +188,8 @@ def set_account(a_player: classes.Player, acc: classes.Account):
 
 class ValidateView(discord.ui.View):
     def __init__(self, acc):
-        super().__init__()
-        self.acc = acc
+        super().__init__(timeout=300)
+        self.acc: classes.Account = acc
         self.end_session_button.disabled = True
 
     @discord.ui.button(label="Confirm Rules", style=discord.ButtonStyle.green)
@@ -203,7 +203,14 @@ class ValidateView(discord.ui.View):
     @discord.ui.button(label="End Session", style=discord.ButtonStyle.red)
     async def end_session_button(self, button: discord.Button, inter: discord.Interaction):
         await terminate_account(acc=self.acc, edit_msg=False)
-        await disp.ACCOUNT_EMBED.edit(inter, acc=self.acc, view=None)
+        button.disabled = True
+        self.stop()
+        await disp.ACCOUNT_EMBED.edit(inter, acc=self.acc, view=self)
+
+    async def on_timeout(self) -> None:
+        await disp.ACCOUNT_TOKEN_EXPIRED.edit(self.acc.message, view=None)
+        self.acc.a_player.set_account(None)
+        self.acc.clean()
 
 
 async def send_account(acc: classes.Account = None, player: classes.Player = None):
@@ -253,14 +260,17 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
     ws.format(cells_list[0].address, {"numberFormat": {"type": "DATE", "pattern": "mmmm dd"}})
 
 
-async def terminate_account(acc: classes.Account = None, player: classes.Player = None, edit_msg = True):
+async def terminate_account(acc: classes.Account = None, player: classes.Player = None, edit_msg=True):
     """Terminates account and sends message to log off, provide either account or player"""
     if not acc and not player:
         raise ValueError("No args provided")
     if not acc:
         acc = player.account
+    if not player:
+        player = acc.a_player
     acc.terminate()
-    user = d_obj.bot.get_user(acc.a_player.id)
+    player.set_account(None)
+    user = d_obj.bot.get_user(player.id)
     if acc.message:
         for _ in range(3):
             try:

@@ -10,6 +10,7 @@ import modules.discord_obj as d_obj
 import modules.tools as tools
 from classes.players import Player, ActivePlayer
 import modules.database as db
+import modules.accounts_handler_simple as accounts
 
 log = getLogger('fs_bot')
 _match_id_counter = 0
@@ -38,7 +39,7 @@ class BaseMatch:
         self.__previous_players: list[Player] = list()
         self.match_log = list()  # logs recorded as list of tuples, (timestamp, message)
         self.status = MatchState.INVITING
-        self.voice_channel: discord.VoiceChannel | None = None
+        self.text_channel: discord.TextChannel | None = None
         self.info_message: discord.Message | None = None
         BaseMatch._active_matches[self.id] = self
 
@@ -58,8 +59,8 @@ class BaseMatch:
             d_obj.guild.get_member(invited.id): discord.PermissionOverwrite(view_channel=True)
         }
 
-        obj.voice_channel = await d_obj.categories['user'].create_voice_channel(
-            name=f'Match: {obj.id}',
+        obj.text_channel = await d_obj.categories['user'].create_text_channel(
+            name=f'Match︰{obj.id}',
             overwrites=overwrites)
 
         obj.log(f'Owner:{owner.name}{owner.id}')
@@ -80,15 +81,18 @@ class BaseMatch:
         self.log(f'{player.name} left the match')
         if not self.__players and not self.end_stamp:  # if no players left, and match not already ended
             await self.end_match()
+        if player.account:
+            await accounts.terminate_account(player=player.player)
+            player.player.set_account(None)
 
     async def end_match(self):
         self.end_stamp = tools.timestamp_now()
         # add match end message
-        with self.voice_channel.typing():
+        with self.text_channel.typing():
             await asyncio.sleep(10)
         for player in self.__players:
             await self.leave_match(player)
-        await self.voice_channel.delete(reason='Match Ended')
+        await self.text_channel.delete(reason='Match Ended')
         self.log('Match Ended')
         await db.async_db_call(db.set_element, 'matches', self.get_data())
         del BaseMatch._active_matches[self.id]
@@ -102,7 +106,7 @@ class BaseMatch:
 
     async def channel_update(self, player, action: bool):
         player_member = d_obj.guild.get_member(player.id)
-        await self.voice_channel.set_permissions(player_member, view_channel=action)
+        await self.text_channel.set_permissions(player_member, view_channel=action)
 
     def log(self, message):
         self.match_log.append((tools.timestamp_now(), message))

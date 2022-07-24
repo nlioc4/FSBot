@@ -27,16 +27,20 @@ class MatchesCog(commands.Cog, name="MatchesCog",
     @tasks.loop(count=1)
     async def matches_init(self):
         # clear old match channels if any exist
-        channels = d_obj.categories['user'].voice_channels
+        channels = d_obj.categories['user'].text_channels
         for channel in channels:
-            if channel.name.startswith('Match:'):
+            if channel.name.startswith('match︰'):
                 await channel.delete()
 
     @tasks.loop(seconds=10)
     async def matches_loop(self):
         # update match info embeds
         for match in BaseMatch._active_matches.values():
-            await disp.MATCH_INFO.edit(match.info_message, match=match, view=views.MatchInfoView(match))
+            if match.info_message:
+                try:
+                    await disp.MATCH_INFO.edit(match.info_message, match=match, view=views.MatchInfoView(match))
+                except discord.errors.NotFound:
+                    pass
 
 
 

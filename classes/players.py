@@ -273,7 +273,7 @@ class Player:
         self.__lobbied_timestamp = 0
         self.__first_lobbied_timestamp = 0
 
-    def set_account(self, account: Account):
+    def set_account(self, account: Account | None):
         self.__account = account
 
     def on_player_clean(self):
@@ -289,6 +289,7 @@ class Player:
     def on_quit(self):
         self.__match = None
         self.__active = None
+
 
 
     async def register(self, char_list: list | None) -> bool:
@@ -391,7 +392,7 @@ class ActivePlayer:
     def __init__(self, player: Player):
         self.__player = player
         self.__match = player.match
-        self.__account = None
+        self.__account = player.account
         self.__current_faction = 0
         self.round_wins = 0
         self.round_losses = 0
@@ -471,11 +472,6 @@ class ActivePlayer:
             return self.account.ig_ids[self.current_faction_id - 1]
         else:
             return False
-
-
-    async def leave_match(self):
-        await self.__match.leave_match(self)
-        self.__player.on_quit()
 
 
 

@@ -76,12 +76,15 @@ def lobby_timeout_reset(player):
     return False
 
 
-def lobby_leave(player):
+def lobby_leave(player, match=None):
     """Removes from lobby list, executes player lobby leave method, returns True if removed"""
     if player in _lobbied_players:
         player.on_lobby_leave()
         _lobbied_players.remove(player)
-        lobby_log(f'{player.name} left the lobby.')
+        if match:
+            lobby_log(f'{player.name} joined Match: {match.id}')
+        else:
+            lobby_log(f'{player.name} left the lobby.')
         return True
     else:
         return False
@@ -100,13 +103,14 @@ def lobby_join(player):
 
 def invite(owner: Player, invited: Player):
     """Invite Player to match, if match already existed returns match.  If player in match but not owner, returns false"""
-    for match in BaseMatch._active_matches.values():
-        if owner.active and match.owner.id == owner.id:
-            match.invite(invited)
-            return match
+    if owner.match:
+        if owner.match.owner == owner:
+            owner.match.invite(invited)
+            return owner.match
         else:
             return False
-    if owner.id not in [match.owner.id for match in BaseMatch._active_matches]:
+
+    else:
         try:
             _invites[owner.id].append(invited)
         except KeyError:
@@ -116,33 +120,43 @@ def invite(owner: Player, invited: Player):
 async def accept_invite(owner, player):
     """Accepts invite from owner to player, if match doesn't exist then creates it and returns match.
     If owner has since joined a different match, returns false."""
-    for match in BaseMatch._active_matches.values():
-        if match.owner.id == owner.id:
-            await match.join_match(player)
-            await disp.MATCH_JOIN.send_temp(match.voice_channel, player.mention)
-            lobby_leave(player)
-            return match
-    if owner.active:
+    if owner.match and owner.match.owner == owner:
+        match = owner.match
+        await match.join_match(player)
+        await disp.MATCH_INFO.edit(match.info_message, match=match, view=views.MatchInfoView(match))
+        await disp.MATCH_JOIN.send_temp(match.text_channel, player.mention)
+        lobby_leave(player, match)
+        return match
+    elif owner.active:
         return False
     else:
-        lobby_leave(player)
+
         match = await BaseMatch.create(owner, player)
-        match.info_message = await disp.MATCH_INFO.send(match.voice_channel, match=match,
+        match.info_message = await disp.MATCH_INFO.send(match.text_channel, match=match,
                                                         view=views.MatchInfoView(match))
-        await disp.MATCH_JOIN.send_temp(match.voice_channel, f'{owner.mention}{player.mention}')
+        await disp.MATCH_JOIN.send_temp(match.text_channel, f'{owner.mention}{player.mention}')
         if owner.id in _invites:
             _invites[owner.id].remove(player)
-            if _invites[owner.id] == []:
+            for player in _invites[owner.id]:
+                match.invite(player)
                 del _invites[owner.id]
-
+        lobby_leave(player, match)
+        lobby_leave(owner, match)
 
 def decline_invite(owner, player):
+    if owner.match and owner.match.owner == owner:
+        owner.match.decline_invite(player)
+    if owner.id in _invites:
+        _invites[owner.id].remove(player)
+        if not _invites[owner.id]:
+            del _invites[owner.id]
+
+
+def already_invited(owner, invited_players):
+    already_invited_list = []
     for match in BaseMatch._active_matches.values():
         if match.owner.id == owner.id:
-            match.decline_invite(player)
-            return True
-    else:
-        if owner.id in _invites:
-            _invites[owner.id].remove(player)
-            if _invites[owner.id] == []:
-                del _invites[owner.id]
+            already_invited_list.extend([p for p in invited_players if p in match.invited])  # check matches for already invited players
+    if owner.id in _invites:
+        already_invited_list.extend([p for p in invited_players if p in _invites[owner.id]])  # check invites for already invited players
+    return already_invited_list

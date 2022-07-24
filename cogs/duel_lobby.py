@@ -46,35 +46,40 @@ class ChallengeDropdown(discord.ui.Select):
         if owner in invited_players:
             await disp.LOBBY_INVITED_SELF.send_temp(inter, owner.mention)
             return
-        if owner:
-            no_dms = list()
-            match = None
-            for invited in invited_players:
-                for _ in range(3):
-                    try:
-                        memb = d_obj.guild.get_member(invited.id)
-                        await disp.DM_INVITED.send(memb, invited.mention, owner.mention, view=views.InviteView(owner))
-                        match = lobby.invite(owner, invited)
-                        break
-                    except discord.Forbidden:
-                        if invited not in no_dms:
-                            no_dms.append(invited)
-            if no_dms:
-                await disp.LOBBY_NO_DM.send_temp(inter.channel, ','.join([p.mention for p in no_dms]))
-                lobby.lobby_log(
-                    f'{",".join([p.name for p in no_dms])} could not be invited, as they are not accepting DM\'s')
-            remaining = [p for p in invited_players if p not in no_dms]
-            remaining_mentions = ",".join([p.mention for p in remaining])
-            if remaining and match:
-                await disp.LOBBY_INVITED_MATCH.send_temp(inter, owner.mention, remaining_mentions, match.id,
-                                                         allowed_mentions=discord.AllowedMentions(users=[inter.user]))
-                lobby.lobby_log(f'{owner.name} invited {",".join([p.name for p in remaining])} to Match: {match.id}')
-            elif remaining and not match:
-                await disp.LOBBY_INVITED.send_temp(inter, owner.mention, remaining_mentions,
-                                                   allowed_mentions=discord.AllowedMentions(users=[inter.user]))
-                lobby.lobby_log(f'{owner.name} invited {",".join([p.name for p in remaining])} to a match')
-            else:
-                await disp.LOBBY_NO_DM_ALL.send_temp(inter, owner.mention)
+        already_invited = lobby.already_invited(owner, invited_players)
+        if already_invited:
+            await disp.LOBBY_INVITED_ALREADY.send_temp(inter.channel, ' '.join([p.mention for p in already_invited]))
+            [invited_players.remove(p) for p in already_invited]
+        no_dms = list()
+        match = None
+        for invited in invited_players:
+            for _ in range(3):
+                try:
+                    memb = d_obj.guild.get_member(invited.id)
+                    view = views.InviteView(owner, invited)
+                    msg = await disp.DM_INVITED.send(memb, invited.mention, owner.mention, view=view)
+                    view.msg = msg
+                    match = lobby.invite(owner, invited)
+                    break
+                except discord.Forbidden:
+                    if invited not in no_dms:
+                        no_dms.append(invited)
+        if no_dms:
+            await disp.LOBBY_NO_DM.send_temp(inter.channel, ','.join([p.mention for p in no_dms]))
+            lobby.lobby_log(
+                f'{",".join([p.name for p in no_dms])} could not be invited, as they are not accepting DM\'s')
+        remaining = [p for p in invited_players if p not in no_dms]
+        remaining_mentions = ",".join([p.mention for p in remaining])
+        if remaining and match:
+            await disp.LOBBY_INVITED_MATCH.send_temp(inter, owner.mention, remaining_mentions, match.id,
+                                                     allowed_mentions=discord.AllowedMentions(users=[inter.user]))
+            lobby.lobby_log(f'{owner.name} invited {",".join([p.name for p in remaining])} to Match: {match.id}')
+        elif remaining and not match:
+            await disp.LOBBY_INVITED.send_temp(inter, owner.mention, remaining_mentions,
+                                               allowed_mentions=discord.AllowedMentions(users=[inter.user]))
+            lobby.lobby_log(f'{owner.name} invited {",".join([p.name for p in remaining])} to a match')
+        else:
+            await disp.LOBBY_NO_DM_ALL.send_temp(inter, owner.mention)
         await _cog.update_dashboard()
 
 
@@ -83,17 +88,22 @@ class DashboardView(discord.ui.View):
         super().__init__(timeout=None)
         if lobby.lobbied():
             self.add_item(ChallengeDropdown())
+        if not lobby.lobbied():
+            self.leave_lobby_button.disabled = True
+            self.reset_lobby_button.disabled = True
 
     @discord.ui.button(label="Join Lobby", custom_id='dashboard-join', style=discord.ButtonStyle.green)
     async def join_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         player: Player = Player.get(inter.user.id)
         if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, player):
             return
+        elif player.match:
+            await disp.LOBBY_ALREADY_MATCH.send_priv(inter, player.mention, player.match.text_channel.mention)
         elif lobby.lobby_join(player):
             await _cog.update_dashboard()
             await disp.LOBBY_JOIN.send_temp(inter, player.mention)
         else:
-            await disp.LOBBY_ALREADY_IN.send_temp(inter, player.mention)
+            await disp.LOBBY_ALREADY_IN.send_priv(inter, player.mention)
 
     @discord.ui.button(label="Reset Timeout", custom_id='dashboard-reset', style=discord.ButtonStyle.blurple)
     async def reset_lobby_button(self, button: discord.Button, inter: discord.Interaction):
@@ -113,7 +123,7 @@ class DashboardView(discord.ui.View):
         if len(lobby.logs) <= len(lobby.logs_recent()):
             await disp.LOBBY_NO_HISTORY.send_temp(inter, inter.user.mention)
             return
-        await disp.LOBBY_LONGER_HISTORY.send(inter, inter.user.mention, logs=lobby.logs_longer, delete_after=20)
+        await disp.LOBBY_LONGER_HISTORY.send(inter, inter.user.mention, logs=lobby.logs_longer(), delete_after=20)
 
     @discord.ui.button(label="Leave Lobby", custom_id='dashboard-leave', style=discord.ButtonStyle.red)
     async def leave_lobby_button(self, button: discord.Button, inter: discord.Interaction):

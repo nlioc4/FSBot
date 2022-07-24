@@ -91,9 +91,9 @@ def account(acc) -> discord.Embed:
     else:
         embed.colour = Colour.greyple()
         embed.add_field(name='Account Unvalidated',
-                        value='Click below to confirm you are not going to save this account\'s login details,'
-                              'you will not use this account after this session ends, and that you understand all other'
-                              'previously agreed to rules!',
+                        value='Click below to confirm you are not going to save this account\'s login details, '
+                              '**you will not use this account after this session ends**, and that you understand all '
+                              'other previously agreed to rules!',
                         inline=False)
 
     return embed
