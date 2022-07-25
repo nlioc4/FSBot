@@ -94,7 +94,7 @@ class BaseMatch:
             await self.leave_match(player)
         await self.text_channel.delete(reason='Match Ended')
         self.log('Match Ended')
-        await db.async_db_call(db.set_element, 'matches', self.get_data())
+        await db.async_db_call(db.set_element, 'matches', self.id, self.get_data())
         del BaseMatch._active_matches[self.id]
         BaseMatch._recent_matches[self.id] = self
 

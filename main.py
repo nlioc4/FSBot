@@ -39,8 +39,7 @@ async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     print("--------------------------------------------")
     modules.discord_obj.init(bot)
-    display.embeds.init(bot)
-    await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, bot)
+    await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE)
     bot.load_extension("cogs.duel_lobby")
     bot.load_extension("cogs.matches")
 
@@ -77,6 +76,9 @@ bot.load_extension("cogs.register")
 modules.database.init(cfg.database)
 modules.database.get_all_elements(classes.Player.new_from_data, 'users')
 print("Loaded Players from Database:", len(classes.Player.get_all_players()))
+
+
+# online character loop
 
 
 bot.run(cfg.general['token'])

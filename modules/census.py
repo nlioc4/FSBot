@@ -17,6 +17,8 @@ import modules.accounts_handler_simple as accounts
 
 log = getLogger('fs_bot')
 
+WORLD_ID = 19
+
 def get_account_chars_list(account_dict: dict):
     """Builds a list of IGN's from the currently available Jaeger accounts"""
     chars_list = list()
@@ -102,5 +104,49 @@ async def get_ids_facs_from_chars(chars_list) -> dict[str, tuple[int, int]] | bo
         return char_dict
 
 
+async def online_status_updater(all_active_players):
+    """Responsible for updating active player and account objects with their currently
+    online characters"""
+    acc_char_ids = accounts.account_char_ids
 
+    player_char_ids = {}
+    for p in all_active_players.values():
+        if not p.account:
+            for char_id in p.player.ig_ids:
+                player_char_ids[char_id] = p
 
+    tracked_ids = acc_char_ids.keys() + player_char_ids.keys()
+
+    client = auraxium.event.EventClient(service_id=cfg.general['api_key'])
+
+    def char_id_check(event: auraxium.event.PlayerLogin | auraxium.event.PlayerLogout):
+        return event.character_id in tracked_ids
+
+    async def login_action(evt: auraxium.event.PlayerLogin):
+
+        # Account Section
+        if evt.character_id in acc_char_ids:
+            accounts.account_char_ids[evt.character_id].online_id = evt.character_id
+
+        # Player Section
+        if evt.character_id in player_char_ids:
+            player_char_ids[evt.character_id].online_id = evt.character_id
+
+    async def logout_action(evt: auraxium.event.PlayerLogout):
+
+        # Account Section
+        if evt.character_id in acc_char_ids:
+            accounts.account_char_ids[evt.character_id].online_id = None
+
+        # Player Section
+        if evt.character_id in player_char_ids:
+            player_char_ids[evt.character_id].online_id = None
+
+    login_trigger = auraxium.Trigger(auraxium.event.PlayerLogin, worlds=[WORLD_ID],
+                                     conditions=[char_id_check], action=login_action)
+
+    logout_trigger = auraxium.Trigger(auraxium.event.PlayerLogin, worlds=[WORLD_ID],
+                                     conditions=[char_id_check], action=logout_action)
+
+    client.add_trigger(login_trigger)
+    client.add_trigger(logout_trigger)

@@ -14,6 +14,7 @@ class Account:
         self.__password = password
         self.__ig_name = in_game
         self.__ig_ids = [0, 0, 0]
+        self.online_id = None
         self.a_player = None
         self.__last_usage = dict()
         self.__unique_usages = unique_usages
@@ -62,7 +63,7 @@ class Account:
 
     @property
     def last_user_id(self):
-        return self.__unique_usages[:-1]
+        return self.__unique_usages[-1]
 
     @property
     def is_validated(self):

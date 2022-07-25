@@ -77,6 +77,7 @@ class Player:
     """
 
     _all_players = dict()
+    _active_players = dict()
     _name_checking = [dict(), dict(), dict()]
 
     @classmethod
@@ -105,6 +106,10 @@ class Player:
     @classmethod
     def get_all_players(cls):
         return cls._all_players
+
+    @classmethod
+    def get_all_active_players(cls):
+        return cls._active_players
 
     def __init__(self, p_id, name):
         if not re.match(cfg.name_regex, name):
@@ -276,17 +281,15 @@ class Player:
     def set_account(self, account: Account | None):
         self.__account = account
 
-    def on_player_clean(self):
-        self.__match = None
-        self.__active = None
-        self.__account = None
 
     def on_playing(self, match):
         self.__match = match
         self.__active = ActivePlayer(self)
+        Player._active_players[self.id] = self.__active
         return self.__active
 
     def on_quit(self):
+        del Player._active_players[self.id]
         self.__match = None
         self.__active = None
 
@@ -393,7 +396,7 @@ class ActivePlayer:
         self.__player = player
         self.__match = player.match
         self.__account = player.account
-        self.__current_faction = 0
+        self.online_id = None
         self.round_wins = 0
         self.round_losses = 0
 
@@ -422,20 +425,11 @@ class ActivePlayer:
         return self.player.mention
 
     @property
-    def current_faction(self):
-        return self.__current_faction
-
-    @current_faction.setter
-    def set_current_faction(self, faction):
-        self.__current_faction = faction
-        return self.__current_faction
-
-    @property
     def ig_names(self):
         if self.player.has_own_account:
-            return self.ig_names[self.current_faction_id - 1]
+            return self.ig_names
         elif self.account:
-            return self.account.ig_names[self.current_faction_id - 1]
+            return self.account.ig_names
         else:
             return False
 
@@ -449,29 +443,29 @@ class ActivePlayer:
             return False
 
     @property
-    def current_faction_id(self):
-        if self.__current_faction == 0:
-            return False
-        else:
-            return cfg.i_factions[self.__current_faction]
-
-    @property
     def current_ig_name(self):
         if self.player.has_own_account:
-            return self.ig_names[self.current_faction_id - 1]
+            return self.ig_names[self.ig_ids.index(self.online_id)]
         elif self.account:
-            return self.account.ig_names[self.current_faction_id - 1]
+            return self.account.ig_names[self.account.ig_ids.index(self.account.online_id)]
         else:
             return False
 
     @property
     def current_ig_id(self):
         if self.player.has_own_account:
-            return self.ig_ids[self.current_faction_id - 1]
+            return self.online_id
         elif self.account:
-            return self.account.ig_ids[self.current_faction_id - 1]
+            return self.account.online_id
         else:
             return False
 
 
-
+    @property
+    def current_faction(self):
+        if self.player.has_own_account:
+            return cfg.factions[self.ig_ids.index(self.online_id) + 1]
+        elif self.account:
+            return cfg.factions[self.account.ig_ids.index(self.account.online_id) + 1]
+        else:
+            return False

@@ -81,7 +81,7 @@ class AllStrings(Enum):
         return self.__string.format(*args)
 
     async def _do_send(self, action, ctx, *args, **kwargs):
-        args_dict = {'view': None}
+        args_dict = {}
         if self.__string:
             args_dict['content'] = self.__string.format(*args)
         if self.__embed:
@@ -90,7 +90,7 @@ class AllStrings(Enum):
             embed_kwargs = {arg: kwargs.get(arg) for arg in embed_sig.parameters}
             args_dict['embed'] = self.__embed(**embed_kwargs)
         if kwargs.get('view'):
-            args_dict['view'] = kwargs.get('view')
+            args_dict['view'] = None if kwargs.get('view') == 0 else kwargs.get('view')
         if kwargs.get('delete_after'):
             args_dict['delete_after'] = kwargs.get('delete_after')
         if kwargs.get('ephemeral'):

@@ -14,6 +14,7 @@ import modules.accounts_handler_simple as accounts
 from modules.tools import format_time_from_stamp as format_stamp
 from classes.players import Player, ActivePlayer, SkillLevel
 from classes.match import BaseMatch, MatchState
+import modules.discord_obj as d_obj
 
 
 # midnight tomorrow EST
@@ -22,16 +23,7 @@ midnight_eastern = (dt.now().astimezone(eastern) + timedelta(days=1)).replace(ho
                                                                                     second=0)
 formatted_time = discord.utils.format_dt(midnight_eastern, style="t")
 
-_client: discord.Bot | None = None
-_guild: discord.Guild | None = None
 
-
-def init(client: discord.bot):
-    # load discord guild
-    global _client
-    _client = client
-    global _guild
-    _guild = client.get_guild(cfg.general["guild_id"])
 
 
 def bot_info() -> discord.Embed:
@@ -133,7 +125,7 @@ def accountcheck(available, used, usages, online) -> discord.Embed:
         string = '*Character Name : Last Player*\n'
         for acc in online:
             char_name = online[acc][0]
-            last_player = _guild.get_member(online[acc][1])
+            last_player = d_obj.guild.get_member(online[acc][1])
             string = string + f'{char_name} : {last_player.mention}\n'
         embed.add_field(name='Currently Online Accounts',
                         value=string,
@@ -160,7 +152,7 @@ def account_online_check(online) -> discord.Embed:
     string = '*Character Name : Last Player *\n'
     for acc in online:
         char_name = online[acc][0]
-        last_player = _guild.get_member(online[acc][1])
+        last_player = d_obj.guild.get_member(online[acc][1])
         string = string + f'{char_name} : {last_player.mention}\n'
 
     embed.add_field(name='Currently Online Accounts',
@@ -202,9 +194,8 @@ def anomaly(world, zone, timestamp, state) -> discord.Embed:
     return embed
 
 
-def duel_dashboard(lobbied_players: list[Player], logs: list[str]) -> discord.Embed:
-    """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels.
-    Base Embed, to be modified by calling method"""
+def duel_dashboard(lobbied_players: list[Player], logs: list[(int, str)]) -> discord.Embed:
+    """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels."""
     colour = Colour.blurple() if lobbied_players else Colour.greyple()
 
     embed = Embed(
@@ -243,7 +234,7 @@ def duel_dashboard(lobbied_players: list[Player], logs: list[str]) -> discord.Em
             req_skill_levels = ' '.join([str(level.rank) for level in p.req_skill_levels])\
                 if p.req_skill_levels else 'Any'
             f_lobbied_stamp = format_stamp(p.first_lobbied_timestamp)
-            string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}][{req_skill_levels}][{f_lobbied_stamp}]\n'
+            string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}][{req_skill_levels}][{f_lobbied_stamp}]\n '
             players_string += string
 
         embed.add_field(name="----------------------------------------------------------------",
@@ -261,9 +252,8 @@ def duel_dashboard(lobbied_players: list[Player], logs: list[str]) -> discord.Em
     return embed
 
 
-def longer_lobby_logs(logs: list[str]) -> discord.Embed:
-    """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels.
-    Base Embed, to be modified by calling method"""
+def longer_lobby_logs(logs: list[(int, str)]) -> discord.Embed:
+    """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels."""
 
     embed = Embed(
         colour=Colour.blurple(),
@@ -353,6 +343,5 @@ def match_info(match: BaseMatch) -> discord.Embed:
         embed.add_field(name="Players",
                         value=players_string,
                         inline=False)
-
 
     return embed

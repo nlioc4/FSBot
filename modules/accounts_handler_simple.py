@@ -25,7 +25,7 @@ eastern = pytz.timezone('US/Eastern')
 _busy_accounts = dict()
 _available_accounts = dict()
 all_accounts = None
-_account_char_ids = dict()  # maps to account objects, consider mapping directly to char_names
+account_char_ids = dict()  # maps to account objects, consider mapping directly to char_names
 
 # Sheet Offsets
 Y_OFFSET = 2
@@ -33,14 +33,9 @@ X_OFFSET = 1
 Y_SKIP = 3
 USAGE_OFFSET = 7
 
-# discord guild
-_guild = None
 
 
-async def init(service_account_path: str, client: discord.bot):
-    # load discord guild
-    global _guild
-    _guild = client.get_guild(cfg.general["guild_id"])
+async def init(service_account_path: str):
 
     # open/store google sheet
     gc = service_account(service_account_path)
@@ -118,8 +113,8 @@ async def init(service_account_path: str, client: discord.bot):
             to_drop.append(acc_id)
 
         if char_id != 0:
-            global _account_char_ids
-            _account_char_ids[char_id] = all_accounts[acc_id]
+            global account_char_ids
+            account_char_ids[char_id] = all_accounts[acc_id]
 
     # execute delete list
     for acc_id in to_drop:
@@ -202,10 +197,9 @@ class ValidateView(discord.ui.View):
 
     @discord.ui.button(label="End Session", style=discord.ButtonStyle.red)
     async def end_session_button(self, button: discord.Button, inter: discord.Interaction):
-        await terminate_account(acc=self.acc, edit_msg=False)
         button.disabled = True
         self.stop()
-        await disp.ACCOUNT_EMBED.edit(inter, acc=self.acc, view=self)
+        await terminate_account(acc=self.acc, inter=inter, view=self)
 
     async def on_timeout(self) -> None:
         await disp.ACCOUNT_TOKEN_EXPIRED.edit(self.acc.message, view=None)
@@ -260,7 +254,8 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
     ws.format(cells_list[0].address, {"numberFormat": {"type": "DATE", "pattern": "mmmm dd"}})
 
 
-async def terminate_account(acc: classes.Account = None, player: classes.Player = None, edit_msg=True):
+async def terminate_account(acc: classes.Account = None, player: classes.Player = None, inter=None,
+                            view: discord.ui.View | int = 0):
     """Terminates account and sends message to log off, provide either account or player"""
     if not acc and not player:
         raise ValueError("No args provided")
@@ -268,8 +263,10 @@ async def terminate_account(acc: classes.Account = None, player: classes.Player 
         acc = player.account
     if not player:
         player = acc.a_player
-    acc.terminate()
-    player.set_account(None)
+
+    acc.terminate()  # mark account as terminated
+
+    # Send log-out message, adjust embed
     user = d_obj.bot.get_user(player.id)
     if acc.message:
         for _ in range(3):
@@ -279,8 +276,17 @@ async def terminate_account(acc: classes.Account = None, player: classes.Player 
                     break
             except discord.Forbidden:
                 continue
-    if edit_msg:
-        await disp.ACCOUNT_EMBED.edit(acc.message, acc=acc, view=None)
+
+    if inter:
+        await disp.ACCOUNT_EMBED.edit(inter, acc=acc, view=view)  # use interaction response to edit
+    else:
+        await disp.ACCOUNT_EMBED.edit(acc.message, acc=acc, view=view)  # use acc.message context to edit
+
+    # Adjust player & account objects, return to available directory.
+    acc.clean()  # TODO Move to "on-offline' function
+    player.set_account(None)
+    del _busy_accounts[acc.id]
+    _available_accounts[acc.id] = acc
 
 
 def has_account(a_player):
