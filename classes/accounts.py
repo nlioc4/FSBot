@@ -51,6 +51,12 @@ class Account:
         return [f'{self.__ig_name}VS', f'{self.__ig_name}NC', f'{self.__ig_name}TR']
 
     @property
+    def online_name(self):
+        if self.online_id:
+            return self.ig_names[self.__ig_ids.index(self.online_id)]
+        return None
+
+    @property
     def unique_usages(self):
         return self.__unique_usages
 

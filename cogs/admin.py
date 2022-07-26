@@ -22,12 +22,14 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
                                                 default_permission=False)):
     def __init__(self, bot):
         self.bot = bot
+        self.unassigned_online = []
 
-    @commands.Cog.listener
+    @commands.Cog.listener('on_ready')
     async def on_ready(self):
         #  Wait until the bot is ready before starting loops
         self.census_watchtower.start()
         self.account_sheet_reload.start()
+        self.account_watchtower.start()
 
     @tasks.loop(count=1)
     async def census_watchtower(self):
@@ -48,6 +50,22 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
     async def account_sheet_reload(self):
         log.info("Reinitialized Account Sheet and Account Characters")
         await accounts.init(cfg.GAPI_SERVICE)
+
+    @tasks.loop(seconds=10)
+    async def account_watchtower(self):
+        # create list of accounts with online chars and no player assigned
+        unassigned_online = []
+        for acc in accounts.all_accounts.values():
+            if not acc.a_player and acc.online_id:
+                unassigned_online.append(acc)
+
+        # compare to cache to see if login is new. Ping only if login is new.
+        new_online = [acc for acc in unassigned_online if acc not in self.unassigned_online]
+        if new_online:
+            await disp.UNASSIGNED_ONLINE.send(cfg.channels['logs'], cfg.roles['app_admin'], online=unassigned_online)
+
+        # Remove offline accounts from cache
+        self.unassigned_online = list(filter(lambda x: x not in unassigned_online, self.unassigned_online))
 
 
 def setup(client):

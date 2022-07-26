@@ -18,6 +18,7 @@ class AllStrings(Enum):
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
     GENERAL_ERROR = "An error has occurred, {}, please ping Colin"
     CHECK_FAILURE = "You have failed a check to run this command!"
+    UNASSIGNED_ONLINE = "{} Unassigned Accounts Detected Online", account_online_check
 
 
     DM_INVITED = "{} you have been invited to a match by {}! Accept or decline below!"
