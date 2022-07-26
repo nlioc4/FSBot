@@ -2,18 +2,18 @@
 
 # External Imports
 import discord
-from classes import Player
+
 from discord.ext import commands, tasks
 
 # Internal Imports
 import display
 from display import AllStrings as disp, views
 import modules.config as cfg
-from classes.players import Player
 from classes.match import BaseMatch
+from classes import Player
 from modules import discord_obj as d_obj
 from modules.spam_detector import is_spam
-import modules.accounts_handler_simple as accounts
+import modules.accounts_handler as accounts
 
 
 class MatchesCog(commands.Cog, name="MatchesCog",
@@ -29,7 +29,7 @@ class MatchesCog(commands.Cog, name="MatchesCog",
         # clear old match channels if any exist
         channels = d_obj.categories['user'].text_channels
         for channel in channels:
-            if channel.name.startswith('match︰'):
+            if channel.name.startswith('match-id'):
                 await channel.delete()
 
     @tasks.loop(seconds=10)
@@ -41,6 +41,7 @@ class MatchesCog(commands.Cog, name="MatchesCog",
                     await disp.MATCH_INFO.edit(match.info_message, match=match, view=views.MatchInfoView(match))
                 except discord.errors.NotFound:
                     pass
+
 
 
 

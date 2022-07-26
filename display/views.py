@@ -13,7 +13,7 @@ import modules.lobby as lobby
 from modules.spam_detector import is_spam
 from classes import Player
 from display import AllStrings as disp
-import modules.accounts_handler_simple as accounts
+import modules.accounts_handler as accounts
 from modules.loader import is_all_locked
 
 

@@ -1,8 +1,8 @@
 """Handles loading and unloading of bot, as well as locking the bots functionality"""
 from discord import ExtensionAlreadyLoaded, ExtensionNotLoaded
 
-main_cogs = ["cogs.admin", "cogs.census"]
-standard_cogs = ["cogs.register", "cogs.duel_lobby", "cogs.matches", "cogs.contentplug"]
+main_cogs = ["cogs.admin"]
+standard_cogs = ['cogs.contentplug', 'cogs.duel_lobby', 'cogs.matches', 'cogs.register']
 __is_global_locked = False  # TODO Set to True on Init, disabled with admin command.
 
 

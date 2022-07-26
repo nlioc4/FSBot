@@ -10,7 +10,7 @@ import pytz
 
 # Internal Imports
 import modules.config as cfg
-import modules.accounts_handler_simple as accounts
+import modules.accounts_handler as accounts
 from modules.tools import format_time_from_stamp as format_stamp
 from classes.players import Player, ActivePlayer, SkillLevel
 from classes.match import BaseMatch, MatchState

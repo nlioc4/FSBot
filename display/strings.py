@@ -24,28 +24,28 @@ class AllStrings(Enum):
     DM_INVITE_EXPIRED = "This invite has expired!"
     DM_INVITE_INVALID = "This invite is invalid!"
 
-    REG_SUCCESSFUL_CHARS = "Successfully registered with characters: {}, {}, {}"
+    REG_SUCCESSFUL_CHARS = "Successfully registered with characters: {}, {}, {}."
     REG_SUCCESFUL_NO_CHARS = 'Successfully registered with no Jaeger Account'
-    REG_ALREADY_CHARS = "Already registered with characters: {}, {}, {}"
-    REG_ALREADY_NO_CHARS = "Already Registered with no Jaeger Account"
-    REG_MISSING_FACTION = "Registration Failed: Missing a character for faction {}"
-    REG_CHAR_REGISTERED = "Registration Failed: Character: {} already registered by {}"
-    REG_CHAR_NOT_FOUND = "Registration Failed: Character: {} not found in the Census API"
+    REG_ALREADY_CHARS = "Already registered with characters: {}, {}, {}."
+    REG_ALREADY_NO_CHARS = "Already Registered with no Jaeger Account."
+    REG_MISSING_FACTION = "Registration Failed: Missing a character for faction {}."
+    REG_CHAR_REGISTERED = "Registration Failed: Character: {} already registered by {}."
+    REG_CHAR_NOT_FOUND = "Registration Failed: Character: {} not found in the Census API."
     REG_NOT_JAEGER = "Registration Failed: Character: {} is not from Jaeger!"
     REG_WRONG_FORMAT = "Incorrect Character Entry Format! Enter either 1 character for each faction separated by ',' " \
                        "or a space, or one character without a faction suffix and suffixes will be added for you."
 
     LOBBY_INVITED_SELF = "{} you can't invite yourself to a match!"
-    LOBBY_INVITED = "{} invited {} to a match"
-    LOBBY_INVITED_MATCH = "{} invited {} to match: {}"
-    LOBBY_INVITED_ALREADY = "You've already sent an invite to {}"
+    LOBBY_INVITED = "{} invited {} to a match."
+    LOBBY_INVITED_MATCH = "{} invited {} to match: {}."
+    LOBBY_INVITED_ALREADY = "You've already sent an invite to {}."
     LOBBY_JOIN = "{} you have joined the lobby!"
     LOBBY_LEAVE = "{} you have left the lobby!"
     LOBBY_NOT_IN = "{} you are not in this lobby!"
     LOBBY_NO_DM = "{} could not be invited as they are refusing DM's from the bot!"
-    LOBBY_NO_DM_ALL = "{} no players could be invited"
+    LOBBY_NO_DM_ALL = "{} no players could be invited."
     LOBBY_ALREADY_IN = "{} you are already in this lobby!"
-    LOBBY_ALREADY_MATCH = '{} you are already in a match ({}), leave to join the lobby again'
+    LOBBY_ALREADY_MATCH = '{} you are already in a match ({}), leave to join the lobby again.'
     LOBBY_TIMEOUT = "{} you have been removed from the lobby by timeout!"
     LOBBY_TIMEOUT_SOON = "{} you will soon be timed out from the lobby, click above to reset."
     LOBBY_TIMEOUT_RESET = "{} you have reset your lobby timeout."
@@ -64,17 +64,16 @@ class AllStrings(Enum):
     MATCH_LEAVE = "{} You have left the match."
     MATCH_END = "Match ID: {} Ended, closing match channel..."
 
-    SKILL_LEVEL_REQ_ONE = "Your requested skill level has been set to: {}"
-    SKILL_LEVEL_REQ_MORE = "Your requested skill levels have been set to: {}"
-    SKILL_LEVEL = "Your skill level has been set to: {}"
-
+    SKILL_LEVEL_REQ_ONE = "Your requested skill level has been set to: {}."
+    SKILL_LEVEL_REQ_MORE = "Your requested skill levels have been set to: {}."
+    SKILL_LEVEL = "Your skill level has been set to: {}."
 
     ACCOUNT_HAS_OWN = "You have registered with your own Jaeger account, you can't request a temporary account."
     ACCOUNT_ALREADY = "You have already been assigned an account, you can't request another."
-    ACCOUNT_SENT = "You have been sent an account, check your DM's"
+    ACCOUNT_SENT = "You have been sent an account, check your DM's."
     ACCOUNT_LOG_OUT = "Your session has been ended, please log out!"
     ACCOUNT_TOKEN_EXPIRED = "After 5 minutes this account token has expired, please request another" \
-                            " if you still need an account"
+                            " if you still need an account."
     ACCOUNT_NO_DMS = "You must allow the bot to send you DM's in order to recieve an account!"
     ACCOUNT_NO_ACCOUNT = "Sorry, there are no accounts available at the moment.  Please ping Colin!"
     ACCOUNT_EMBED = "", account
@@ -103,6 +102,8 @@ class AllStrings(Enum):
             args_dict['ephemeral'] = kwargs.get('ephemeral')
         if kwargs.get('allowed_mentions'):
             args_dict['allowed_mentions'] = kwargs.get('allowed_mentions')
+        if kwargs.get('remove_embed'):
+            args_dict['embed'] = None
         # string = self.__string.format(*args) if self.__string else None
         # embed = None
         # view = kwargs.get('view') or None
@@ -123,11 +124,11 @@ class AllStrings(Enum):
             case discord.InteractionResponse:
                 return await getattr(ctx, action + '_message')(**args_dict)
 
-            case discord.Webhook if ctx.type == discord.WebhookType.application and action == "send":
-                return await getattr(ctx, 'send')(**args_dict)
-
-            case discord.Webhook if ctx.type == discord.WebhookType.application and action == "edit":  # Probably doesn't work
-                return await getattr(ctx.fetch_message(), 'edit_message')(**args_dict)
+            case discord.Webhook if ctx.type == discord.WebhookType.application:
+                if action == "send":
+                    return await getattr(ctx, 'send')(**args_dict)
+                if action == "edit":  # Probably doesn't work
+                    return await getattr(ctx.fetch_message(), 'edit_message')(**args_dict)
 
             case discord.Interaction:
                 return await getattr(ctx.response, action + '_message')(**args_dict)

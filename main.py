@@ -11,10 +11,10 @@ import traceback
 
 # internal imports
 import modules.config as cfg
-import modules.accounts_handler_simple
+import modules.accounts_handler
 import modules.discord_obj as d_obj
 import modules.database
-from modules.loader import is_all_locked, init
+import modules.loader as loader
 import classes
 import display
 
@@ -38,9 +38,8 @@ async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     print("--------------------------------------------")
     d_obj.init(bot)
-    await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE)
-    bot.load_extension("cogs.duel_lobby")
-    bot.load_extension("cogs.matches")
+    await modules.accounts_handler.init(cfg.GAPI_SERVICE)
+    loader.unlock_all(bot)
 
 
 @bot.slash_command(name="filtercontentplug", guild_ids=[cfg.general['guild_id']], default_permission=False)
@@ -63,15 +62,10 @@ async def filtercontentplug(ctx: discord.ApplicationContext,
     await ctx.respond(f"{selection}d {channel.mention}'s content filter")
 
 
-bot.load_extension("cogs.contentplug")
-bot.load_extension("cogs.accountcommands")
-bot.load_extension("cogs.register")
-
-
 #  Add global is_locked check
 @bot.check
 async def global_interaction_check(interaction):
-    if is_all_locked():
+    if loader.is_all_locked():
         memb = d_obj.guild.get_member(interaction.user.id)
         if d_obj.is_admin(memb):
             return True
@@ -116,4 +110,5 @@ modules.database.init(cfg.database)
 modules.database.get_all_elements(classes.Player.new_from_data, 'users')
 print("Loaded Players from Database:", len(classes.Player.get_all_players()))
 
+loader.init(bot)
 bot.run(cfg.general['token'])

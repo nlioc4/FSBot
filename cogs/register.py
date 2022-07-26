@@ -1,6 +1,10 @@
 """
 Cog to handle registration, de-registration and parameter modification,
  mostly through message components."""
+# External Imports
+import discord
+from discord.ext import commands
+
 
 # Internal Imports
 import modules.config as cfg
@@ -10,9 +14,7 @@ import modules.database as db
 from display import AllStrings as disp, views
 import modules.discord_obj as d_obj
 
-# External Imports
-import discord
-from discord.ext import commands
+
 
 
 # Views

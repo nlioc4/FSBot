@@ -47,8 +47,9 @@ class ChallengeDropdown(discord.ui.Select):
             return
         already_invited = lobby.already_invited(owner, invited_players)
         if already_invited:
-            await disp.LOBBY_INVITED_ALREADY.send_temp(inter.channel, ' '.join([p.mention for p in already_invited]))
+            await disp.LOBBY_INVITED_ALREADY.send_priv(inter, ' '.join([p.mention for p in already_invited]))
             [invited_players.remove(p) for p in already_invited]
+            inter = inter.followup
         no_dms = list()
         match = None
         for invited in invited_players:
@@ -78,7 +79,7 @@ class ChallengeDropdown(discord.ui.Select):
                                                allowed_mentions=discord.AllowedMentions(users=[inter.user]))
             lobby.lobby_log(f'{owner.name} invited {",".join([p.name for p in remaining])} to a match')
         else:
-            await disp.LOBBY_NO_DM_ALL.send_temp(inter, owner.mention)
+            await disp.LOBBY_NO_DM_ALL.send_priv(inter, owner.mention)
         await _cog.update_dashboard()
 
 

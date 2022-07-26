@@ -10,7 +10,7 @@ import modules.discord_obj as d_obj
 import modules.tools as tools
 from classes.players import Player, ActivePlayer
 import modules.database as db
-import modules.accounts_handler_simple as accounts
+import modules.accounts_handler as accounts
 
 log = getLogger('fs_bot')
 _match_id_counter = 0
@@ -60,7 +60,7 @@ class BaseMatch:
         }
 
         obj.text_channel = await d_obj.categories['user'].create_text_channel(
-            name=f'Match︰{obj.id}',
+            name=f'match-id: {obj.id}-casual',
             overwrites=overwrites)
 
         obj.log(f'Owner:{owner.name}{owner.id}')

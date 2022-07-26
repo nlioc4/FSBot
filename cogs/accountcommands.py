@@ -15,7 +15,7 @@ import pytz
 
 # Internal imports
 import modules.config as cfg
-import modules.accounts_handler_simple
+import modules.accounts_handler
 import modules.census as census
 import classes
 import display
@@ -55,8 +55,8 @@ class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(g
         usage_channel = self.bot.get_partial_messageable(cfg.channels['usage'])
         rules_channel = self.bot.get_channel(cfg.channels['rules'])
         await ctx.defer(ephemeral=True)
-        if registered_role in message.author.roles and not modules.accounts_handler_simple.has_account(message.author):
-            account = modules.accounts_handler_simple.pick_account(message.author)
+        if registered_role in message.author.roles and not modules.accounts_handler.has_account(message.author):
+            account = modules.accounts_handler.pick_account(message.author)
             if not account:
                 await ctx.respond(f"No Available Accounts", ephemeral=True)
             else:
@@ -67,7 +67,7 @@ class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(g
                 await ctx.respond(
                     f"Account [{account.id}] being sent to {message.author.mention} with ID: {message.author.id}",
                     ephemeral=True)
-        elif modules.accounts_handler_simple.has_account(message.author):
+        elif modules.accounts_handler.has_account(message.author):
             await ctx.respond(f"{message.author.mention} has already been assigned an account!", ephemeral=True)
             await message.add_reaction("\u274C")
         elif registered_role not in message.author.roles:
@@ -96,16 +96,16 @@ class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(g
         usage_channel = self.bot.get_partial_messageable(cfg.channels['usage'])
         await ctx.defer(ephemeral=True)
         if force:
-            account = modules.accounts_handler_simple.pick_account(user)
+            account = modules.accounts_handler.pick_account(user)
             await user.send(content="", embed=display.account(ctx, account))
             await usage_channel.send(f'{ctx.user.name} sent account ID:{account.id} to User: {user.mention}')
             await ctx.respond(f"Account [{account.id}] being sent to {user.mention} with ID: {user.id}", ephemeral=True)
-        elif registered_role in user.roles and not modules.accounts_handler_simple.has_account(user):
-            account = modules.accounts_handler_simple.pick_account(user)
+        elif registered_role in user.roles and not modules.accounts_handler.has_account(user):
+            account = modules.accounts_handler.pick_account(user)
             await user.send(content="", embed=display.account(ctx, account))
             await usage_channel.send(f'{ctx.user.name} sent account ID:{account.id} to User: {user.mention}')
             await ctx.respond(f"Account [{account.id}] being sent to {user.mention} with ID: {user.id}", ephemeral=True)
-        elif modules.accounts_handler_simple.has_account(user):
+        elif modules.accounts_handler.has_account(user):
             await ctx.respond(f"{user.mention} has already been assigned an account!", ephemeral=True)
         elif registered_role not in user.roles:
             await ctx.respond(f"{user.mention} has not accepted the rules!", ephemeral=True)
@@ -116,8 +116,8 @@ class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(g
     async def accountcheck(self, ctx):
         """Account status info"""
         await ctx.defer()
-        available, used, usage = modules.accounts_handler_simple.accounts_info()
-        chars_list = census.get_account_chars_list(modules.accounts_handler_simple.all_accounts)
+        available, used, usage = modules.accounts_handler.accounts_info()
+        chars_list = census.get_account_chars_list(modules.accounts_handler.all_accounts)
         online = await census.get_chars_list_online_status(chars_list)
         await ctx.respond(content="", embed=display.embeds.accountcheck(available, used, usage, online))
 
@@ -125,7 +125,7 @@ class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(g
     async def initialize(self, ctx):
         """Reloads all accounts from the Account Sheet"""
         print("Manually", end=' ')
-        await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE)
+        await modules.accounts_handler.init(cfg.GAPI_SERVICE)
         await ctx.respond("Reinitialized Account Sheet")
 
     @commands.slash_command(name="midnightinit")
@@ -151,11 +151,11 @@ class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(g
     async def midnight_init(self):
         await asyncio.sleep(5) # to ensure google sheet has flipped to next day
         print(f"{datetime.now().strftime('%m/%d/%Y, %H:%M:%S')} : Automatically", end=" ")
-        await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE)
+        await modules.accounts_handler.init(cfg.GAPI_SERVICE)
 
     @tasks.loop(minutes=1)
     async def online_check(self):
-        chars_list = census.get_account_chars_list(modules.accounts_handler_simple._available_accounts)
+        chars_list = census.get_account_chars_list(modules.accounts_handler._available_accounts)
         usage_channel = self.bot.get_partial_messageable(cfg.channels['usage'])
         guild = self.bot.get_guild(cfg.general['guild_id'])
         jaeger_accounts_role = guild.get_role(cfg.roles['app_admin'])

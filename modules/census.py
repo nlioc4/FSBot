@@ -12,7 +12,7 @@ import asyncio
 
 # Internal Imports
 import modules.config as cfg
-import modules.accounts_handler_simple as accounts
+import modules.accounts_handler as accounts
 
 
 log = getLogger('fs_bot')
@@ -156,3 +156,49 @@ async def online_status_updater(all_active_players):
 
     client.add_trigger(login_trigger)
     client.add_trigger(logout_trigger)
+
+
+async def online_status_init(all_active_players):
+
+
+    acc_char_ids = accounts.account_char_ids
+    player_char_ids = {}
+    for p in all_active_players.values():
+        if not p.account:
+            for char_id in p.player.ig_ids:
+                player_char_ids[char_id] = p
+
+    tracked_ids = acc_char_ids.keys() + player_char_ids.keys()
+
+    ids_string = ','.join(tracked_ids)
+    async with auraxium.Client(service_id=cfg.general['api_key']) as client:
+        # build query
+        query = auraxium.census.Query('character', service_id=cfg.general['api_key'])
+        query.add_term('character_id', ids_string)
+        join = query.create_join('characters_online_status')
+        query.show('character_id')
+        query.limit(100)
+        try:
+            data = await client.request(query)
+        except auraxium.errors.ServiceUnavailableError:
+            log.error('API unreachable during online status init')
+            return False
+        if data["returned"] == 0:
+            log.error('API unreachable during online status init')
+            return False
+
+    # pull data from dict response
+    online_ids = list()
+    for a_return in data['character_list']:
+        if a_return['character_id_join_characters_online_status']['online_status'] != "0":
+            online_ids.append(a_return['character_id'])
+
+    for char_id in online_ids:
+        # Account Section
+        if char_id in acc_char_ids:
+            accounts.account_char_ids[char_id].online_id = char_id
+
+        # Player Section
+        if char_id in player_char_ids:
+            player_char_ids[char_id].online_id = char_id
+    return True
