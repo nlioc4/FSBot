@@ -14,6 +14,11 @@ class AllStrings(Enum):
     NOT_REGISTERED = "You are not registered {}, please go to {} first!"
     NOT_PLAYER = "You are not a player {}, please go to {} first!"
     STOP_SPAM = "{}: Please stop spamming!"
+    ALL_LOCKED = "FSBot is currently disabled, please try again later!"
+    DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
+    GENERAL_ERROR = "An error has occurred, {}, please ping Colin"
+    CHECK_FAILURE = "You have failed a check to run this command!"
+
 
     DM_INVITED = "{} you have been invited to a match by {}! Accept or decline below!"
     DM_INVITE_EXPIRED = "This invite has expired!"
@@ -27,7 +32,8 @@ class AllStrings(Enum):
     REG_CHAR_REGISTERED = "Registration Failed: Character: {} already registered by {}"
     REG_CHAR_NOT_FOUND = "Registration Failed: Character: {} not found in the Census API"
     REG_NOT_JAEGER = "Registration Failed: Character: {} is not from Jaeger!"
-    REG_WRONG_FORMAT = "Incorrect Character Entry Format!"
+    REG_WRONG_FORMAT = "Incorrect Character Entry Format! Enter either 1 character for each faction separated by ',' " \
+                       "or a space, or one character without a faction suffix and suffixes will be added for you."
 
     LOBBY_INVITED_SELF = "{} you can't invite yourself to a match!"
     LOBBY_INVITED = "{} invited {} to a match"
@@ -125,6 +131,15 @@ class AllStrings(Enum):
 
             case discord.Interaction:
                 return await getattr(ctx.response, action + '_message')(**args_dict)
+
+            case discord.ApplicationContext:
+                if action == "send":
+                    return await getattr(ctx, "respond")(**args_dict)
+                if action == "edit":
+                    return await getattr(ctx, action)(**args_dict)
+
+            case _:
+                print(f"Unrecognized Context: ", type(ctx))
 
     async def send(self, ctx, *args, **kwargs):
         return await self._do_send('send', ctx, *args, **kwargs)

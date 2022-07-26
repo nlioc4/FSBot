@@ -4,6 +4,8 @@
 # External Imports
 import discord
 import asyncio
+import sys
+import traceback
 
 # Interal Imports
 import modules.discord_obj as d_obj
@@ -12,9 +14,33 @@ from modules.spam_detector import is_spam
 from classes import Player
 from display import AllStrings as disp
 import modules.accounts_handler_simple as accounts
+from modules.loader import is_all_locked
 
 
-class InviteView(discord.ui.View):
+class FSBotView(discord.ui.View):
+    """Base View for the bot, includes error handling and locked check"""
+
+    def __init__(self, timeout=None):
+        super().__init__(timeout=timeout)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if is_all_locked():
+            memb = d_obj.guild.get_member(interaction.user.id)
+            if d_obj.is_admin(memb):
+                return True
+            else:
+                await disp.ALL_LOCKED.send_priv(interaction)
+                return False
+        return True
+
+    async def on_error(self, error: Exception, item: discord.ui.Item, interaction: discord.Interaction) -> None:
+
+        await disp.GENERAL_ERROR.send_priv(interaction, error)
+        print(f"Ignoring exception in view {self} for item {item}:", file=sys.stderr)
+        traceback.print_exception(error.__class__, error, error.__traceback__, file=sys.stderr)
+
+
+class InviteView(FSBotView):
     """View to handle accepting or declining match invites"""
 
     def __init__(self, owner, player):
@@ -56,7 +82,7 @@ class InviteView(discord.ui.View):
 
 
 
-class MatchInfoView(discord.ui.View):
+class MatchInfoView(FSBotView):
     """View to handle match controls"""
     def __init__(self, match):
         super().__init__(timeout=None)

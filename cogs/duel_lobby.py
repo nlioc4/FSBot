@@ -21,7 +21,6 @@ import modules.tools as tools
 
 log = getLogger('fs_bot')
 
-_bot: discord.Bot = None
 
 
 class ChallengeDropdown(discord.ui.Select):
@@ -83,7 +82,7 @@ class ChallengeDropdown(discord.ui.Select):
         await _cog.update_dashboard()
 
 
-class DashboardView(discord.ui.View):
+class DashboardView(views.FSBotView):
     def __init__(self):
         super().__init__(timeout=None)
         if lobby.lobbied():
@@ -154,7 +153,7 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
 
     def dashboard_purge_check(self, message: discord.Message):
         """Checks if messages are either the dashboard message, or an admin message before purging them"""
-        if message != self.dashboard_msg and d_obj.is_not_admin(message.author):
+        if message != self.dashboard_msg and not d_obj.is_admin(message.author):
             return True
         else:
             return False
@@ -206,7 +205,5 @@ _cog: DuelLobbyCog = None
 
 def setup(client: discord.Bot):
     client.add_cog(DuelLobbyCog(client))
-    global _bot
-    _bot = client
     global _cog
     _cog = client.cogs.get('DuelLobbyCog')

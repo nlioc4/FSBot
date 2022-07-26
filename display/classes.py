@@ -12,9 +12,8 @@ import discord
 class Message:
     """Class for all_strings to use.  Enables cleaner code through string relocation"""
 
-    def __init__(self, string, ping=True, embed=None):
+    def __init__(self, string, embed=None):
         self.__string = string
-        self.__ping = ping
         self.__embed = embed
 
     def string(self, args):

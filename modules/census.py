@@ -44,6 +44,9 @@ async def get_chars_list_online_status(chars_list: list):
         except auraxium.errors.ServiceUnavailableError:
             log.error('API unreachable during online check')
             return False
+        if data["returned"] == 0:
+            log.error('API unreachable during online check')
+            return False
 
         # pull data from dict response
         online_names = list()
@@ -136,7 +139,10 @@ async def online_status_updater(all_active_players):
 
         # Account Section
         if evt.character_id in acc_char_ids:
-            accounts.account_char_ids[evt.character_id].online_id = None
+            acc = accounts.account_char_ids[evt.character_id]
+            acc.online_id = None
+            if acc.is_terminated():
+                accounts.clean_account(acc)
 
         # Player Section
         if evt.character_id in player_char_ids:

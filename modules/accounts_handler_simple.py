@@ -16,7 +16,7 @@ import modules.config as cfg
 import modules.census as census
 import modules.discord_obj as d_obj
 import modules.database as db
-from display import AllStrings as disp, embeds
+from display import AllStrings as disp, views
 
 eastern = pytz.timezone('US/Eastern')
 
@@ -32,7 +32,6 @@ Y_OFFSET = 2
 X_OFFSET = 1
 Y_SKIP = 3
 USAGE_OFFSET = 7
-
 
 
 async def init(service_account_path: str):
@@ -120,10 +119,12 @@ async def init(service_account_path: str):
     for acc_id in to_drop:
         del all_accounts[acc_id]
 
+
+
     print('Initialized Accounts:', len(all_accounts))
 
 
-def pick_account(a_player: classes.Player) -> classes.Account | bool:  # TODO typecheck for Player
+def pick_account(a_player: classes.Player) -> classes.Account | bool:
     """
     Pick the account that the player has used the most, or the least used account
     Avoid players using multiple accounts if possible
@@ -181,7 +182,7 @@ def set_account(a_player: classes.Player, acc: classes.Account):
     a_player.set_account(acc)
 
 
-class ValidateView(discord.ui.View):
+class ValidateView(views.FSBotView):
     def __init__(self, acc):
         super().__init__(timeout=300)
         self.acc: classes.Account = acc
@@ -282,12 +283,17 @@ async def terminate_account(acc: classes.Account = None, player: classes.Player 
     else:
         await disp.ACCOUNT_EMBED.edit(acc.message, acc=acc, view=view)  # use acc.message context to edit
 
+    # Clean if already offline
+    if not acc.online_id:
+        clean_account(acc)
+
+
+def clean_account(acc):
     # Adjust player & account objects, return to available directory.
+    acc.a_player.set_account(None)
     acc.clean()  # TODO Move to "on-offline' function
-    player.set_account(None)
     del _busy_accounts[acc.id]
     _available_accounts[acc.id] = acc
-
 
 def has_account(a_player):
     for acc in _busy_accounts.values():

@@ -7,7 +7,7 @@ import modules.config as cfg
 import classes
 from classes.players import Player, SkillLevel
 import modules.database as db
-from display import AllStrings as disp
+from display import AllStrings as disp, views
 import modules.discord_obj as d_obj
 
 # External Imports
@@ -16,7 +16,7 @@ from discord.ext import commands
 
 
 # Views
-class RulesView(discord.ui.View):
+class RulesView(views.FSBotView):
     """Defines view to accept rules and start a player profile"""
 
     def __init__(self):
@@ -160,7 +160,7 @@ class RegisterCharacterModal(discord.ui.Modal):
                             "Eg: AIMxColin OR AIMxColinVS,AIMxColinNC,AIMxColinTR",
                 style=discord.InputTextStyle.long,
                 min_length=2,
-                max_length=150
+                max_length=200
             ),
             title="Jaeger Character Registration",
 
@@ -168,9 +168,10 @@ class RegisterCharacterModal(discord.ui.Modal):
 
     async def callback(self, inter: discord.Interaction):
         p: classes.Player = classes.Player.get(inter.user.id)
-        char_list = self.children[0].value.split(',')
+        char_list = self.children[0].value.replace(' ', ',').split(',')
         for char in char_list:
             char.strip()
+        char_list = list(filter(len, char_list))
         await inter.response.defer(ephemeral=True)
         inter = inter.followup
         if len(char_list) == 1 or len(char_list) == 3:  # if base char name, or individual names provided
@@ -192,7 +193,7 @@ class RegisterCharacterModal(discord.ui.Modal):
             await disp.REG_WRONG_FORMAT.send_priv(inter)
 
 
-class RegisterView(discord.ui.View):
+class RegisterView(views.FSBotView):
     """
     Defines a view for registering skill level, jaeger accounts and other preferences.
     """
@@ -231,13 +232,13 @@ class RegisterCog(discord.Cog, name='RegisterCog', command_attrs=dict(guild_ids=
         """Posts Rules Message in current channel"""
         self.rules_message = await ctx.channel.send(content="Click below to accept the rules or hide the FSBot "
                                                             "channels!", view=RulesView())
-        await ctx.respond(content="Rules Message Posted", ephemeral=True, delete_after=15)
+        await ctx.respond(content="Rules Message Posted", ephemeral=True)
 
     @commands.slash_command(name="registerinit")
     async def registerinit(self, ctx: discord.ApplicationContext):
         """Posts Register Message in current channel"""
         self.register_message = await ctx.channel.send(content="PLACEHOLDER: REGISTER/Settings", view=RegisterView())
-        await ctx.respond(content="Register and Settings Message Posted", ephemeral=True, delete_after=15)
+        await ctx.respond(content="Register and Settings Message Posted", ephemeral=True)
 
     @commands.Cog.listener()
     async def on_ready(self):

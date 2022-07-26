@@ -90,7 +90,9 @@ roles = {
 
 # Database Collections
 _collections = {
-    "users": ""
+    "users": "",
+    "matches": "",
+    "accounts": ""
 }
 
 # Stored Data Config

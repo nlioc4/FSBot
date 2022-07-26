@@ -125,7 +125,7 @@ class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(g
     async def initialize(self, ctx):
         """Reloads all accounts from the Account Sheet"""
         print("Manually", end=' ')
-        await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, self.bot)
+        await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE)
         await ctx.respond("Reinitialized Account Sheet")
 
     @commands.slash_command(name="midnightinit")
@@ -151,7 +151,7 @@ class AccountCommands(commands.Cog, name="AccountCommands", command_attrs=dict(g
     async def midnight_init(self):
         await asyncio.sleep(5) # to ensure google sheet has flipped to next day
         print(f"{datetime.now().strftime('%m/%d/%Y, %H:%M:%S')} : Automatically", end=" ")
-        await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE, self.bot)
+        await modules.accounts_handler_simple.init(cfg.GAPI_SERVICE)
 
     @tasks.loop(minutes=1)
     async def online_check(self):

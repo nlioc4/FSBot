@@ -24,28 +24,16 @@ midnight_eastern = (dt.now().astimezone(eastern) + timedelta(days=1)).replace(ho
 formatted_time = discord.utils.format_dt(midnight_eastern, style="t")
 
 
+def fs_author(embed) -> discord.Embed:
+    """
 
-
-def bot_info() -> discord.Embed:
-    """Bot Info Embed"""
-    embed = Embed(
-        colour=Colour.blue(),
-        title="Flight School Bot Information",
-        description="",
-        timestamp=dt.now()
-    )
-
+    :param embed: embed to modify
+    :return:  discord.Embed, with author as FSBot
+    """
     embed.set_author(name="FS Bot",
                      url="https://www.discord.gg/flightschool",
                      icon_url="https://cdn.discordapp.com/attachments/875624069544939570/993393648559476776"
                               "/pfp.png")
-
-    embed.add_field(name='Loaded Accounts',
-                    value=accounts.all_accounts)
-
-    embed.add_field(name='Enabled Cogs',
-                    value=','.join([key for key in _client.cogs.keys()]))
-
     return embed
 
 
@@ -55,16 +43,12 @@ def account(acc) -> discord.Embed:
     embed = Embed(
         colour=Colour.blue(),
         title="Flight School Jaeger Account",
-        description="\nFollow all Jaeger and [PREY's Flight School Rules](https://www.google.com) while using this account\n"
+        description="\nFollow all Jaeger and [PREY's Flight School Rules](https://www.google.com) while using this "
+                    "account\n "
                     f"[Be careful not to interfere with other Jaeger users, "
                     f"check the calendar here]({cfg.JAEGER_CALENDAR_URL})\n"
                     f"Failure to follow these rules may result in removed access to the entire FSBot system"
     )
-
-    embed.set_author(name="FS Bot",
-                     url="https://www.discord.gg/flightschool",
-                     icon_url="https://cdn.discordapp.com/attachments/875624069544939570/993393648559476776"
-                              "/pfp.png")
 
     if acc.is_terminated:
         embed.colour = Colour.red()
@@ -88,7 +72,7 @@ def account(acc) -> discord.Embed:
                               'other previously agreed to rules!',
                         inline=False)
 
-    return embed
+    return fs_author(embed)
 
 
 def accountcheck(available, used, usages, online) -> discord.Embed:
@@ -100,11 +84,6 @@ def accountcheck(available, used, usages, online) -> discord.Embed:
         description="",
         timestamp=dt.now()
     )
-
-    embed.set_author(name="FS Bot",
-                     url="https://www.discord.gg/flightschool",
-                     icon_url="https://cdn.discordapp.com/attachments/875624069544939570/993393648559476776"
-                              "/pfp.png")
 
     embed.add_field(name='Usage',
                     value=f"Available Accounts: **{available}**\n"
@@ -131,8 +110,7 @@ def accountcheck(available, used, usages, online) -> discord.Embed:
                         value=string,
                         inline=False
                         )
-    return embed
-
+    return fs_author(embed)
 
 def account_online_check(online) -> discord.Embed:
     """Automatic Online Check Embed
@@ -144,11 +122,6 @@ def account_online_check(online) -> discord.Embed:
         timestamp=dt.now()
     )
 
-    embed.set_author(name="FS Bot",
-                     url="https://www.discord.gg/flightschool",
-                     icon_url="https://cdn.discordapp.com/attachments/875624069544939570/993393648559476776"
-                              "/pfp.png")
-
     string = '*Character Name : Last Player *\n'
     for acc in online:
         char_name = online[acc][0]
@@ -159,7 +132,7 @@ def account_online_check(online) -> discord.Embed:
                     value=string,
                     inline=False
                     )
-    return embed
+    return fs_author(embed)
 
 
 def anomaly(world, zone, timestamp, state) -> discord.Embed:
@@ -176,11 +149,6 @@ def anomaly(world, zone, timestamp, state) -> discord.Embed:
         timestamp=dt.now()
     )
 
-    embed.set_author(name="FS Bot",
-                     url="https://www.discord.gg/flightschool",
-                     icon_url="https://cdn.discordapp.com/attachments/875624069544939570/993393648559476776"
-                              "/pfp.png")
-
     embed.set_thumbnail(url="https://i.imgur.com/Ch8QAZJ.png")
 
     embed.add_field(name=f'Server: {world}',
@@ -191,7 +159,7 @@ def anomaly(world, zone, timestamp, state) -> discord.Embed:
     embed.add_field(name='Register',
                     value='Register in #roles',
                     inline=False)
-    return embed
+    return fs_author(embed)
 
 
 def duel_dashboard(lobbied_players: list[Player], logs: list[(int, str)]) -> discord.Embed:
@@ -204,11 +172,6 @@ def duel_dashboard(lobbied_players: list[Player], logs: list[(int, str)]) -> dis
         description="Your source for organized ESF duels",
         timestamp=dt.now()
     )
-
-    embed.set_author(name="FS Bot",
-                     url="https://www.discord.gg/flightschool",
-                     icon_url="https://cdn.discordapp.com/attachments/875624069544939570/993393648559476776"
-                              "/pfp.png")
 
     # Dashboard Description
     skill_level_shorthands = [f'**{level.rank}**: {str(level)}' for level in list(SkillLevel)]
@@ -249,7 +212,7 @@ def duel_dashboard(lobbied_players: list[Player], logs: list[(int, str)]) -> dis
         embed.add_field(name="Recent Activity",
                         value=log_str,
                         inline=False)
-    return embed
+    return fs_author(embed)
 
 
 def longer_lobby_logs(logs: list[(int, str)]) -> discord.Embed:
@@ -262,11 +225,6 @@ def longer_lobby_logs(logs: list[(int, str)]) -> discord.Embed:
         timestamp=dt.now()
     )
 
-    embed.set_author(name="FS Bot",
-                     url="https://www.discord.gg/flightschool",
-                     icon_url="https://cdn.discordapp.com/attachments/875624069544939570/993393648559476776"
-                              "/pfp.png")
-
     if logs:
         log_str = ''
         for log in logs:
@@ -275,7 +233,7 @@ def longer_lobby_logs(logs: list[(int, str)]) -> discord.Embed:
         embed.add_field(name="Extended Recent Activity",
                         value=log_str,
                         inline=False)
-    return embed
+    return fs_author(embed)
 
 
 def match_info(match: BaseMatch) -> discord.Embed:
@@ -298,10 +256,6 @@ def match_info(match: BaseMatch) -> discord.Embed:
         timestamp=dt.now()
     )
 
-    embed.set_author(name="FS Bot",
-                     url="https://www.discord.gg/flightschool",
-                     icon_url="https://cdn.discordapp.com/attachments/875624069544939570/993393648559476776"
-                              "/pfp.png")
 
     match_info_str = (f"Owner: {match.owner.mention}\n"
                      f"Match status: {match.status.value}\n"
@@ -344,4 +298,4 @@ def match_info(match: BaseMatch) -> discord.Embed:
                         value=players_string,
                         inline=False)
 
-    return embed
+    return fs_author(embed)
