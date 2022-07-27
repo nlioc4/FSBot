@@ -1,7 +1,7 @@
 '''
 Main Script, run from here
 Parses Some Args from command line run,
---test : Sets config.ini path to use config_test.ini
+--test=BOOL : Sets config.ini path to use config_test.ini
 --loglevel=LEVEL [-l] : Sets loglevel, DEBUG, WARN, INFO etc.
 '''
 
@@ -9,10 +9,13 @@ Parses Some Args from command line run,
 import discord
 from discord.ext import commands
 import logging
+import logging.handlers
 import sys
 import traceback
 import asyncio
 import argparse
+import pathlib
+import os
 
 # internal imports
 import modules.config as cfg
@@ -35,11 +38,24 @@ numeric_level = getattr(logging, c_args.get('loglevel'), None)
 if not isinstance(numeric_level, int):
     raise ValueError('Invalid log level: %s' % c_args.get('loglevel'))
 
+# Logs Setup
 log = logging.getLogger('fs_bot')
 log.setLevel(numeric_level)
-handler = logging.FileHandler(filename='fs_bot.log', encoding='utf-8', mode='w')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-log.addHandler(handler)
+log_formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s')
+# Log to file
+log_path = f'{pathlib.Path(__file__).parent.absolute()}/../fs_bot_logs/fs_bot.log'
+if not os.path.exists(log_path.rstrip('fs_bot.log')):
+    os.makedirs(log_path.rstrip('fs_bot.log'))
+
+# log_handler = logging.FileHandler(filename=log_path, encoding='utf-8', mode='w')  # single log
+log_handler = logging.handlers.TimedRotatingFileHandler(log_path, when='D', interval=3) # rotating log files, every 3 days
+log_handler.setFormatter(log_formatter)
+log.addHandler(log_handler)
+# Log to console
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(log_formatter)
+log.addHandler(console_handler)
+
 
 if c_args.get('test'):
     cfg.get_config('config_test.ini')
@@ -55,8 +71,6 @@ bot = commands.Bot(intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
-    print("--------------------------------------------")
     log.info(f"Logged in as {bot.user} (ID: {bot.user.id})")
     d_obj.init(bot)
     await modules.accounts_handler.init(cfg.GAPI_SERVICE)
