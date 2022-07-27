@@ -53,21 +53,15 @@ async def init(service_account_path: str):
         a_in_game = sheet_imported[i * Y_SKIP + Y_OFFSET][X_OFFSET + 2]  # in-game char name, minus faction tag
         a_username = sheet_imported[i * Y_SKIP + Y_OFFSET][X_OFFSET]  # account username
         a_password = sheet_imported[i * Y_SKIP + Y_OFFSET][X_OFFSET + 1]  # account password
-        raw_use = str(sheet_imported[i * Y_SKIP + Y_OFFSET + 1][X_OFFSET - 1])
         a_id = int(a_in_game[-2:])  # integer only account ID
 
         # update only
         if a_id in _available_accounts:
             _available_accounts[a_id].update(a_username, a_password)
-            if raw_use == "USED":
-                _busy_accounts[a_id] = _available_accounts[a_id]
-                del _available_accounts[a_id]
 
         elif a_id in _busy_accounts:
             _busy_accounts[a_id].update(a_username, a_password)
-            if raw_use == "OPEN":
-                _busy_accounts[a_id].clean()
-                _available_accounts[a_id] = _busy_accounts.pop(a_id)
+
 
         else:
             # account has yet to be initialised
@@ -80,10 +74,7 @@ async def init(service_account_path: str):
                     a_unique_usages_id.append(int(unique_usages_raw[2][use]))
                 # check if account is marked "used"
             a_acc = classes.Account(a_id, a_username, a_password, a_in_game, a_unique_usages_id)
-            if raw_use == "OPEN":
-                _available_accounts[a_id] = a_acc
-            if raw_use == "USED":
-                _busy_accounts[a_id] = a_acc
+            _available_accounts[a_id] = a_acc
 
     # Create global all account dict
     global all_accounts
