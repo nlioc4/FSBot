@@ -107,38 +107,33 @@ async def get_ids_facs_from_chars(chars_list) -> dict[str, tuple[int, int]] | bo
         return char_dict
 
 
-async def online_status_updater(all_active_players):
+async def online_status_updater(chars_players_map_func):
     """Responsible for updating active player and account objects with their currently
     online characters"""
     acc_char_ids = accounts.account_char_ids
 
-    player_char_ids = {}
-    for p in all_active_players:
-        if not p.account:
-            for char_id in p.player.ig_ids:
-                player_char_ids[char_id] = p
-
-    tracked_ids = list(acc_char_ids.keys()) + list(player_char_ids.keys())
 
     client = auraxium.event.EventClient(service_id=cfg.general['api_key'])
 
-    def char_id_check(event: auraxium.event.PlayerLogin | auraxium.event.PlayerLogout):
-        return event.character_id in tracked_ids
-
     async def login_action(evt: auraxium.event.PlayerLogin):
+        player_char_ids = chars_players_map_func()
+        print('login')
         # Account Section
         if evt.character_id in acc_char_ids:
-            print('login')
+            print('login tracked')
             accounts.account_char_ids[evt.character_id].online_id = evt.character_id
 
         # Player Section
         if evt.character_id in player_char_ids:
+            print('login tracked')
             player_char_ids[evt.character_id].online_id = evt.character_id
 
     async def logout_action(evt: auraxium.event.PlayerLogout):
-
+        player_char_ids = chars_players_map_func()
+        print("logout")
         # Account Section
         if evt.character_id in acc_char_ids:
+            print("logout tracked")
             acc = accounts.account_char_ids[evt.character_id]
             acc.online_id = None
             if acc.is_terminated:
@@ -146,27 +141,21 @@ async def online_status_updater(all_active_players):
 
         # Player Section
         if evt.character_id in player_char_ids:
+            print("logout tracked")
             player_char_ids[evt.character_id].online_id = None
 
-    login_trigger = auraxium.Trigger(auraxium.event.PlayerLogin, worlds=[WORLD_ID],
-                                     conditions=[char_id_check], action=login_action)
+    login_trigger = auraxium.Trigger(auraxium.event.PlayerLogin, worlds=[WORLD_ID], action=login_action)
 
-    logout_trigger = auraxium.Trigger(auraxium.event.PlayerLogout, worlds=[WORLD_ID],
-                                      conditions=[char_id_check], action=logout_action)
+    logout_trigger = auraxium.Trigger(auraxium.event.PlayerLogout, worlds=[WORLD_ID], action=logout_action)
 
     client.add_trigger(login_trigger)
     client.add_trigger(logout_trigger)
 
 
-async def online_status_init(all_active_players):
+async def online_status_init(chars_players_map):
     acc_char_ids = accounts.account_char_ids
-    player_char_ids = {}
-    for p in all_active_players:
-        if not p.account:
-            for char_id in p.player.ig_ids:
-                player_char_ids[char_id] = p
 
-    tracked_ids = list(acc_char_ids.keys()) + list(player_char_ids.keys())
+    tracked_ids = list(acc_char_ids.keys()) + list(chars_players_map.keys())
     ids_string = ','.join([str(x) for x in tracked_ids])
     async with auraxium.Client(service_id=cfg.general['api_key']) as client:
         # build query
@@ -174,7 +163,7 @@ async def online_status_init(all_active_players):
         query.add_term('character_id', ids_string)
         query.create_join('characters_online_status')
         query.show('character_id')
-        query.limit(300)
+        query.limit(1000)
         try:
             data = await client.request(query)
         except auraxium.errors.ServiceUnavailableError:
@@ -196,6 +185,6 @@ async def online_status_init(all_active_players):
             accounts.account_char_ids[char_id].online_id = char_id
 
         # Player Section
-        if char_id in player_char_ids:
-            player_char_ids[char_id].online_id = char_id
+        if char_id in chars_players_map:
+            chars_players_map[char_id].online_id = char_id
     return True

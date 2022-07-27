@@ -45,16 +45,17 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
         self.census_watchtower.start()
         self.account_sheet_reload.start()
         self.account_watchtower.start()
+        self.debug_loop.start()
 
     @tasks.loop(count=1)
     async def census_watchtower(self):
-        await census.online_status_updater(Player.get_all_active_players())
+        await census.online_status_updater(Player.map_chars_to_players)
 
     @census_watchtower.before_loop
     async def before_census_watchtower(self):
         init = False
         for _ in range(5):
-            init = await census.online_status_init(Player.get_all_active_players())
+            init = await census.online_status_init(Player.map_chars_to_players())
             if init:
                 break
         if not init:

@@ -264,13 +264,23 @@ def match_info(match: BaseMatch) -> discord.Embed:
         for p in match.players:
             p = p.player
             preferred_facs = ''.join([cfg.emojis[fac] for fac in p.pref_factions]) if p.pref_factions else 'Any'
-            char_str = f' [{p.active.current_ig_name}] ' if p.active.current_ig_name else ''
-            string = f'{p.mention}({p.name})' + char_str + f'[{preferred_facs}][{p.skill_level.rank}]\n'
+            string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}]\n'
 
             players_string += string
 
         embed.add_field(name="Players",
                         value=players_string,
+                        inline=False)
+
+    if match.online_players:
+        online_string = ''
+        for p in match.online_players:
+            fac_emoji = cfg.emojis[p.current_faction]
+            string = f'{p.mention} as [{fac_emoji}{p.current_ig_name}]'
+            online_string += string
+
+        embed.add_field(name="Currently Online",
+                        value=online_string,
                         inline=False)
 
     return fs_author(embed)

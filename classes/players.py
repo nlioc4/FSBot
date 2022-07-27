@@ -110,6 +110,13 @@ class Player:
     def get_all_active_players(cls) -> list:
         return [p.active for p in cls.get_all_players().values() if p.active]
 
+    @classmethod
+    def map_chars_to_players(cls):
+        dct = {}
+        for i in cls._name_checking:
+            dct.update(i)
+        return dct
+
     def __init__(self, p_id, name):
         if not re.match(cfg.name_regex, name):
             name = "Non-Alphanumeric"
@@ -119,6 +126,7 @@ class Player:
         self.__account = None
         self.__ig_names = ["N/A", "N/A", "N/A"]
         self.__ig_ids = [0, 0, 0]
+        self.online_id = None
         self.__is_registered = False
         self.__hidden = False
         self.__timeout = 0
@@ -393,7 +401,7 @@ class ActivePlayer:
         self.__player = player
         self.__match = player.match
         self.__account = player.account
-        self.online_id = None
+        self.online_id = player.online_id
         self.round_wins = 0
         self.round_losses = 0
 
@@ -424,7 +432,7 @@ class ActivePlayer:
     @property
     def ig_names(self):
         if self.player.has_own_account:
-            return self.ig_names
+            return self.player.ig_names
         elif self.account:
             return self.account.ig_names
         else:
@@ -433,7 +441,7 @@ class ActivePlayer:
     @property
     def ig_ids(self):
         if self.player.has_own_account:
-            return self.ig_ids
+            return self.player.ig_ids
         elif self.account:
             return self.account.ig_ids
         else:
@@ -442,7 +450,7 @@ class ActivePlayer:
     @property
     def current_ig_name(self):
         if self.online_id:
-            return self.ig_names[self.ig_ids.index(self.online_id)]
+            return self.player.ig_names[self.ig_ids.index(self.online_id)]
         elif self.account and self.account.online_id:
             return self.account.ig_names[self.account.ig_ids.index(self.account.online_id)]
         else:

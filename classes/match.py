@@ -60,7 +60,7 @@ class BaseMatch:
         }
 
         obj.text_channel = await d_obj.categories['user'].create_text_channel(
-            name=f'match-id: {obj.id}-casual',
+            name=f'match-id𝄆{obj.id}𝄇-casual',
             overwrites=overwrites)
 
         obj.log(f'Owner:{owner.name}{owner.id}')
@@ -127,6 +127,10 @@ class BaseMatch:
     @property
     def invited(self):
         return self.__invited
+
+    @property
+    def online_players(self):
+        return [p for p in self.__players if p.online_id]
 
     def invite(self, player: Player):
         if player not in self.__invited:
