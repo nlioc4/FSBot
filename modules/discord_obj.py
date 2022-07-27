@@ -14,9 +14,9 @@ import classes.players
 from display import AllStrings as disp
 
 # Bot and guild global variables
-bot: discord.Bot = None
-guild: discord.Guild = None
-
+bot: discord.Bot | None = None
+guild: discord.Guild | None = None
+colin: discord.Member | None = None
 
 # Dicts containing role and channel objects
 roles: dict[str, discord.Role] = {}
@@ -41,6 +41,8 @@ def init(client):
 
     categories['user'] = channels['dashboard'].category
     categories['admin'] = channels['staff'].category
+    global colin
+    colin = guild.get_member(123702146247032834)
 
 
 def is_admin(member: discord.Member) -> bool:

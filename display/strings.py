@@ -16,10 +16,10 @@ class AllStrings(Enum):
     STOP_SPAM = "{}: Please stop spamming!"
     ALL_LOCKED = "FSBot is currently disabled, please try again later!"
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
-    GENERAL_ERROR = "An error has occurred, {}, please ping Colin"
+    GENERAL_ERROR = "An error has occurred, {}, please ping {}"
     CHECK_FAILURE = "You have failed a check to run this command!"
-    UNASSIGNED_ONLINE = "{} Unassigned Accounts Detected Online", account_online_check
-
+    UNASSIGNED_ONLINE = "{}", account_online_check
+    LOADER_TOGGLE = "FSBot {}ed"
 
     DM_INVITED = "{} you have been invited to a match by {}! Accept or decline below!"
     DM_INVITE_EXPIRED = "This invite has expired!"
@@ -90,11 +90,13 @@ class AllStrings(Enum):
         args_dict = {}
         if self.__string:
             args_dict['content'] = self.__string.format(*args)
-        if self.__embed:
+        if self.__embed and not kwargs.get('embed'):
             #  Checks if embed, then retrieves only the embed specific kwargs
             embed_sig = inspect.signature(self.__embed)
             embed_kwargs = {arg: kwargs.get(arg) for arg in embed_sig.parameters}
             args_dict['embed'] = self.__embed(**embed_kwargs)
+        if kwargs.get('embed'):
+            args_dict['embed'] = kwargs.get('embed')
         if kwargs.get('view'):
             args_dict['view'] = None if kwargs.get('view') == 0 else kwargs.get('view')
         if kwargs.get('delete_after'):
@@ -105,12 +107,6 @@ class AllStrings(Enum):
             args_dict['allowed_mentions'] = kwargs.get('allowed_mentions')
         if kwargs.get('remove_embed'):
             args_dict['embed'] = None
-        # string = self.__string.format(*args) if self.__string else None
-        # embed = None
-        # view = kwargs.get('view') or None
-        # delete_after = kwargs.get('delete_after') or None
-        # ephemeral = kwargs.get('ephemeral') or False
-        # allowed_mentions = kwargs.get('allowed_mentions') or discord.AllowedMentions.all()
 
         match type(ctx):
             case discord.User| discord.Member | discord.TextChannel | discord.VoiceChannel | discord.Thread:

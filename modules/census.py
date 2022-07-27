@@ -113,12 +113,12 @@ async def online_status_updater(all_active_players):
     acc_char_ids = accounts.account_char_ids
 
     player_char_ids = {}
-    for p in all_active_players.values():
+    for p in all_active_players:
         if not p.account:
             for char_id in p.player.ig_ids:
                 player_char_ids[char_id] = p
 
-    tracked_ids = acc_char_ids.keys() + player_char_ids.keys()
+    tracked_ids = list(acc_char_ids.keys()) + list(player_char_ids.keys())
 
     client = auraxium.event.EventClient(service_id=cfg.general['api_key'])
 
@@ -126,9 +126,9 @@ async def online_status_updater(all_active_players):
         return event.character_id in tracked_ids
 
     async def login_action(evt: auraxium.event.PlayerLogin):
-
         # Account Section
         if evt.character_id in acc_char_ids:
+            print('login')
             accounts.account_char_ids[evt.character_id].online_id = evt.character_id
 
         # Player Section
@@ -141,7 +141,7 @@ async def online_status_updater(all_active_players):
         if evt.character_id in acc_char_ids:
             acc = accounts.account_char_ids[evt.character_id]
             acc.online_id = None
-            if acc.is_terminated():
+            if acc.is_terminated:
                 accounts.clean_account(acc)
 
         # Player Section
@@ -151,33 +151,30 @@ async def online_status_updater(all_active_players):
     login_trigger = auraxium.Trigger(auraxium.event.PlayerLogin, worlds=[WORLD_ID],
                                      conditions=[char_id_check], action=login_action)
 
-    logout_trigger = auraxium.Trigger(auraxium.event.PlayerLogin, worlds=[WORLD_ID],
-                                     conditions=[char_id_check], action=logout_action)
+    logout_trigger = auraxium.Trigger(auraxium.event.PlayerLogout, worlds=[WORLD_ID],
+                                      conditions=[char_id_check], action=logout_action)
 
     client.add_trigger(login_trigger)
     client.add_trigger(logout_trigger)
 
 
 async def online_status_init(all_active_players):
-
-
     acc_char_ids = accounts.account_char_ids
     player_char_ids = {}
-    for p in all_active_players.values():
+    for p in all_active_players:
         if not p.account:
             for char_id in p.player.ig_ids:
                 player_char_ids[char_id] = p
 
-    tracked_ids = acc_char_ids.keys() + player_char_ids.keys()
-
-    ids_string = ','.join(tracked_ids)
+    tracked_ids = list(acc_char_ids.keys()) + list(player_char_ids.keys())
+    ids_string = ','.join([str(x) for x in tracked_ids])
     async with auraxium.Client(service_id=cfg.general['api_key']) as client:
         # build query
         query = auraxium.census.Query('character', service_id=cfg.general['api_key'])
         query.add_term('character_id', ids_string)
-        join = query.create_join('characters_online_status')
+        query.create_join('characters_online_status')
         query.show('character_id')
-        query.limit(100)
+        query.limit(300)
         try:
             data = await client.request(query)
         except auraxium.errors.ServiceUnavailableError:
@@ -191,7 +188,7 @@ async def online_status_init(all_active_players):
     online_ids = list()
     for a_return in data['character_list']:
         if a_return['character_id_join_characters_online_status']['online_status'] != "0":
-            online_ids.append(a_return['character_id'])
+            online_ids.append(int(a_return['character_id']))
 
     for char_id in online_ids:
         # Account Section

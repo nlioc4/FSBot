@@ -22,7 +22,6 @@ import modules.tools as tools
 log = getLogger('fs_bot')
 
 
-
 class ChallengeDropdown(discord.ui.Select):
     def __init__(self):
         options = []
@@ -145,6 +144,7 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
         self.dashboard_channel: discord.TextChannel = d_obj.channels['dashboard']
         # Dynamics
         self.dashboard_msg: discord.Message | None = None
+        self.dashboard_embed = None
 
         self.dashboard_loop.start()
 
@@ -162,27 +162,27 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
     async def create_dashboard(self):
         """Purges the channel, and then creates dashboard Embed w/ view"""
         await self.dashboard_channel.purge(check=self.dashboard_purge_check)
+        self.dashboard_embed = embeds.duel_dashboard(lobby.lobbied(),lobby.logs_recent())
         self.dashboard_msg = await self.dashboard_channel.send(content="",
-                                                               embed=embeds.duel_dashboard(lobby.lobbied(),
-                                                                                           lobby.logs_recent()),
+                                                               embed=self.dashboard_embed,
                                                                view=DashboardView())
 
     async def update_dashboard(self):
-        """Checks if dashboard exists and either creates one, or updates the current dashboard and purges messages older than 5 minutes"""
+        """Checks if dashboard exists and either creates one, or updates the current dashboard and purges messages
+        older than 5 minutes """
         if not self.dashboard_msg:
             await self.create_dashboard()
             return
+
         await d_obj.channels['dashboard'].purge(before=(dt.now() - timedelta(minutes=5)),
                                                 check=self.dashboard_purge_check)
-        await self.dashboard_msg.edit(embed=embeds.duel_dashboard(lobby.lobbied(),
-                                                                  lobby.logs_recent()),
-                                      view=DashboardView())
 
-    # async def create_match(self, creator, players: list[Player]):
-    #     match = BaseMatch.create(creator, players)
-    #     await asyncio.sleep(2)
-    #     self.log(f'Match: {match.id} created by {match.owner.name}')
-    #     return match
+        #  Post new embed only if embed has changed
+        new_embed = embeds.duel_dashboard(lobby.lobbied(), lobby.logs_recent())
+        if not tools.compare_embeds(new_embed, self.dashboard_embed):
+            self.dashboard_embed = new_embed
+            await self.dashboard_msg.edit(embed=new_embed,
+                                          view=DashboardView())
 
     @tasks.loop(seconds=10)
     async def dashboard_loop(self):
@@ -193,8 +193,8 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
                 lobby.lobby_timeout(p)
                 await disp.LOBBY_TIMEOUT.send(self.dashboard_channel, p.mention, delete_after=30)
             elif stamp_dt < (
-                    dt.now() - timedelta(minutes=lobby.timeout_minutes - 5)) and p not in lobby._warned_players:
-                lobby._warned_players.append(p)
+                    dt.now() - timedelta(minutes=lobby.timeout_minutes - 5)) and p not in lobby.warned_players:
+                lobby.warned_players.append(p)
                 lobby.lobby_log(f'{p.name} will soon be timed out of the lobby')
                 await disp.LOBBY_TIMEOUT_SOON.send(self.dashboard_channel, p.mention, delete_after=30)
 

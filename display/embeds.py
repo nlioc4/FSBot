@@ -135,33 +135,6 @@ def account_online_check(online) -> discord.Embed:
     return fs_author(embed)
 
 
-def anomaly(world, zone, timestamp, state) -> discord.Embed:
-    """Aerial Anomaly Notification Embed
-    """
-    colour = Colour.blurple()
-    if state == "Ended":
-        colour = Colour.red()
-
-    embed = Embed(
-        colour=colour,
-        title="Aerial Anomaly Detected",
-        description="",
-        timestamp=dt.now()
-    )
-
-    embed.set_thumbnail(url="https://i.imgur.com/Ch8QAZJ.png")
-
-    embed.add_field(name=f'Server: {world}',
-                    value=f'Continent: {zone}\nStarted: {format_stamp(timestamp, "r")}'
-                          f'\nState: {state}',
-                    inline=False)
-
-    embed.add_field(name='Register',
-                    value='Register in #roles',
-                    inline=False)
-    return fs_author(embed)
-
-
 def duel_dashboard(lobbied_players: list[Player], logs: list[(int, str)]) -> discord.Embed:
     """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels."""
     colour = Colour.blurple() if lobbied_players else Colour.greyple()
@@ -291,7 +264,9 @@ def match_info(match: BaseMatch) -> discord.Embed:
         for p in match.players:
             p = p.player
             preferred_facs = ''.join([cfg.emojis[fac] for fac in p.pref_factions]) if p.pref_factions else 'Any'
-            string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}]\n'
+            char_str = f' [{p.active.current_ig_name}] ' if p.active.current_ig_name else ''
+            string = f'{p.mention}({p.name})' + char_str + f'[{preferred_facs}][{p.skill_level.rank}]\n'
+
             players_string += string
 
         embed.add_field(name="Players",

@@ -14,7 +14,7 @@ class Account:
         self.__password = password
         self.__ig_name = in_game
         self.__ig_ids = [0, 0, 0]
-        self.online_id = None
+        self.__online_id = None
         self.a_player = None
         self.__last_usage = dict()
         self.__unique_usages = unique_usages
@@ -52,9 +52,17 @@ class Account:
 
     @property
     def online_name(self):
-        if self.online_id:
-            return self.ig_names[self.__ig_ids.index(self.online_id)]
+        if self.__online_id:
+            return self.ig_names[self.__ig_ids.index(self.__online_id)]
         return None
+
+    @property
+    def online_id(self):
+        return self.__online_id
+
+    @online_id.setter
+    def online_id(self, value):
+        self.__online_id = value
 
     @property
     def unique_usages(self):

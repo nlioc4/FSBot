@@ -228,6 +228,8 @@ class RegisterCog(discord.Cog, name='RegisterCog', command_attrs=dict(guild_ids=
         self.bot = bot
         self.register_message = None
         self.rules_message = None
+        self.bot.add_view(RulesView())
+        self.bot.add_view(RegisterView())
 
     @commands.slash_command(name="rulesinit")
     async def rulesinit(self, ctx: discord.ApplicationContext):
@@ -242,11 +244,7 @@ class RegisterCog(discord.Cog, name='RegisterCog', command_attrs=dict(guild_ids=
         self.register_message = await ctx.channel.send(content="PLACEHOLDER: REGISTER/Settings", view=RegisterView())
         await ctx.respond(content="Register and Settings Message Posted", ephemeral=True)
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await self.bot.wait_until_ready()
-        self.bot.add_view(RulesView())
-        self.bot.add_view(RegisterView())
+
 
 
 def setup(client):

@@ -12,6 +12,7 @@ import modules.config as cfg
 import modules.accounts_handler as accounts
 import modules.discord_obj as d_obj
 import modules.census as census
+import modules.loader as loader
 from classes import Player, ActivePlayer
 from display import AllStrings as disp, views
 
@@ -22,11 +23,25 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
                                                 default_permission=False)):
     def __init__(self, bot):
         self.bot = bot
-        self.unassigned_online = []
+        self.online_cache = []
+
+    # admin = discord.SlashCommandGroup("admin", "Admin Commands")
+    #
+    # @admin.command()
+    # async def loader(self, ctx: discord.ApplicationContext,
+    #                  action: discord.Option(str, "Load or Unload FSBot", choies=("Unlock", "Lock"))):
+    #     match action:
+    #         case "Unlock":
+    #             await loader.unlock_all(self.bot)
+    #             await disp.LOADER_TOGGLE.send_priv(ctx, action)
+    #         case "Lock":
+    #             await loader.lock_all(self.bot)
+    #             await disp.LOADER_TOGGLE.send_priv(ctx, action)
 
     @commands.Cog.listener('on_ready')
     async def on_ready(self):
-        #  Wait until the bot is ready before starting loops
+        #  Wait until the bot is ready before starting loops, ensure account_handler has finished init
+        await asyncio.sleep(5)
         self.census_watchtower.start()
         self.account_sheet_reload.start()
         self.account_watchtower.start()
@@ -40,7 +55,6 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
         init = False
         for _ in range(5):
             init = await census.online_status_init(Player.get_all_active_players())
-            await asyncio.sleep(2)
             if init:
                 break
         if not init:
@@ -56,16 +70,16 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
         # create list of accounts with online chars and no player assigned
         unassigned_online = []
         for acc in accounts.all_accounts.values():
-            if not acc.a_player and acc.online_id:
+            if acc.online_id and not acc.a_player:
                 unassigned_online.append(acc)
-
         # compare to cache to see if login is new. Ping only if login is new.
-        new_online = [acc for acc in unassigned_online if acc not in self.unassigned_online]
+        new_online = [acc for acc in unassigned_online if acc not in self.online_cache]
         if new_online:
-            await disp.UNASSIGNED_ONLINE.send(cfg.channels['logs'], cfg.roles['app_admin'], online=unassigned_online)
-
-        # Remove offline accounts from cache
-        self.unassigned_online = list(filter(lambda x: x not in unassigned_online, self.unassigned_online))
+            await disp.UNASSIGNED_ONLINE.send(d_obj.channels['logs'],
+                                              d_obj.roles['app_admin'].mention,
+                                              online=unassigned_online)
+        # Cache Online Accounts
+        self.online_cache = unassigned_online
 
 
 def setup(client):

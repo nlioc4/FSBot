@@ -35,7 +35,7 @@ class FSBotView(discord.ui.View):
 
     async def on_error(self, error: Exception, item: discord.ui.Item, interaction: discord.Interaction) -> None:
 
-        await disp.GENERAL_ERROR.send_priv(interaction, error)
+        await disp.GENERAL_ERROR.send_priv(interaction, error, d_obj.colin.mention)
         print(f"Ignoring exception in view {self} for item {item}:", file=sys.stderr)
         traceback.print_exception(error.__class__, error, error.__traceback__, file=sys.stderr)
 

@@ -8,6 +8,7 @@ from discord.ext import commands
 import logging
 import sys
 import traceback
+import asyncio
 
 # internal imports
 import modules.config as cfg
@@ -91,7 +92,7 @@ async def on_application_command_error(context, exception):
     elif isinstance(exception, discord.CheckFailure):
         await display.AllStrings.CHECK_FAILURE.send_priv(context)
     else:
-        await display.AllStrings.GENERAL_ERROR.send_priv(context, exception)
+        await display.AllStrings.GENERAL_ERROR.send_priv(context, exception, d_obj.colin.mention)
 
     command = context.command
     if command and command.has_error_handler():

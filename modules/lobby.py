@@ -30,7 +30,7 @@ longer_log_length: int = 25
 
 # Lobby Timeout
 timeout_minutes: int = 30
-_warned_players: list[Player] = []
+warned_players: list[Player] = []
 
 
 # Functions
@@ -59,7 +59,7 @@ def lobby_timeout(player):
     if player in _lobbied_players:
         player.on_lobby_leave()
         _lobbied_players.remove(player)
-        _warned_players.remove(player)
+        warned_players.remove(player)
         lobby_log(f'{player.name} was removed from the lobby by timeout.')
         return True
     else:
@@ -70,8 +70,8 @@ def lobby_timeout_reset(player):
     """Resets player lobbied timestamp, returns True if player was in lobby"""
     if player in _lobbied_players:
         player.reset_lobby_timestamp()
-        if player in _warned_players:
-            _warned_players.remove(player)
+        if player in warned_players:
+            warned_players.remove(player)
         return True
     return False
 

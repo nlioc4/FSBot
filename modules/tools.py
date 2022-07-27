@@ -44,11 +44,17 @@ def is_al_num(string):
     return True
 
 
-
 def timestamp_now():
     return int(dt.timestamp(dt.now()))
 
-def format_time_from_stamp(timestamp: int, type: str ="t") -> str:
+
+def compare_embeds(embed1, embed2) -> bool:
+    embed1dict, embed2dict = embed1.to_dict(), embed2.to_dict()
+    del embed1dict['timestamp'], embed2dict['timestamp']
+    return embed1dict == embed2dict
+
+
+def format_time_from_stamp(timestamp: int, type: str = "t") -> str:
     """converts a timestamp into a time formatted for discord.
     type indicates what format will be used, options are
     t| 22:57 |Short Time
@@ -61,6 +67,7 @@ def format_time_from_stamp(timestamp: int, type: str ="t") -> str:
     """
     time = dt.fromtimestamp(timestamp)
     return discord.utils.format_dt(time, type)
+
 
 def time_diff(timestamp):
     lead = timestamp_now() - timestamp
