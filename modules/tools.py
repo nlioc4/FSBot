@@ -1,7 +1,8 @@
-"""utility functions from pogbot"""
+"""utility functions, some from pogbot"""
 
 from datetime import datetime as dt
-import pytz
+from typing import Literal
+
 import discord
 
 from logging import getLogger
@@ -29,32 +30,18 @@ class UnexpectedError(Exception):
         super().__init__(message)
 
 
-def is_al_num(string):
-    """
-    Little utility to check if a string contains only letters and numbers (a-z,A-Z,0-9)
-
-    :param string: The string to be processed
-    :return: Result
-    """
-    for i in string.lower():
-        cond = ord('a') <= ord(i) <= ord('z')
-        cond = cond or (ord('0') <= ord(i) <= ord('9'))
-        if not cond:
-            return False
-    return True
-
-
 def timestamp_now():
     return int(dt.timestamp(dt.now()))
 
 
 def compare_embeds(embed1, embed2) -> bool:
+    """compares embeds (after removing timestamps)"""
     embed1dict, embed2dict = embed1.to_dict(), embed2.to_dict()
     del embed1dict['timestamp'], embed2dict['timestamp']
     return embed1dict == embed2dict
 
 
-def format_time_from_stamp(timestamp: int, type: str = "t") -> str:
+def format_time_from_stamp(timestamp: int, type_str: Literal["f", "F", "d", "D", "t", "T", "R"] = "t") -> str:
     """converts a timestamp into a time formatted for discord.
     type indicates what format will be used, options are
     t| 22:57 |Short Time
@@ -66,7 +53,7 @@ def format_time_from_stamp(timestamp: int, type: str = "t") -> str:
     R| 5 years ago| Relative Time
     """
     time = dt.fromtimestamp(timestamp)
-    return discord.utils.format_dt(time, type)
+    return discord.utils.format_dt(time, type_str)
 
 
 def time_diff(timestamp):
