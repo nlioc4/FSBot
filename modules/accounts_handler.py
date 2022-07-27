@@ -291,9 +291,10 @@ async def terminate_account(acc: classes.Account = None, player: classes.Player 
 def clean_account(acc):
     # Adjust player & account objects, return to available directory.
     acc.a_player.set_account(None)
-    acc.clean()  # TODO Move to "on-offline' function
+    acc.clean()
     del _busy_accounts[acc.id]
     _available_accounts[acc.id] = acc
+
 
 def has_account(a_player):
     for acc in _busy_accounts.values():

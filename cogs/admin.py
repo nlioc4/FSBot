@@ -45,23 +45,23 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
         self.census_watchtower.start()
         self.account_sheet_reload.start()
         self.account_watchtower.start()
-        self.debug_loop.start()
+        self.census_static.start()
 
-    @tasks.loop(count=1)
-    async def census_watchtower(self):
-        await census.online_status_updater(Player.map_chars_to_players)
-
-    @census_watchtower.before_loop
-    async def before_census_watchtower(self):
+    @tasks.loop(minutes=5)
+    async def census_static(self):
         init = False
         for _ in range(5):
             init = await census.online_status_init(Player.map_chars_to_players())
             if init:
                 break
         if not init:
-            log.warning("Could not reach REST api during watchtower init after 5 tries...")
+            log.warning("Could not reach REST api during census static after 5 tries...")
 
-    @tasks.loop(time=time(hour=16, minute=0, second=0))
+    @tasks.loop(count=1)
+    async def census_watchtower(self):
+        await census.online_status_updater(Player.map_chars_to_players)
+
+    @tasks.loop(time=[time(hour=16, minute=0, second=0), time(hour=8, minute=0, second=0)])
     async def account_sheet_reload(self):
         log.info("Reinitialized Account Sheet and Account Characters")
         await accounts.init(cfg.GAPI_SERVICE)
