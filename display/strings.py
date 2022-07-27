@@ -4,11 +4,14 @@
 import discord
 from enum import Enum
 import inspect
+from logging import getLogger
 
 # Internal Imports
 import modules.config as cfg
 from .embeds import *
+from modules.tools import UnexpectedError
 
+log = getLogger('fs_bot')
 
 class AllStrings(Enum):
     NOT_REGISTERED = "You are not registered {}, please go to {} first!"
@@ -20,6 +23,8 @@ class AllStrings(Enum):
     CHECK_FAILURE = "You have failed a check to run this command!"
     UNASSIGNED_ONLINE = "{}", account_online_check
     LOADER_TOGGLE = "FSBot {}ed"
+
+    LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], name: [{}]"
 
     DM_INVITED = "{} you have been invited to a match by {}! Accept or decline below!"
     DM_INVITE_EXPIRED = "This invite has expired!"
@@ -97,14 +102,17 @@ class AllStrings(Enum):
             args_dict['embed'] = self.__embed(**embed_kwargs)
         if kwargs.get('embed'):
             args_dict['embed'] = kwargs.get('embed')
-        if kwargs.get('view'):
-            args_dict['view'] = None if kwargs.get('view') == 0 else kwargs.get('view')
+        if kwargs.get('view') is not None:
+            args_dict['view'] = None if not kwargs.get('view') else kwargs.get('view')
         if kwargs.get('delete_after'):
             args_dict['delete_after'] = kwargs.get('delete_after')
         if kwargs.get('ephemeral'):
             args_dict['ephemeral'] = kwargs.get('ephemeral')
-        if kwargs.get('allowed_mentions'):
-            args_dict['allowed_mentions'] = kwargs.get('allowed_mentions')
+        if kwargs.get('allowed_mentions') is not None:
+            if not kwargs.get('allowed_mentions'):
+                args_dict['allowed_mentions'] = discord.AllowedMentions.none()
+            else:
+                args_dict['allowed_mentions'] = kwargs.get('allowed_mentions')
         if kwargs.get('remove_embed'):
             args_dict['embed'] = None
 
@@ -137,7 +145,7 @@ class AllStrings(Enum):
                     return await getattr(ctx, action)(**args_dict)
 
             case _:
-                print(f"Unrecognized Context: ", type(ctx))
+                raise UnexpectedError(f"Unrecognized Context, {type(ctx)}")
 
     async def send(self, ctx, *args, **kwargs):
         return await self._do_send('send', ctx, *args, **kwargs)

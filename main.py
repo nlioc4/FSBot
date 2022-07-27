@@ -1,5 +1,8 @@
 '''
 Main Script, run from here
+Parses Some Args from command line run,
+--test : Sets config.ini path to use config_test.ini
+--loglevel=LEVEL [-l] : Sets loglevel, DEBUG, WARN, INFO etc.
 '''
 
 # external imports
@@ -9,6 +12,7 @@ import logging
 import sys
 import traceback
 import asyncio
+import argparse
 
 # internal imports
 import modules.config as cfg
@@ -19,13 +23,28 @@ import modules.loader as loader
 import classes
 import display
 
+
+# parse commandline args
+ap = argparse.ArgumentParser()
+ap.add_argument('--test', default=False, type=bool)
+ap.add_argument('-l', '--loglevel', default='INFO', type=str)
+c_args = vars(ap.parse_args())
+print(c_args.get('loglevel'))
+
+numeric_level = getattr(logging, c_args.get('loglevel'), None)
+if not isinstance(numeric_level, int):
+    raise ValueError('Invalid log level: %s' % c_args.get('loglevel'))
+
 log = logging.getLogger('fs_bot')
-log.setLevel(logging.INFO)
+log.setLevel(numeric_level)
 handler = logging.FileHandler(filename='fs_bot.log', encoding='utf-8', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 log.addHandler(handler)
 
-cfg.get_config()
+if c_args.get('test'):
+    cfg.get_config('config_test.ini')
+else:
+    cfg.get_config('config.ini')
 
 intents = discord.Intents.default()
 intents.members = True
@@ -38,6 +57,7 @@ bot = commands.Bot(intents=intents)
 async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     print("--------------------------------------------")
+    log.info(f"Logged in as {bot.user} (ID: {bot.user.id})")
     d_obj.init(bot)
     await modules.accounts_handler.init(cfg.GAPI_SERVICE)
     loader.unlock_all(bot)
@@ -109,7 +129,7 @@ async def on_application_command_error(context, exception):
 # database init
 modules.database.init(cfg.database)
 modules.database.get_all_elements(classes.Player.new_from_data, 'users')
-print("Loaded Players from Database:", len(classes.Player.get_all_players()))
+log.info("Loaded Players from Database: %s", len(classes.Player.get_all_players()))
 
 loader.init(bot)
 bot.run(cfg.general['token'])

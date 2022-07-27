@@ -5,6 +5,7 @@ Handles interactions with commonly used discord objects, and role updates
 
 #  External Imports
 from typing import Union
+from logging import getLogger
 
 import discord
 
@@ -12,6 +13,8 @@ import discord
 import modules.config as cfg
 import classes.players
 from display import AllStrings as disp
+
+log = getLogger('fs_bot')
 
 # Bot and guild global variables
 bot: discord.Bot | None = None
@@ -34,10 +37,10 @@ def init(client):
 
     for role in cfg.roles:
         roles[role] = guild.get_role(cfg.roles[role])
-    print("Initialized Roles:", [role.name for role in roles.values()])
+    log.info("Initialized Roles: %s", [role.name for role in roles.values()])
     for channel in cfg.channels:
         channels[channel] = guild.get_channel(cfg.channels[channel])
-    print("Initialized Channels:", [channel.name for channel in channels.values()])
+    log.info("Initialized Channels: %s", [channel.name for channel in channels.values()])
 
     categories['user'] = channels['dashboard'].category
     categories['admin'] = channels['staff'].category

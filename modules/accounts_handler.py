@@ -33,6 +33,8 @@ X_OFFSET = 1
 Y_SKIP = 3
 USAGE_OFFSET = 7
 
+log = getLogger('fs_bot')
+
 
 async def init(service_account_path: str):
 
@@ -110,7 +112,7 @@ async def init(service_account_path: str):
     for acc_id in to_drop:
         del all_accounts[acc_id]
 
-    print('Initialized Accounts:', len(all_accounts))
+    log.info('Initialized Accounts: %s', len(all_accounts))
 
 
 def pick_account(a_player: classes.Player) -> classes.Account | bool:
@@ -184,6 +186,9 @@ class ValidateView(views.FSBotView):
         button.style = discord.ButtonStyle.grey
         self.end_session_button.disabled = False
         self.timeout = None
+        log.info(f'Account [{self.acc.id}] sent to player: ID: [{inter.user.id}], name: [{inter.user.id}]')
+        await disp.LOG_ACCOUNT.send(d_obj.channels['logs'], self.acc.id, inter.user.id, inter.user.mention,
+                                    allowed_mentions=False)
         await disp.ACCOUNT_EMBED.edit(inter, acc=self.acc, view=self)
 
     @discord.ui.button(label="End Session", style=discord.ButtonStyle.red)
@@ -224,7 +229,6 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
         acc = player.account
     if not player:
         player = acc.a_player
-    print(f'Giving account [{acc.id}] to player: ID: [{player.id}], name: [{player.name}]')  # TODO change to log
 
     # update account object
     acc.validate()

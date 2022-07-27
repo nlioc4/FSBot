@@ -105,12 +105,13 @@ database = {
 }
 
 
-def get_config():
+def get_config(config_path):
     global GAPI_SERVICE
     GAPI_SERVICE = f'{pathlib.Path(__file__).parent.absolute()}/../service_account.json'
 
-    file = f'{pathlib.Path(__file__).parent.absolute()}/../config.ini'
+    file = f'{pathlib.Path(__file__).parent.absolute()}/../{config_path}'
     print(file)
+    log.info('Loaded config from file: %s', file)
 
     if not os.path.isfile(file):
         raise ConfigError(f"{file} not found!")
