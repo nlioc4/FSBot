@@ -230,7 +230,6 @@ class RegisterCog(discord.Cog, name='RegisterCog', command_attrs=dict(guild_ids=
         self.rules_message = None
         self.bot.add_view(RulesView())
         self.bot.add_view(RegisterView())
-
     @commands.slash_command(name="rulesinit")
     async def rulesinit(self, ctx: discord.ApplicationContext):
         """Posts Rules Message in current channel"""

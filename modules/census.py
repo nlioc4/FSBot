@@ -5,19 +5,16 @@ Census module for tracking Jaeger players.  Currently used to ensure FS block ac
 
 # External Imports
 import auraxium
-from auraxium import ps2
 from logging import getLogger
-import asyncio
-
 
 # Internal Imports
 import modules.config as cfg
 import modules.accounts_handler as accounts
 
-
 log = getLogger('fs_bot')
 
 WORLD_ID = 19
+
 
 def get_account_chars_list(account_dict: dict):
     """Builds a list of IGN's from the currently available Jaeger accounts"""
@@ -30,7 +27,7 @@ def get_account_chars_list(account_dict: dict):
 
 
 async def get_chars_list_online_status(chars_list: list):
-    "Gets online status from list of IGN's, returns as dictionary of account_id: online_char"
+    """Gets online status from list of IGN's, returns as dictionary of account_id: online_char"""
     names_string = ','.join(chars_list)
     async with auraxium.Client(service_id=cfg.general['api_key']) as client:
         # build query
@@ -64,7 +61,7 @@ async def get_chars_list_online_status(chars_list: list):
     return online_dict
 
 
-async def get_char_info(char_name) -> list[str, int, int, int]:
+async def get_char_info(char_name) -> list[str, int, int, int] | None:
     """
 
     :param char_name: character name to be searched
@@ -112,28 +109,22 @@ async def online_status_updater(chars_players_map_func):
     online characters"""
     acc_char_ids = accounts.account_char_ids
 
-
     client = auraxium.event.EventClient(service_id=cfg.general['api_key'])
 
     async def login_action(evt: auraxium.event.PlayerLogin):
         player_char_ids = chars_players_map_func()
-        print('login')
         # Account Section
         if evt.character_id in acc_char_ids:
-            print('login tracked')
             accounts.account_char_ids[evt.character_id].online_id = evt.character_id
 
         # Player Section
         if evt.character_id in player_char_ids:
-            print('login tracked')
             player_char_ids[evt.character_id].online_id = evt.character_id
 
     async def logout_action(evt: auraxium.event.PlayerLogout):
         player_char_ids = chars_players_map_func()
-        print("logout")
         # Account Section
         if evt.character_id in acc_char_ids:
-            print("logout tracked")
             acc = accounts.account_char_ids[evt.character_id]
             acc.online_id = None
             if acc.is_terminated:
@@ -141,11 +132,12 @@ async def online_status_updater(chars_players_map_func):
 
         # Player Section
         if evt.character_id in player_char_ids:
-            print("logout tracked")
             player_char_ids[evt.character_id].online_id = None
 
+    # noinspection PyTypeChecker
     login_trigger = auraxium.Trigger(auraxium.event.PlayerLogin, worlds=[WORLD_ID], action=login_action)
 
+    # noinspection PyTypeChecker
     logout_trigger = auraxium.Trigger(auraxium.event.PlayerLogout, worlds=[WORLD_ID], action=logout_action)
 
     client.add_trigger(login_trigger)
@@ -169,7 +161,7 @@ async def online_status_init(chars_players_map):
         except auraxium.errors.ServiceUnavailableError:
             log.error('API unreachable during online status init')
             return False
-        if data["returned"] == 0:
+        if data["returned"] == 0 or 'character_id_join_characters_online_status' not in data['character_list'][0]:
             log.error('API unreachable during online status init')
             return False
 

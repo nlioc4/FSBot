@@ -23,7 +23,7 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
                                                 default_permission=False)):
     def __init__(self, bot):
         self.bot = bot
-        self.online_cache = []
+        self.online_cache = set()
 
     # admin = discord.SlashCommandGroup("admin", "Admin Commands")
     #
@@ -47,7 +47,7 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
         self.account_watchtower.start()
         self.census_static.start()
 
-    @tasks.loop(minutes=5)
+    @tasks.loop(minutes=15)
     async def census_static(self):
         init = False
         for _ in range(5):
@@ -61,7 +61,7 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
     async def census_watchtower(self):
         await census.online_status_updater(Player.map_chars_to_players)
 
-    @tasks.loop(time=[time(hour=16, minute=0, second=0), time(hour=8, minute=0, second=0)])
+    @tasks.loop(time=time(hour=16, minute=0, second=0))
     async def account_sheet_reload(self):
         log.info("Reinitialized Account Sheet and Account Characters")
         await accounts.init(cfg.GAPI_SERVICE)
@@ -69,12 +69,12 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
     @tasks.loop(seconds=10)
     async def account_watchtower(self):
         # create list of accounts with online chars and no player assigned
-        unassigned_online = []
+        unassigned_online = set()
         for acc in accounts.all_accounts.values():
             if acc.online_id and not acc.a_player:
-                unassigned_online.append(acc)
+                unassigned_online.add(acc)
         # compare to cache to see if login is new. Ping only if login is new.
-        new_online = [acc for acc in unassigned_online if acc not in self.online_cache]
+        new_online = unassigned_online - self.online_cache
         if new_online:
             await disp.UNASSIGNED_ONLINE.send(d_obj.channels['logs'],
                                               d_obj.roles['app_admin'].mention,
