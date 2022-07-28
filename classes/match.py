@@ -14,6 +14,9 @@ import modules.database as db
 import modules.accounts_handler as accounts
 
 log = getLogger('fs_bot')
+
+MATCH_TIMEOUT_TIME = 600
+MATCH_WARN_TIME = 300
 _match_id_counter = 0
 
 
@@ -36,11 +39,12 @@ class BaseMatch:
         self.__invited = list()
         self.start_stamp = tools.timestamp_now()
         self.end_stamp = None
+        self.timeout_stamp = None
         self.__players: list[ActivePlayer] = [owner.on_playing(self),
                                               player.on_playing(self)]  # player list, add owners active_player
         self.__previous_players: list[Player] = list()
         self.match_log = list()  # logs recorded as list of tuples, (timestamp, message)
-        self.status = MatchState.INVITING
+        self.status = MatchState.GETTING_READY
         self.text_channel: discord.TextChannel | None = None
         self.info_message: discord.Message | None = None
         self.embed_cache: discord.Embed | None = None
@@ -65,6 +69,7 @@ class BaseMatch:
         obj.text_channel = await d_obj.categories['user'].create_text_channel(
             name=f'match-id𝄆{obj.id}𝄇-casual',
             overwrites=overwrites)
+        obj.embed_cache = embeds.match_info(obj)
 
         obj.info_message = await disp.MATCH_INFO.send(obj.text_channel, match=obj,
                                                       view=views.MatchInfoView(obj))
@@ -93,6 +98,10 @@ class BaseMatch:
 
     async def end_match(self):
         self.end_stamp = tools.timestamp_now()
+        self.status = MatchState.ENDED
+        self.update_status()
+        await self.update_embed()
+        await disp.MATCH_END.send(self.text_channel, self.id)
         # add match end message
         with self.text_channel.typing():
             await asyncio.sleep(10)
@@ -105,7 +114,7 @@ class BaseMatch:
         BaseMatch._recent_matches[self.id] = self
 
     def get_data(self):
-        player_ids = [player.id for player in self.__players]
+        player_ids = [player.id for player in self.__players and self.__previous_players]
         data = {'match_id': self.id, 'start_stamp': self.start_stamp, 'end_stamp': self.end_stamp,
                 'owner': self.owner.id, 'players': player_ids, 'match_log': self.match_log}
         return data
@@ -121,9 +130,39 @@ class BaseMatch:
                 self.embed_cache = new_embed
                 await disp.MATCH_INFO.edit(self.info_message, embed=self.embed_cache, view=views.MatchInfoView(self))
 
+    def update_status(self):
+        if len(self.players) < 2:
+            self.status = MatchState.INVITING
+        elif self.online_players:
+            self.status = MatchState.PLAYING
+        elif not len(self.online_players) < 2:
+            self.status = MatchState.GETTING_READY
+
+    async def update_match(self):
+        # check timeout, reset if new match or online_players
+        if self.online_players or self.start_stamp < tools.timestamp_now() - MATCH_WARN_TIME:
+            self.timeout_stamp = None
+        else:
+            if not self.timeout_stamp:  # set timeout stamp
+                self.timeout_stamp = tools.timestamp_now()
+            elif self.should_warn:  # Warn of timeout
+                await disp.MATCH_TIMEOUT_WARN.send(self.text_channel, self.all_mentions, delete_after=30)
+            elif self.should_timeout:  # Timeout Match
+                self.log("Match timed out for inactivity...")
+                await disp.MATCH_TIMEOUT.send(self.text_channel, self.all_mentions)
+                await self.end_match()
+
+
+
+
+        self.update_status()
+
+        await self.update_embed()
+
+
     def log(self, message):
         self.match_log.append((tools.timestamp_now(), message))
-        log.info(f'Match ID [{self.id}]:{message}')
+        log.info(f'Match ID [{self.id}]: {message}')
 
     @property
     def id(self):
@@ -144,6 +183,28 @@ class BaseMatch:
     @property
     def online_players(self):
         return [p for p in self.__players if p.online_id]
+
+    @property
+    def all_mentions(self):
+        return [p.mention for p in self.__players if p.online_id]
+
+    @property
+    def timeout_at(self):
+        if not self.timeout_stamp:
+            return False
+        return self.timeout_stamp + MATCH_TIMEOUT_TIME if self.timeout_stamp else False
+
+    @property
+    def should_warn(self):
+        if not self.timeout_stamp:
+            return False
+        return True if self.timeout_stamp < tools.timestamp_now() - MATCH_WARN_TIME else False
+
+    @property
+    def should_timeout(self):
+        if not self.timeout_stamp:
+            return False
+        return True if self.timeout_stamp < tools.timestamp_now() - MATCH_TIMEOUT_TIME else False
 
     def invite(self, player: Player):
         if player not in self.__invited:

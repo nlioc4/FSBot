@@ -233,6 +233,9 @@ def match_info(match) -> discord.Embed:
                       f"Match Start Time: {format_stamp(match.start_stamp)}\n"
                       )
 
+    if match.timeout_at:
+        match_info_str += f'**Match will timeout at:** {format_stamp(match.timeout_at)}'
+
     if match.end_stamp:
         match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}'
 

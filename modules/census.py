@@ -115,11 +115,17 @@ async def online_status_updater(chars_players_map_func):
         player_char_ids = chars_players_map_func()
         # Account Section
         if evt.character_id in acc_char_ids:
-            accounts.account_char_ids[evt.character_id].online_id = evt.character_id
+            acc = accounts.account_char_ids[evt.character_id]
+            acc.online_id = evt.character_id
+            if acc.a_player and acc.a_player.match:
+                await acc.a_player.match.update_match()
 
         # Player Section
         if evt.character_id in player_char_ids:
-            player_char_ids[evt.character_id].online_id = evt.character_id
+            p = player_char_ids[evt.character_id]
+            p.online_id = evt.character_id
+            if p.match:
+                await p.match.update_match()
 
     async def logout_action(evt: auraxium.event.PlayerLogout):
         player_char_ids = chars_players_map_func()
@@ -127,12 +133,17 @@ async def online_status_updater(chars_players_map_func):
         if evt.character_id in acc_char_ids:
             acc = accounts.account_char_ids[evt.character_id]
             acc.online_id = None
+            if acc.a_player and acc.a_player.match:
+                await acc.a_player.match.update_match()
             if acc.is_terminated:
                 accounts.clean_account(acc)
 
         # Player Section
         if evt.character_id in player_char_ids:
-            player_char_ids[evt.character_id].online_id = None
+            p = player_char_ids[evt.character_id]
+            p.online_id = None
+            if p.match:
+                await p.match.update_match()
 
     # noinspection PyTypeChecker
     login_trigger = auraxium.Trigger(auraxium.event.PlayerLogin, worlds=[WORLD_ID], action=login_action)
@@ -174,9 +185,16 @@ async def online_status_init(chars_players_map):
     for char_id in online_ids:
         # Account Section
         if char_id in acc_char_ids:
-            accounts.account_char_ids[char_id].online_id = char_id
+            acc = accounts.account_char_ids[char_id]
+            acc.online_id = char_id
+            if acc.a_player and acc.a_player.match:
+                await acc.a_player.match.update_match()
 
         # Player Section
         if char_id in chars_players_map:
-            chars_players_map[char_id].online_id = char_id
+            p = chars_players_map[char_id]
+            p.online_id = char_id
+            if p.match:
+                await p.match.update_match()
+
     return True

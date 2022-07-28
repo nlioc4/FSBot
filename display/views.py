@@ -10,6 +10,7 @@ import traceback
 import modules.discord_obj as d_obj
 import modules.lobby as lobby
 from modules.spam_detector import is_spam
+import modules.tools as tools
 from classes import Player
 from display import AllStrings as disp
 import modules.accounts_handler as accounts
@@ -30,7 +31,7 @@ class FSBotView(discord.ui.View):
             else:
                 await disp.ALL_LOCKED.send_priv(interaction)
                 return False
-        if is_spam(interaction, view=True):
+        if await is_spam(interaction, view=True):
             return False
         return True
 
@@ -88,6 +89,9 @@ class MatchInfoView(FSBotView):
     def __init__(self, match):
         super().__init__(timeout=None)
         self.match = match
+        if not self.match.should_warn:
+            self.reset_timeout_button.style = discord.ButtonStyle.grey
+            self.reset_timeout_button.disabled = True
 
     @discord.ui.button(label="Leave Match", style=discord.ButtonStyle.red)
     async def leave_button(self, button: discord.Button, inter: discord.Interaction):
@@ -97,11 +101,17 @@ class MatchInfoView(FSBotView):
 
         await disp.MATCH_LEAVE.send_temp(inter, p.mention)
         if p == self.match.owner:
-            await disp.MATCH_END.send(self.match.text_channel, self.match.id)
             await self.match.end_match()
         else:
             await self.match.leave_match(p.active)
         await disp.MATCH_INFO.edit(self.match.info_message, match=self.match)
+
+    @discord.ui.button(label="Reset Timeout", style=discord.ButtonStyle.green)
+    async def reset_timeout_button(self, button: discord.Button, inter: discord.Interaction):
+        """Resets the match from timeout"""
+        self.match.timeout_at = tools.timestamp_now()
+        await disp.MATCH_TIMEOUT_RESET.send_temp(self.match.text_channel, inter.user.mention)
+        await self.match.update_embed()
 
     @discord.ui.button(label="Request Account", style=discord.ButtonStyle.blurple)
     async def account_button(self, button: discord.Button, inter: discord.Interaction):

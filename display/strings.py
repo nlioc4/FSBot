@@ -69,6 +69,9 @@ class AllStrings(Enum):
     MATCH_DECLINE = "You have decline the invite."
     MATCH_JOIN = "{} You have joined the match"
     MATCH_LEAVE = "{} You have left the match."
+    MATCH_TIMEOUT_WARN = "{} No online players detected, match will timeout in 5 minutes! Login or reset above!"
+    MATCH_TIMEOUT_RESET = "{} timeout reset!"
+    MATCH_TIMEOUT = "{} Match is being closed due to inactivity"
     MATCH_END = "Match ID: {} Ended, closing match channel..."
 
     SKILL_LEVEL_REQ_ONE = "Your requested skill level has been set to: {}."
