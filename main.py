@@ -58,8 +58,10 @@ console_handler.setFormatter(log_formatter)
 log.addHandler(console_handler)
 
 if c_args.get('test'):
+    print("TEST ENVIRONMENT")
     cfg.get_config('config_test.ini')
 else:
+    print("PRODUCTION ENVIRONMENT")
     cfg.get_config('config.ini')
 
 intents = discord.Intents.default()

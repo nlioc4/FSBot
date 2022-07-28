@@ -7,6 +7,7 @@ from enum import Enum
 
 # Internal Imports
 import modules.discord_obj as d_obj
+from display import AllStrings as disp, embeds, views
 import modules.tools as tools
 from classes.players import Player, ActivePlayer
 import modules.database as db
@@ -35,12 +36,14 @@ class BaseMatch:
         self.__invited = list()
         self.start_stamp = tools.timestamp_now()
         self.end_stamp = None
-        self.__players: list[ActivePlayer] = [owner.on_playing(self), player.on_playing(self)]   # player list, add owners active_player
+        self.__players: list[ActivePlayer] = [owner.on_playing(self),
+                                              player.on_playing(self)]  # player list, add owners active_player
         self.__previous_players: list[Player] = list()
         self.match_log = list()  # logs recorded as list of tuples, (timestamp, message)
         self.status = MatchState.INVITING
         self.text_channel: discord.TextChannel | None = None
         self.info_message: discord.Message | None = None
+        self.embed_cache: discord.Embed | None = None
         BaseMatch._active_matches[self.id] = self
 
     @classmethod
@@ -62,6 +65,9 @@ class BaseMatch:
         obj.text_channel = await d_obj.categories['user'].create_text_channel(
             name=f'match-id𝄆{obj.id}𝄇-casual',
             overwrites=overwrites)
+
+        obj.info_message = await disp.MATCH_INFO.send(obj.text_channel, match=obj,
+                                                      view=views.MatchInfoView(obj))
 
         obj.log(f'Owner:{owner.name}{owner.id}')
         return obj
@@ -108,6 +114,13 @@ class BaseMatch:
         player_member = d_obj.guild.get_member(player.id)
         await self.text_channel.set_permissions(player_member, view_channel=action)
 
+    async def update_embed(self):
+        if self.info_message:
+            new_embed = embeds.match_info(self)
+            if not tools.compare_embeds(new_embed, self.embed_cache):
+                self.embed_cache = new_embed
+                await disp.MATCH_INFO.edit(self.info_message, embed=self.embed_cache, view=views.MatchInfoView(self))
+
     def log(self, message):
         self.match_log.append((tools.timestamp_now(), message))
         log.info(f'Match ID [{self.id}]:{message}')
@@ -139,4 +152,3 @@ class BaseMatch:
     def decline_invite(self, player: Player):
         if player in self.__invited:
             self.__invited.remove(player)
-

@@ -36,11 +36,13 @@ class MatchesCog(commands.Cog, name="MatchesCog",
     async def matches_loop(self):
         # update match info embeds
         for match in BaseMatch._active_matches.values():
-            if match.info_message:
-                try:
-                    await disp.MATCH_INFO.edit(match.info_message, match=match, view=views.MatchInfoView(match))
-                except discord.errors.NotFound:
-                    pass
+            match.update_embed()
+
+
+
+
+
+
 
 
 

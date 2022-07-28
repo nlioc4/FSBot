@@ -13,14 +13,12 @@ import modules.config as cfg
 import modules.accounts_handler as accounts
 from modules.tools import format_time_from_stamp as format_stamp
 from classes.players import Player, ActivePlayer, SkillLevel
-from classes.match import BaseMatch, MatchState
 import modules.discord_obj as d_obj
-
 
 # midnight tomorrow EST
 eastern = pytz.timezone('US/Eastern')
 midnight_eastern = (dt.now().astimezone(eastern) + timedelta(days=1)).replace(hour=0, minute=0, microsecond=0,
-                                                                                    second=0)
+                                                                              second=0)
 formatted_time = discord.utils.format_dt(midnight_eastern, style="t")
 
 
@@ -112,6 +110,7 @@ def accountcheck(available, used, usages, online) -> discord.Embed:
                         )
     return fs_author(embed)
 
+
 def account_online_check(online) -> discord.Embed:
     """Automatic Online Check Embed
     """
@@ -167,7 +166,7 @@ def duel_dashboard(lobbied_players: list[Player], logs: list[(int, str)]) -> dis
         players_string = ''
         for p in lobbied_players:
             preferred_facs = ''.join([cfg.emojis[fac] for fac in p.pref_factions]) if p.pref_factions else 'Any'
-            req_skill_levels = ' '.join([str(level.rank) for level in p.req_skill_levels])\
+            req_skill_levels = ' '.join([str(level.rank) for level in p.req_skill_levels]) \
                 if p.req_skill_levels else 'Any'
             f_lobbied_stamp = format_stamp(p.first_lobbied_timestamp)
             string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}][{req_skill_levels}][{f_lobbied_stamp}]\n '
@@ -209,17 +208,17 @@ def longer_lobby_logs(logs: list[(int, str)]) -> discord.Embed:
     return fs_author(embed)
 
 
-def match_info(match: BaseMatch) -> discord.Embed:
+def match_info(match) -> discord.Embed:
     """Match info for match channel, should go along with match control View"""
     colour = None
-    match match.status:
-        case MatchState.INVITING:
+    match match.status.name:
+        case 'INVITING':
             colour = Colour.dark_blue()
-        case MatchState.GETTING_READY:
+        case 'GETTING_READY':
             colour = Colour.blurple()
-        case MatchState.Playing:
+        case 'Playing':
             colour = Colour.green()
-        case MatchState.ENDED:
+        case 'ENDED':
             colour = Colour.red()
 
     embed = Embed(
@@ -229,11 +228,10 @@ def match_info(match: BaseMatch) -> discord.Embed:
         timestamp=dt.now()
     )
 
-
     match_info_str = (f"Owner: {match.owner.mention}\n"
-                     f"Match status: {match.status.value}\n"
-                     f"Match Start Time: {format_stamp(match.start_stamp)}\n"
-                     )
+                      f"Match status: {match.status.value}\n"
+                      f"Match Start Time: {format_stamp(match.start_stamp)}\n"
+                      )
 
     if match.end_stamp:
         match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}'
@@ -257,7 +255,7 @@ def match_info(match: BaseMatch) -> discord.Embed:
         embed.add_field(name="Invited Players",
                         value=invited_string,
                         inline=False
-        )
+                        )
 
     if match.players:
         players_string = ''

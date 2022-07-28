@@ -123,7 +123,7 @@ async def accept_invite(owner, player):
     if owner.match and owner.match.owner == owner:
         match = owner.match
         await match.join_match(player)
-        await disp.MATCH_INFO.edit(match.info_message, match=match, view=views.MatchInfoView(match))
+        await match.update_embed()
         await disp.MATCH_JOIN.send_temp(match.text_channel, player.mention)
         lobby_leave(player, match)
         return match
@@ -132,8 +132,7 @@ async def accept_invite(owner, player):
     else:
 
         match = await BaseMatch.create(owner, player)
-        match.info_message = await disp.MATCH_INFO.send(match.text_channel, match=match,
-                                                        view=views.MatchInfoView(match))
+
         await disp.MATCH_JOIN.send_temp(match.text_channel, f'{owner.mention}{player.mention}')
         if owner.id in _invites:
             _invites[owner.id].remove(player)
