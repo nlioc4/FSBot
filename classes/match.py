@@ -51,6 +51,10 @@ class BaseMatch:
         BaseMatch._active_matches[self.id] = self
 
     @classmethod
+    def active_matches_list(cls):
+        return BaseMatch._active_matches.values()
+
+    @classmethod
     async def create(cls, owner: Player, invited: Player):
         obj = cls(owner, invited)
         # last_match = None  # await db.async_db_call(db.get_last_element, 'matches')
@@ -74,7 +78,7 @@ class BaseMatch:
         obj.info_message = await disp.MATCH_INFO.send(obj.text_channel, match=obj,
                                                       view=views.MatchInfoView(obj))
 
-        obj.log(f'Owner:{owner.name}{owner.id}')
+        obj.log(f'Owner: {owner.name}[{owner.id}]')
         return obj
 
     async def join_match(self, player: Player):
@@ -102,7 +106,6 @@ class BaseMatch:
         self.update_status()
         await self.update_embed()
         await disp.MATCH_END.send(self.text_channel, self.id)
-        # add match end message
         with self.text_channel.typing():
             await asyncio.sleep(10)
         for player in self.__players:
@@ -152,13 +155,8 @@ class BaseMatch:
                 await disp.MATCH_TIMEOUT.send(self.text_channel, self.all_mentions)
                 await self.end_match()
 
-
-
-
         self.update_status()
-
         await self.update_embed()
-
 
     def log(self, message):
         self.match_log.append((tools.timestamp_now(), message))
@@ -213,3 +211,4 @@ class BaseMatch:
     def decline_invite(self, player: Player):
         if player in self.__invited:
             self.__invited.remove(player)
+

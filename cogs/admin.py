@@ -52,17 +52,17 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
         self.census_watchtower.start()
         self.account_sheet_reload.start()
         self.account_watchtower.start()
-        self.census_static.start()
+        self.census_rest.start()
 
     @tasks.loop(minutes=15)
-    async def census_static(self):
+    async def census_rest(self):
         init = False
         for _ in range(5):
-            init = await census.online_status_init(Player.map_chars_to_players())
+            init = await census.online_status_rest(Player.map_chars_to_players())
             if init:
                 break
         if not init:
-            log.warning("Could not reach REST api during census static after 5 tries...")
+            log.warning("Could not reach REST api during census rest after 5 tries...")
 
     @tasks.loop(count=1)
     async def census_watchtower(self):

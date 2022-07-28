@@ -140,11 +140,10 @@ def get_element(collection: str, item_id: int) -> (dict, None):
     return item
 
 
-def get_last_element(collection: str) -> (dict, None):
-    if _collections[collection].count_documents() == 0:
-        return
-    item = _collections[collection].find_one.sort(['$natural', -1])
-    return item
+def count_documents(collection: str) -> int:
+    return _collections[collection].count_documents()
+
+
 
 
 def get_field(collection: str, e_id: int, specific: str):

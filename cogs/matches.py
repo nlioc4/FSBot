@@ -35,7 +35,7 @@ class MatchesCog(commands.Cog, name="MatchesCog",
     @tasks.loop(seconds=10)
     async def matches_loop(self):
         # update match info embeds
-        for match in BaseMatch._active_matches.values():
+        for match in BaseMatch.active_matches_list():
             await match.update_match()
 
 
