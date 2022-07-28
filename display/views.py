@@ -99,7 +99,8 @@ class MatchInfoView(FSBotView):
         if not await d_obj.is_registered(inter, p):
             return
 
-        await disp.MATCH_LEAVE.send_temp(inter, p.mention)
+        await disp.MATCH_LEAVE.send_priv(inter, p.mention)
+        await asyncio.sleep(2)
         if p == self.match.owner:
             await self.match.end_match()
         else:

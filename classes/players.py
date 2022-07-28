@@ -263,6 +263,33 @@ class Player:
         return self.__active
 
     @property
+    def online_name(self):
+        if self.online_id:
+            return self.ig_names[self.ig_ids.index(self.online_id)]
+        elif self.account and self.account.online_id:
+            return self.account.ig_names[self.account.ig_ids.index(self.account.online_id)]
+        else:
+            return False
+
+    @property
+    def current_ig_id(self):
+        if self.online_id:
+            return self.online_id
+        elif self.account:
+            return self.account.online_id
+        else:
+            return False
+
+    @property
+    def current_faction(self):
+        if self.online_id:
+            return cfg.factions[self.ig_ids.index(self.online_id) + 1]
+        elif self.account and self.account.online_id:
+            return cfg.factions[self.account.ig_ids.index(self.account.online_id) + 1]
+        else:
+            return False
+
+    @property
     def lobbied_timestamp(self):
         return self.__lobbied_timestamp
 
@@ -448,29 +475,14 @@ class ActivePlayer:
             return False
 
     @property
-    def current_ig_name(self):
-        if self.online_id:
-            return self.player.ig_names[self.ig_ids.index(self.online_id)]
-        elif self.account and self.account.online_id:
-            return self.account.ig_names[self.account.ig_ids.index(self.account.online_id)]
-        else:
-            return False
+    def online_name(self):
+        return self.player.online_name
 
     @property
     def current_ig_id(self):
-        if self.online_id:
-            return self.online_id
-        elif self.account:
-            return self.account.online_id
-        else:
-            return False
+        return self.player.current_ig_id
 
 
     @property
     def current_faction(self):
-        if self.online_id:
-            return cfg.factions[self.ig_ids.index(self.online_id) + 1]
-        elif self.account and self.account.online_id:
-            return cfg.factions[self.account.ig_ids.index(self.account.online_id) + 1]
-        else:
-            return False
+        return self.player.current_faction

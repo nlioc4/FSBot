@@ -94,6 +94,7 @@ class BaseMatch:
         await self.channel_update(player, False)
         player.player.on_quit()
         self.log(f'{player.name} left the match')
+        await disp.MATCH_LEAVE.send_temp(self.text_channel, p.mention)
         if not self.__players and not self.end_stamp:  # if no players left, and match not already ended
             await self.end_match()
         if player.account:
@@ -131,15 +132,15 @@ class BaseMatch:
             new_embed = embeds.match_info(self)
             if not tools.compare_embeds(new_embed, self.embed_cache):
                 self.embed_cache = new_embed
-                await disp.MATCH_INFO.edit(self.info_message, embed=self.embed_cache, view=views.MatchInfoView(self))
+                await disp.MATCH_INFO.edit(self.info_message, embed=new_embed, view=views.MatchInfoView(self))
 
     def update_status(self):
         if len(self.players) < 2:
             self.status = MatchState.INVITING
+        elif len(self.online_players) < 2:
+            self.status = MatchState.GETTING_READY
         elif self.online_players:
             self.status = MatchState.PLAYING
-        elif not len(self.online_players) < 2:
-            self.status = MatchState.GETTING_READY
 
     async def update_match(self):
         # check timeout, reset if new match or online_players

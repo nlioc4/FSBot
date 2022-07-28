@@ -277,7 +277,7 @@ def match_info(match) -> discord.Embed:
         online_string = ''
         for p in match.online_players:
             fac_emoji = cfg.emojis[p.current_faction]
-            string = f'{p.mention} as [{fac_emoji}{p.current_ig_name}]'
+            string = f'{p.mention} as [{fac_emoji}{p.online_name}]'
             online_string += string
 
         embed.add_field(name="Currently Online",
