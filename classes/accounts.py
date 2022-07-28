@@ -105,3 +105,6 @@ class Account:
     def terminate(self):
         self.__terminated = True
         self.__last_usage['end_time'] = tools.timestamp_now()
+
+    def logout(self):
+        self.__last_usage['logout_time'] = tools.timestamp_now()

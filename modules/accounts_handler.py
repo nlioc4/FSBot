@@ -280,10 +280,14 @@ async def terminate_account(acc: classes.Account = None, player: classes.Player 
 
     # Clean if already offline
     if not acc.online_id:
-        clean_account(acc)
+        await clean_account(acc)
 
 
-def clean_account(acc):
+async def clean_account(acc):
+    # Update DB Usage
+    acc.logout()
+    await db.async_db_call(db.push_element, 'account_usages', acc.id, acc.last_usage)
+
     # Adjust player & account objects, return to available directory.
     acc.a_player.set_account(None)
     acc.clean()
