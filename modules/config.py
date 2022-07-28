@@ -10,23 +10,25 @@ import pathlib
 
 log = getLogger("fs_bot")
 
+
 class ConfigError(Exception):
     """
     Raised when an error occur while reading the config file.
 
     :param msg: Error message.
     """
+
     def __init__(self, msg: str):
         self.message = "Error in config file: " + msg
         super().__init__(self.message)
 
 
-## Static Parameters
+# Static Parameters
 
 name_regex = r"^[ -■]{1,32}$"
 
 JAEGER_CALENDAR_URL = "https://docs.google.com/spreadsheets/d/1eA4ybkAiz-nv_mPxu_laL504nwTDmc-9GnsojnTiSRE/edit#gid" \
-                      "=38315545 "
+                      "=38315545"
 
 #: Dictionary to retrieve faction name by id.
 factions = {
@@ -46,7 +48,7 @@ zones = {2: "Indar",
          8: "Esamir",
          344: "Oshur"}
 
-## Dynamic Variables, from .ini
+#  Dynamic Variables, from .ini
 
 GAPI_SERVICE = ""
 
@@ -85,7 +87,6 @@ roles = {
     "registered": "",
     "view_channels": ""
 
-
 }
 
 # Database Collections
@@ -110,11 +111,13 @@ def get_config(config_path):
     GAPI_SERVICE = f'{pathlib.Path(__file__).parent.absolute()}/../service_account.json'
 
     file = f'{pathlib.Path(__file__).parent.absolute()}/../{config_path}'
-    print(file)
     log.info('Loaded config from file: %s', file)
 
     if not os.path.isfile(file):
         raise ConfigError(f"{file} not found!")
+
+    if not os.path.isfile(GAPI_SERVICE):
+        raise ConfigError(f"{GAPI_SERVICE} not found")
 
     config = ConfigParser()
     try:
@@ -189,12 +192,3 @@ def _error_missing(field, section, file):
 
 def _error_incorrect(field, section, file):
     raise ConfigError(f"Incorrect field '{field}' in '{section}' in '{file}'")
-
-
-
-
-
-
-
-
-

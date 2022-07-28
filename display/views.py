@@ -1,6 +1,5 @@
 """Views to be used in the bot"""
 
-
 # External Imports
 import discord
 import asyncio
@@ -31,6 +30,8 @@ class FSBotView(discord.ui.View):
             else:
                 await disp.ALL_LOCKED.send_priv(interaction)
                 return False
+        if is_spam(interaction, view=True):
+            return False
         return True
 
     async def on_error(self, error: Exception, item: discord.ui.Item, interaction: discord.Interaction) -> None:
@@ -52,7 +53,7 @@ class InviteView(FSBotView):
     @discord.ui.button(label="Accept Invite", style=discord.ButtonStyle.green)
     async def accept_button(self, button: discord.Button, inter: discord.Interaction):
         p: Player = Player.get(inter.user.id)
-        if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, p):
+        if not await d_obj.is_registered(inter, p):
             return
 
         self.disable_all_items()
@@ -65,7 +66,7 @@ class InviteView(FSBotView):
     @discord.ui.button(label="Decline Invite", style=discord.ButtonStyle.red)
     async def decline_button(self, button: discord.Button, inter: discord.Interaction):
         p: Player = Player.get(inter.user.id)
-        if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, p):
+        if not await d_obj.is_registered(inter, p):
             return
         lobby.decline_invite(self.owner, p)
         self.disable_all_items()
@@ -81,9 +82,9 @@ class InviteView(FSBotView):
         lobby.decline_invite(self.owner, self.player)
 
 
-
 class MatchInfoView(FSBotView):
     """View to handle match controls"""
+
     def __init__(self, match):
         super().__init__(timeout=None)
         self.match = match
@@ -91,7 +92,7 @@ class MatchInfoView(FSBotView):
     @discord.ui.button(label="Leave Match", style=discord.ButtonStyle.red)
     async def leave_button(self, button: discord.Button, inter: discord.Interaction):
         p: Player = Player.get(inter.user.id)
-        if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, p):
+        if not await d_obj.is_registered(inter, p):
             return
 
         await disp.MATCH_LEAVE.send_temp(inter, p.mention)
@@ -102,12 +103,11 @@ class MatchInfoView(FSBotView):
             await self.match.leave_match(p.active)
         await disp.MATCH_INFO.edit(self.match.info_message, match=self.match)
 
-
     @discord.ui.button(label="Request Account", style=discord.ButtonStyle.blurple)
     async def account_button(self, button: discord.Button, inter: discord.Interaction):
         """Requests an account for the player"""
         p: Player = Player.get(inter.user.id)
-        if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, p):
+        if not await d_obj.is_registered(inter, p):
             return
         elif p.has_own_account:
             await disp.ACCOUNT_HAS_OWN.send_priv(inter)
@@ -117,7 +117,6 @@ class MatchInfoView(FSBotView):
             return
         else:
             acc = accounts.pick_account(p)
-            msg = None
             if acc:  # if account found
                 msg = await accounts.send_account(acc)
                 if msg:  # if could dm user
@@ -128,4 +127,3 @@ class MatchInfoView(FSBotView):
 
             else:  # if no account found
                 await disp.ACCOUNT_NO_ACCOUNT.send_priv(inter)
-

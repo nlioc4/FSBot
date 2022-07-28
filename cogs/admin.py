@@ -3,6 +3,7 @@
 # External Imports
 import discord
 from discord.ext import commands, tasks
+from discord.commands import SlashCommandGroup
 from logging import getLogger
 import asyncio
 from datetime import datetime as dt, time, timezone
@@ -25,8 +26,14 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
         self.bot = bot
         self.online_cache = set()
 
-    # admin = discord.SlashCommandGroup("admin", "Admin Commands")
-    #
+    @discord.slash_command()
+    async def admin(self, ctx: discord.ApplicationContext):
+        if ctx.user == d_obj.colin:
+            await disp.HELLO.send(ctx, f'glorious creator {d_obj.colin.mention}')
+        else:
+            await disp.HELLO.send(ctx, ctx.user.mention)
+
+
     # @admin.command()
     # async def loader(self, ctx: discord.ApplicationContext,
     #                  action: discord.Option(str, "Load or Unload FSBot", choies=("Unlock", "Lock"))):

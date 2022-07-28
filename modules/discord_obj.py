@@ -24,7 +24,7 @@ colin: discord.Member | None = None
 # Dicts containing role and channel objects
 roles: dict[str, discord.Role] = {}
 channels: dict[str, Union[discord.TextChannel, discord.VoiceChannel]] = {}
-categories = {'user': None, 'admin': None}
+categories: dict[str, discord.CategoryChannel | None] = {'user': None, 'admin': None}
 
 
 def init(client):
@@ -44,6 +44,7 @@ def init(client):
 
     categories['user'] = channels['dashboard'].category
     categories['admin'] = channels['staff'].category
+
     global colin
     colin = guild.get_member(123702146247032834)
 
@@ -57,7 +58,7 @@ def is_admin(member: discord.Member) -> bool:
         return False
 
 
-def is_player(user: discord.Member) -> bool:
+def is_player(user: discord.Member | discord.User) -> bool:
     """Simple check if a user is a player, returns True if passed"""
     if classes.Player.get(user.id):
         return True

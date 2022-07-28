@@ -11,18 +11,19 @@ from modules.tools import timestamp_now
 
 log = getLogger('fs_bot')
 
-
 __spam_list = dict()
 __last_requests = dict()
 _msg_frequency = 5
 _msg_distance = 20
 
 
-async def is_spam(ctx, user: discord.User | discord.Member):
+async def is_spam(ctx, view=False):
+    user = ctx.user
     a_id = user.id
     if a_id in __spam_list and __spam_list[a_id] > 0:
         if a_id in __last_requests and __last_requests[a_id] < timestamp_now() - _msg_distance:
-            log.info(f'Automatically Unlocked User ID:{a_id}, User Name: {user.name} from spam filter')
+            if not view:
+                log.debug(f'Automatically Unlocked User ID:{a_id}, User Name: {user.name} from spam filter')
             unlock(a_id)
             return False
     __last_requests[a_id] = timestamp_now()
@@ -37,6 +38,6 @@ async def is_spam(ctx, user: discord.User | discord.Member):
         return True
     return False
 
+
 def unlock(a_id):
     __spam_list[a_id] = 0
-

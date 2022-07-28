@@ -25,7 +25,7 @@ import modules.database
 import modules.loader as loader
 import classes
 import display
-
+import modules.spam_detector as spam
 
 # parse commandline args
 ap = argparse.ArgumentParser()
@@ -48,14 +48,14 @@ if not os.path.exists(log_path.rstrip('fs_bot.log')):
     os.makedirs(log_path.rstrip('fs_bot.log'))
 
 # log_handler = logging.FileHandler(filename=log_path, encoding='utf-8', mode='w')  # single log
-log_handler = logging.handlers.TimedRotatingFileHandler(log_path, when='D', interval=3) # rotating log files, every 3 days
+log_handler = logging.handlers.TimedRotatingFileHandler(log_path, when='D',
+                                                        interval=3)  # rotating log files, every 3 days
 log_handler.setFormatter(log_formatter)
 log.addHandler(log_handler)
 # Log to console
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(log_formatter)
 log.addHandler(console_handler)
-
 
 if c_args.get('test'):
     cfg.get_config('config_test.ini')
@@ -97,7 +97,7 @@ async def filtercontentplug(ctx: discord.ApplicationContext,
     await ctx.respond(f"{selection}d {channel.mention}'s content filter")
 
 
-#  Add global is_locked check
+#  Global Bot Interaction Check
 @bot.check
 async def global_interaction_check(interaction):
     if loader.is_all_locked():
@@ -106,7 +106,16 @@ async def global_interaction_check(interaction):
             return True
         else:
             raise AllLocked
+
+    if await spam.is_spam(interaction):
+        return False
     return True
+
+
+# unlock user from spam filter
+@bot.after_invoke
+async def global_after_invoke(interaction):
+    spam.unlock(interaction.user.id)
 
 
 class AllLocked(discord.CheckFailure):

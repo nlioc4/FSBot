@@ -38,7 +38,7 @@ class ChallengeDropdown(discord.ui.Select):
 
     async def callback(self, inter: discord.Interaction):
         owner: Player = Player.get(inter.user.id)
-        if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, owner):
+        if not await d_obj.is_registered(inter, owner):
             return
         invited_players: list[Player] = [Player.get(int(value)) for value in self.values]
         if owner in invited_players:
@@ -94,7 +94,7 @@ class DashboardView(views.FSBotView):
     @discord.ui.button(label="Join Lobby", custom_id='dashboard-join', style=discord.ButtonStyle.green)
     async def join_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         player: Player = Player.get(inter.user.id)
-        if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, player):
+        if not await d_obj.is_registered(inter, player):
             return
         elif player.match:
             await disp.LOBBY_ALREADY_MATCH.send_priv(inter, player.mention, player.match.text_channel.mention)
@@ -107,7 +107,7 @@ class DashboardView(views.FSBotView):
     @discord.ui.button(label="Reset Timeout", custom_id='dashboard-reset', style=discord.ButtonStyle.blurple)
     async def reset_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         player: Player = Player.get(inter.user.id)
-        if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, player):
+        if not await d_obj.is_registered(inter, player):
             return
         elif player in lobby.lobbied():
             lobby.lobby_timeout_reset(player)
@@ -117,8 +117,6 @@ class DashboardView(views.FSBotView):
 
     @discord.ui.button(label="Extended History", custom_id='dashboard-history', style=discord.ButtonStyle.blurple)
     async def history_lobby_button(self, button: discord.Button, inter: discord.Interaction):
-        if await is_spam(inter, inter.user):
-            return
         if len(lobby.logs) <= len(lobby.logs_recent()):
             await disp.LOBBY_NO_HISTORY.send_temp(inter, inter.user.mention)
             return
@@ -127,7 +125,7 @@ class DashboardView(views.FSBotView):
     @discord.ui.button(label="Leave Lobby", custom_id='dashboard-leave', style=discord.ButtonStyle.red)
     async def leave_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         player: Player = Player.get(inter.user.id)
-        if await is_spam(inter, inter.user) or not await d_obj.is_registered(inter, player):
+        if not await d_obj.is_registered(inter, player):
             return
         elif lobby.lobby_leave(player):
             await _cog.update_dashboard()

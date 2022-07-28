@@ -23,6 +23,7 @@ class AllStrings(Enum):
     CHECK_FAILURE = "You have failed a check to run this command!"
     UNASSIGNED_ONLINE = "{}", account_online_check
     LOADER_TOGGLE = "FSBot {}ed"
+    HELLO = "Hello there {}"
 
     LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], name: [{}]"
 
