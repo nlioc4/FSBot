@@ -23,6 +23,7 @@ import modules.accounts_handler
 import modules.discord_obj as d_obj
 import modules.database
 import modules.loader as loader
+import modules.signal
 import classes
 import display
 
@@ -47,15 +48,23 @@ log_path = f'{pathlib.Path(__file__).parent.absolute()}/../fs_bot_logs/fs_bot.lo
 if not os.path.exists(log_path.rstrip('fs_bot.log')):
     os.makedirs(log_path.rstrip('fs_bot.log'))
 
-# log_handler = logging.FileHandler(filename=log_path, encoding='utf-8', mode='w')  # single log
-log_handler = logging.handlers.TimedRotatingFileHandler(log_path, when='D', interval=3) # rotating log files, every 3 days
-log_handler.setFormatter(log_formatter)
-log.addHandler(log_handler)
 # Log to console
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(log_formatter)
 log.addHandler(console_handler)
 
+# discord logs
+discord_logger = logging.getLogger('discord')
+discord_logger.setLevel(logging.INFO)
+discord_logger.addHandler(console_handler)
+
+# Log to file only if not testing
+if not c_args.get('test'):
+    # single_ log_handler = logging.FileHandler(filename=log_path, encoding='utf-8', mode='w')  # single log
+    log_handler = logging.handlers.TimedRotatingFileHandler(log_path, when='D', interval=3) # rotating log files, every 3 days
+    log_handler.setFormatter(log_formatter)
+    log.addHandler(log_handler)
+    discord_logger.addHandler(log_handler)
 
 if c_args.get('test'):
     cfg.get_config('config_test.ini')
@@ -123,6 +132,8 @@ async def on_application_command_error(context, exception):
         await display.AllStrings.ALL_LOCKED.send_priv(context)
     elif isinstance(exception, UserDisabled):
         await display.AllStrings.DISABLED_PLAYER.send_priv(context)
+    elif isinstance(exception, discord.ext.commands.PrivateMessageOnly):
+        await display.AllStrings.DM_ONLY.send(context)
     elif isinstance(exception, discord.CheckFailure):
         await display.AllStrings.CHECK_FAILURE.send_priv(context)
     else:
@@ -145,5 +156,6 @@ modules.database.init(cfg.database)
 modules.database.get_all_elements(classes.Player.new_from_data, 'users')
 log.info("Loaded Players from Database: %s", len(classes.Player.get_all_players()))
 
+modules.signal.init(bot)
 loader.init(bot)
 bot.run(cfg.general['token'])

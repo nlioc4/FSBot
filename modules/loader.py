@@ -2,7 +2,7 @@
 from discord import ExtensionAlreadyLoaded, ExtensionNotLoaded
 
 main_cogs = ["cogs.admin"]
-standard_cogs = ['cogs.contentplug', 'cogs.duel_lobby', 'cogs.matches', 'cogs.register']
+standard_cogs = ['cogs.contentplug', 'cogs.duel_lobby', 'cogs.matches', 'cogs.register', 'cogs.direct_messages']
 __is_global_locked = False  # TODO Set to True on Init, disabled with admin command.
 
 

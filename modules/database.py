@@ -143,7 +143,7 @@ def get_element(collection: str, item_id: int) -> (dict, None):
 def get_last_element(collection: str) -> (dict, None):
     if _collections[collection].count_documents() == 0:
         return
-    item = _collections[collection].find_one.sort(['$natural', -1])
+    item = _collections[collection].find().sort({'_id': -1}).limit(1)
     return item
 
 

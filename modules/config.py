@@ -91,8 +91,10 @@ roles = {
 # Database Collections
 _collections = {
     "users": "",
+    "user_stats": "",
     "matches": "",
-    "accounts": ""
+    "accounts": "",
+    "restart_data": ""
 }
 
 # Stored Data Config
@@ -110,11 +112,11 @@ def get_config(config_path):
     GAPI_SERVICE = f'{pathlib.Path(__file__).parent.absolute()}/../service_account.json'
 
     file = f'{pathlib.Path(__file__).parent.absolute()}/../{config_path}'
-    print(file)
-    log.info('Loaded config from file: %s', file)
 
     if not os.path.isfile(file):
         raise ConfigError(f"{file} not found!")
+    print(file)
+    log.info('Loaded config from file: %s', file)
 
     config = ConfigParser()
     try:

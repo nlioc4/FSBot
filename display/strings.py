@@ -13,6 +13,7 @@ from modules.tools import UnexpectedError
 
 log = getLogger('fs_bot')
 
+
 class AllStrings(Enum):
     NOT_REGISTERED = "You are not registered {}, please go to {} first!"
     NOT_PLAYER = "You are not a player {}, please go to {} first!"
@@ -26,9 +27,19 @@ class AllStrings(Enum):
 
     LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], name: [{}]"
 
+    DM_ONLY = "This command can only be used in DM's!   "
     DM_INVITED = "{} you have been invited to a match by {}! Accept or decline below!"
     DM_INVITE_EXPIRED = "This invite has expired!"
     DM_INVITE_INVALID = "This invite is invalid!"
+    DM_ALREADY = "You already have a Modmail thread started! Simple send a message to the bot to respond!"
+    DM_RECEIVED = "Opened modmail thread, the mod team will get back to you as soon as possible!\n" \
+                  "Further messages will be sent to the same thread and marked with '📨'.\n" \
+                  "To stop sending messages reply with ``=quit``"
+    DM_IN_THREAD = '{} : {}'
+    DM_TO_USER = None, from_staff_dm_embed
+    DM_TO_STAFF = "{}", to_staff_dm_embed
+    DM_THREAD_CLOSE = "This DM thread has been closed.  A new instance must be created" \
+                      " for further messages to be conveyed."
 
     REG_SUCCESSFUL_CHARS = "Successfully registered with characters: {}, {}, {}."
     REG_SUCCESFUL_NO_CHARS = 'Successfully registered with no Jaeger Account'
@@ -104,6 +115,11 @@ class AllStrings(Enum):
             args_dict['embed'] = kwargs.get('embed')
         if kwargs.get('view') is not None:
             args_dict['view'] = None if not kwargs.get('view') else kwargs.get('view')
+        if kwargs.get('files'):
+            files = kwargs.get('files')
+            if type(files) is not list:
+                files = list(files)
+            args_dict['files'] = files
         if kwargs.get('delete_after'):
             args_dict['delete_after'] = kwargs.get('delete_after')
         if kwargs.get('ephemeral'):
@@ -117,7 +133,7 @@ class AllStrings(Enum):
             args_dict['embed'] = None
 
         match type(ctx):
-            case discord.User| discord.Member | discord.TextChannel | discord.VoiceChannel | discord.Thread:
+            case discord.User | discord.Member | discord.TextChannel | discord.VoiceChannel | discord.Thread:
                 return await getattr(ctx, action)(**args_dict)
 
             case discord.Message:
