@@ -123,6 +123,8 @@ async def on_application_command_error(context, exception):
         await display.AllStrings.ALL_LOCKED.send_priv(context)
     elif isinstance(exception, UserDisabled):
         await display.AllStrings.DISABLED_PLAYER.send_priv(context)
+    elif isinstance(exception, discord.ext.commands.PrivateMessageOnly):
+        await display.AllStrings.DM_ONLY.send(context)
     elif isinstance(exception, discord.CheckFailure):
         await display.AllStrings.CHECK_FAILURE.send_priv(context)
     else:

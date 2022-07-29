@@ -284,3 +284,44 @@ def match_info(match: BaseMatch) -> discord.Embed:
                         inline=False)
 
     return fs_author(embed)
+
+
+def to_staff_dm_embed(author: 'discord.User', msg: str) -> discord.Embed:
+    author_disc = author.name + author.discriminator
+    embed = Embed(
+        colour=Colour.blurple(),
+        title=f'DM Received from {author_disc}',
+        description=f'{author.mention}: {msg}',
+        timestamp=dt.now()
+    )
+    embed.set_author(name=author_disc, icon_url=author.display_avatar.url)
+
+    embed.add_field(
+        name="",
+        value="Reply in thread to respond to the user.\n"
+              "Preface messages with =me in order to identify yourself,\n"
+              "rather than just appearing as 'FSBot Mod Team'\n"
+              "ex. ``=me My message``"
+              ""
+    )
+    return embed
+
+
+def from_staff_dm_embed(msg: 'discord.Message') -> discord.Embed:
+    ident = False
+    message = msg.clean_content
+    if message.startswith('=me '):
+        i = message.index(' ')
+        message = message[i+1:]
+        ident = True
+
+    embed = Embed(
+        colour=Colour.blurple(),
+        title=f'Mod Response',
+        description=message
+    )
+    if ident:
+        embed.set_author(name=msg.author.name, icon_url=msg.author.display_avatar.url)
+        return embed
+    else:
+        return fs_author(embed)
