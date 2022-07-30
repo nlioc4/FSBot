@@ -22,7 +22,7 @@ class AllStrings(Enum):
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
     GENERAL_ERROR = "An error has occurred, {}, please ping {}"
     CHECK_FAILURE = "You have failed a check to run this command!"
-    UNASSIGNED_ONLINE = "{}", account_online_check
+    UNASSIGNED_ONLINE = "{} Unassigned Login", account_online_check
     LOADER_TOGGLE = "FSBot {}ed"
 
     LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], name: [{}]"
@@ -37,7 +37,7 @@ class AllStrings(Enum):
                   "To stop sending messages reply with ``=quit``"
     DM_IN_THREAD = '{} : {}'
     DM_TO_USER = None, from_staff_dm_embed
-    DM_TO_STAFF = "{}", to_staff_dm_embed
+    DM_TO_STAFF = "{} New Modmail", to_staff_dm_embed
     DM_THREAD_CLOSE = "This DM thread has been closed.  A new instance must be created" \
                       " for further messages to be conveyed."
 
