@@ -122,8 +122,12 @@ class DMCog(commands.Cog):
 
         @discord.ui.button(label="Stop thread", custom_id="stopthread", style=discord.ButtonStyle.red)
         async def stop_thread_button(self, button: discord.Button, inter: discord.Interaction):
-            user_id = dm_threads_by_thread()[inter.message.id]
-            await _stop_dm_thread(user_id, user_side=False)
+            try:
+                user_id = dm_threads_by_thread()[inter.message.id]
+            except KeyError:
+                pass
+            else:
+                await _stop_dm_thread(user_id, user_side=False)
             await disp.DM_THREAD_CLOSE.edit(inter, view=False)
             self.stop()
 
