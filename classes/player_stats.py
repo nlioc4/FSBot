@@ -47,3 +47,46 @@ class PlayerStats:
     async def push_to_db(self):
         data = self.get_data()
         await db.async_db_call(db.set_element, 'player_stats', {self.__id: data})
+
+    @property
+    def id(self):
+        return self.__id
+
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def matches(self):
+        return self.__match_ids
+
+    @property
+    def elo_history(self):
+        return self.__elo_history
+
+    @property
+    def match_wins(self):
+        return self.__match_wins
+
+    @property
+    def match_losses(self):
+        return self.__match_losses
+
+    @property
+    def elo(self):
+        return self.__elo
+
+    def add_match(self, match_id, new_elo, match_won):
+        self.__match_ids.append(match_id)
+        elo_delta = new_elo - self.__elo
+        self.__elo_history[match_id] = elo_delta
+        if match_won:
+            self.__match_wins += 1
+        else:
+            self.__match_losses += 1
+
+
+
+
+
+
