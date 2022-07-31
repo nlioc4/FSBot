@@ -61,7 +61,7 @@ class AdminCog(commands.Cog, command_attrs=dict(guild_ids=[cfg.general['guild_id
     async def census_watchtower(self):
         await census.online_status_updater(Player.map_chars_to_players)
 
-    @tasks.loop(time=time(hour=16, minute=0, second=0))
+    @tasks.loop(time=time(hour=11, minute=0, second=0))
     async def account_sheet_reload(self):
         log.info("Reinitialized Account Sheet and Account Characters")
         await accounts.init(cfg.GAPI_SERVICE)

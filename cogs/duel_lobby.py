@@ -11,6 +11,7 @@ from logging import getLogger
 # Internal Imports
 import modules.config as cfg
 import modules.discord_obj as d_obj
+import modules.database as db
 from modules.spam_detector import is_spam
 from classes.players import Player
 from classes.match import BaseMatch
@@ -161,18 +162,30 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
 
     async def create_dashboard(self):
         """Purges the channel, and then creates dashboard Embed w/ view"""
-        await self.dashboard_channel.purge(check=self.dashboard_purge_check)
-        self.dashboard_embed = embeds.duel_dashboard(lobby.lobbied(),lobby.logs_recent())
-        self.dashboard_msg = await self.dashboard_channel.send(content="",
-                                                               embed=self.dashboard_embed,
-                                                               view=DashboardView())
+        if not self.dashboard_msg:
+            try:
+                msg_id = await db.async_db_call(db.get_field, 'restart_data', 0, 'dashboard_msg_id')
+            except KeyError:
+                log.info('No previous Duel Dashboard found, creating new message...')
+                self.dashboard_embed = embeds.duel_dashboard(lobby.lobbied(), lobby.logs_recent())
+                self.dashboard_msg = await self.dashboard_channel.send(content="",
+                                                                       embed=self.dashboard_embed,
+                                                                       view=DashboardView())
+            else:
+                self.dashboard_msg = await d_obj.channels['dashboard'].fetch_message(msg_id)
+            finally:
+                await db.async_db_call(db.set_field, 'restart_data', 0, {'dashboard_msg_id': self.dashboard_msg.id})
+                await self.dashboard_channel.purge(check=self.dashboard_purge_check)
+
+
+
+
 
     async def update_dashboard(self):
         """Checks if dashboard exists and either creates one, or updates the current dashboard and purges messages
         older than 5 minutes """
         if not self.dashboard_msg:
             await self.create_dashboard()
-            return
 
         await d_obj.channels['dashboard'].purge(before=(dt.now() - timedelta(minutes=5)),
                                                 check=self.dashboard_purge_check)

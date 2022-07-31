@@ -31,14 +31,20 @@ def int_dict_from_str(data: dict):
 
 
 async def _stop_dm_thread(user_id, user_side):
+    if user_id not in DM_THREADS:  # if thread does not exist
+        return
     user = d_obj.bot.get_user(user_id)
     thread = d_obj.bot.get_channel(DM_THREADS[user_id])
-    msg = d_obj.bot.get_message(DM_THREADS[user_id])
-    del DM_THREADS[user_id]
-    await thread.archive(locked=True)
-    if user_side:
-        await disp.DM_THREAD_CLOSE.edit(msg, view=False)
+    try:  # if thread hasn't been manually deleted, find message
+        msg = await thread.parent.fetch_message(DM_THREADS[user_id])
+    except AttributeError:
+        log.info('No thread found when deleting thread %s', DM_THREADS[user_id])
+    else:
+        await thread.archive(locked=True)  # if thread was retrieved
+        if user_side:
+            await disp.DM_THREAD_CLOSE.edit(msg, view=False)
 
+    del DM_THREADS[user_id]
     await disp.DM_THREAD_CLOSE.send(user)
     await db.async_db_call(db.set_field, 'restart_data', 0, {'dm_threads': DM_THREADS})
 
@@ -94,7 +100,9 @@ class DMCog(commands.Cog):
             await self.modmail.callback(self, ctx=message, init_msg=msg, files=files)
             return
 
-        if not message.guild and message.content.startswith(('=stop', '=quit')):
+        if not message.guild and message.channel.id in DM_THREADS.values() and \
+                message.content.startswith(('=stop', '=quit')):
+
             await _stop_dm_thread(message.author.id, user_side=True)
 
         # if player response in dm

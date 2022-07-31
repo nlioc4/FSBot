@@ -1,4 +1,5 @@
-"""All Strings available to bot, helps with code simplification"""
+"""All Strings available to bot, helps with code simplification
+Also handles sending/editing messages to Discord."""
 
 # External Imports
 import discord
@@ -112,7 +113,9 @@ class AllStrings(Enum):
             embed_kwargs = {arg: kwargs.get(arg) for arg in embed_sig.parameters}
             args_dict['embed'] = self.__embed(**embed_kwargs)
         if kwargs.get('embed'):
-            args_dict['embed'] = kwargs.get('embed')
+            args_dict['embeds'] = [kwargs.get('embed')]
+        if kwargs.get('embeds'):
+            args_dict['embeds'] = kwargs.get('embeds')
         if kwargs.get('view') is not None:
             args_dict['view'] = None if not kwargs.get('view') else kwargs.get('view')
         if kwargs.get('files'):

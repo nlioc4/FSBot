@@ -125,8 +125,12 @@ def account_online_check(online) -> discord.Embed:
     string = '*Character Name : Last Player *\n'
     for acc in online:
         char_name = acc.online_name
-        last_player = d_obj.guild.get_member(acc.last_user_id)
-        string = string + f'{char_name} : {last_player.mention}\n'
+        last_player = d_obj.bot.get_user(acc.last_user_id)
+        if not last_player:
+            player_ment = f"User not found for ID {acc.last_user_id}"
+        else:
+            player_ment = last_player.mention
+        string = string + f'{char_name} : {player_ment}\n'
 
     embed.add_field(name='Currently Online Accounts',
                     value=string,
