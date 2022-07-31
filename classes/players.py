@@ -404,6 +404,7 @@ class ActivePlayer:
         self.online_id = player.online_id
         self.round_wins = 0
         self.round_losses = 0
+        self.match_win = None
 
     @property
     def player(self):
