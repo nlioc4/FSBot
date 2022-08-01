@@ -43,11 +43,10 @@ async def _stop_dm_thread(user_id, user_side):
         await thread.archive(locked=True)  # if thread was retrieved
         if user_side:
             await disp.DM_THREAD_CLOSE.edit(msg, view=False)
-
-    del DM_THREADS[user_id]
-    await disp.DM_THREAD_CLOSE.send(user)
-    await db.async_db_call(db.set_field, 'restart_data', 0, {'dm_threads': DM_THREADS})
-
+    finally:
+        del DM_THREADS[user_id]
+        await db.async_db_call(db.set_field, 'restart_data', 0, {'dm_threads': DM_THREADS})
+        await disp.DM_THREAD_CLOSE.send(user)
 
 class DMCog(commands.Cog):
 
@@ -79,7 +78,7 @@ class DMCog(commands.Cog):
 
         # If Mod response in a thread
         if isinstance(message.channel, discord.Thread) and message.channel.id in DM_THREADS.values():
-            if not message.content.startswith(('=send ', '=me ')):
+            if not message.content.startswith(('~ ', '! ')):
                 return
             files = []
             for file in message.attachments:
@@ -100,10 +99,12 @@ class DMCog(commands.Cog):
             await self.modmail.callback(self, ctx=message, init_msg=msg, files=files)
             return
 
-        if not message.guild and message.channel.id in DM_THREADS.values() and \
-                message.content.startswith(('=stop', '=quit')):
 
+        #  If player side request to stop DM thread
+        if not message.guild and message.author.id in DM_THREADS and \
+                message.content.startswith(('=stop', '=quit')):
             await _stop_dm_thread(message.author.id, user_side=True)
+            return
 
         # if player response in dm
         if not message.guild and message.author.id in DM_THREADS:
@@ -120,7 +121,7 @@ class DMCog(commands.Cog):
         def __init__(self):
             super().__init__()
 
-        @discord.ui.button(label="Stop thread", custom_id="stopthread", style=discord.ButtonStyle.red)
+        @discord.ui.button(label="Stop thread", custom_id="stop_thread", style=discord.ButtonStyle.red)
         async def stop_thread_button(self, button: discord.Button, inter: discord.Interaction):
             try:
                 user_id = dm_threads_by_thread()[inter.message.id]

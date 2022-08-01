@@ -158,7 +158,7 @@ def get_field(collection: str, e_id: int, specific: str):
     """
     if _collections[collection].count_documents({"_id": e_id}) == 0:
         return
-    item = _collections[collection].find_one({"_id": e_id}, {"_id": 0, specific: 1})[specific]
+    item = _collections[collection].find_one({"_id": e_id}, {"_id": False, specific: True})[specific]
     return item
 
 

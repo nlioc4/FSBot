@@ -137,6 +137,14 @@ class UserDisabled(discord.CheckFailure):
 
 @bot.event
 async def on_application_command_error(context, exception):
+    command = context.command
+    if command and command.has_error_handler():
+        return
+
+    cog = context.cog
+    if cog and cog.has_error_handler():
+        return
+
     if isinstance(exception, AllLocked):
         await display.AllStrings.ALL_LOCKED.send_priv(context)
     elif isinstance(exception, UserDisabled):
@@ -148,14 +156,7 @@ async def on_application_command_error(context, exception):
     else:
         await display.AllStrings.GENERAL_ERROR.send_priv(context, exception, d_obj.colin.mention)
 
-    command = context.command
-    if command and command.has_error_handler():
-        return
-
-    cog = context.cog
-    if cog and cog.has_error_handler():
-        return
-
+    log.exception(f"Ignoring exception in command {context.command}", exc_info=exception)
     print(f"Ignoring exception in command {context.command}:", file=sys.stderr)
     traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
 

@@ -10,6 +10,7 @@ import pytz
 # Internal Imports
 import modules.config as cfg
 from modules.tools import format_time_from_stamp as format_stamp
+from classes.players import SkillLevel
 import modules.discord_obj as d_obj
 
 
@@ -291,12 +292,12 @@ def to_staff_dm_embed(author: 'discord.User', msg: str) -> Embed:
 
     embed.add_field(
         name="Usage",
-        value="Send messages by replying in thread with the =send prefix.\n"
-              "Preface messages with =me in order to identify yourself,\n"
-              "rather than just appearing as 'FSBot Mod Team'\n"
+        value="Send messages by replying in thread with the prefixes\n"
+              "Prefix messages with ``! `` in order to identify yourself,\n"
+              "or use ``~ `` to appear as 'Mod Response' '\n"
               "Sent messages will be marked with 📨\n"
-              "ex. ``=send My message``\n"
-              "    ``=me My message``"
+              "ex. ``~ My message``\n"
+              "    ``! My message``"
 
               ""
     )
@@ -306,7 +307,7 @@ def to_staff_dm_embed(author: 'discord.User', msg: str) -> Embed:
 def from_staff_dm_embed(msg: 'discord.Message') -> Embed:
     ident = False
     message = msg.clean_content
-    if message.startswith('=me '):
+    if message.startswith('! '):
         ident = True
 
     i = message.index(' ')
