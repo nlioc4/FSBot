@@ -33,7 +33,8 @@ def account(acc) -> Embed:
     embed = Embed(
         colour=Colour.blue(),
         title="Flight School Jaeger Account",
-        description="\nFollow all Jaeger and [PREY's Flight School Rules](https://www.google.com) while using this "
+        description="\nFollow all Jaeger and [PREY's Flight School Rules]"
+                    "(https://discord.com/channels/751110310508888194/751115817692954717) while using this "
                     "account\n "
                     f"[Be careful not to interfere with other Jaeger users, "
                     f"check the calendar here]({cfg.JAEGER_CALENDAR_URL})\n"
@@ -128,6 +129,41 @@ def account_online_check(online) -> Embed:
                     inline=False
                     )
     return fs_author(embed)
+
+
+def register_info(player) -> Embed:
+    embed = Embed(
+        colour=Colour.greyple(),
+        title=f"FSBot Registration Info for {player.name}",
+        description=f'Mention: {player.mention} ID: {player.id}',
+        timestamp=dt.now()
+    )
+
+    if player.has_own_account:
+        embed.add_field(name="Registered Characters",
+                        value=','.join([player.ig_names[i] for i in range(3)]),
+                        inline=True)
+    elif player.is_registered:
+        embed.add_field(name="Registered Characters",
+                        value="Registered with No Jaeger Account",
+                        inline=True)
+    else:
+        embed.add_field(name="Registered Characters",
+                        value="Player is not registered",
+                        inline=True)
+
+    pref_fac_str = ''.join([cfg.emojis[fac] for fac in player.pref_factions]) if player.pref_factions else 'Any'
+    pref_level_str = ' '.join([str(level) for level in player.req_skill_levels]) if player.req_skill_levels else 'Any'
+    preferences_string = f'Player Skill Level: **{player.skill_level.rank}**:{str(player.skill_level)}\n'
+    preferences_string += f"Player Preferred Factions: {pref_fac_str}\n"
+    preferences_string += f"Player Requested Skill Levels: {pref_level_str}\n"
+
+    embed.add_field(
+        name="Player Preferences",
+        value=preferences_string
+    )
+
+    return fs_author(Embed)
 
 
 def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)]) -> Embed:

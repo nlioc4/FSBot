@@ -53,6 +53,7 @@ class AllStrings(Enum):
     REG_NOT_JAEGER = "Registration Failed: Character: {} is not from Jaeger!"
     REG_WRONG_FORMAT = "Incorrect Character Entry Format! Enter either 1 character for each faction separated by ',' " \
                        "or a space, or one character without a faction suffix and suffixes will be added for you."
+    REG_INFO = "", register_info
 
     LOBBY_INVITED_SELF = "{} you can't invite yourself to a match!"
     LOBBY_INVITED = "{} invited {} to a match."
