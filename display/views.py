@@ -60,9 +60,10 @@ class InviteView(FSBotView):
         self.disable_all_items()
         self.stop()
 
-        await lobby.accept_invite(self.owner, p)
+        match = await lobby.accept_invite(self.owner, p)
         await inter.response.edit_message(view=self)
-        await disp.MATCH_ACCEPT.send(inter.message)
+        await asyncio.sleep(1)
+        await disp.MATCH_ACCEPT.send(inter.message, match.text_channel.mention)
 
     @discord.ui.button(label="Decline Invite", style=discord.ButtonStyle.red)
     async def decline_button(self, button: discord.Button, inter: discord.Interaction):

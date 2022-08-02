@@ -9,7 +9,8 @@ from discord.ext import commands, tasks
 import display
 from display import AllStrings as disp, views
 import modules.config as cfg
-from classes.match import BaseMatch
+import modules.tools as tools
+from classes.match import BaseMatch, MatchState
 from classes import Player
 from modules import discord_obj as d_obj
 from modules.spam_detector import is_spam
@@ -29,13 +30,16 @@ class MatchesCog(commands.Cog, name="MatchesCog",
         # clear old match channels if any exist
         channels = d_obj.categories['user'].text_channels
         for channel in channels:
-            if channel.name.startswith('match-id'):
+            if channel.name.startswith('casual┊'):
                 await channel.delete()
 
     @tasks.loop(seconds=10)
     async def matches_loop(self):
         # update match info embeds
         for match in BaseMatch.active_matches_list():
+            # only iterate on matches that have started > 5 seconds ago, and are not stopped
+            if match.start_stamp > tools.timestamp_now() - 5 or match.end_stamp:
+                continue
             await match.update_match()
 
 

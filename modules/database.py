@@ -141,10 +141,10 @@ def get_element(collection: str, item_id: int) -> (dict, None):
 
 
 def get_last_element(collection: str) -> (dict, None):
-    if _collections[collection].count_documents() == 0:
+    if _collections[collection].count_documents({}) == 0:
         return
-    item = _collections[collection].find().sort({'_id': -1}).limit(1)
-    return item
+    items = _collections[collection].find(filter={}, limit=1, sort=[('_id', -1)])
+    return items[0]
 
 
 def get_field(collection: str, e_id: int, specific: str):

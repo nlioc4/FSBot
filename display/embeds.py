@@ -243,7 +243,7 @@ def longer_lobby_logs(logs: list[(int, str)]) -> Embed:
 def match_info(match) -> Embed:
     """Match info for match channel, should go along with match control View"""
     colour = None
-    match match.status.name():
+    match match.status.name:
         case 'INVITING':
             colour = Colour.dark_blue()
         case 'GETTING_READY':
@@ -311,6 +311,14 @@ def match_info(match) -> Embed:
 
         embed.add_field(name="Currently Online",
                         value=online_string,
+                        inline=False)
+
+    if match.recent_logs:
+        log_string = ''
+        for log in match.recent_logs:
+            log_string += f"[{format_stamp(log[0], 'T')}]{log[1]}\n"
+        embed.add_field(name="Match Logs",
+                        value=log_string,
                         inline=False)
 
     return fs_author(embed)

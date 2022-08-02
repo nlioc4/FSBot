@@ -82,7 +82,7 @@ def lobby_leave(player, match=None):
         player.on_lobby_leave()
         _lobbied_players.remove(player)
         if match:
-            lobby_log(f'{player.name} joined Match: {match.id}')
+            lobby_log(f'{player.name} joined Match: {match.id_str}')
         else:
             lobby_log(f'{player.name} left the lobby.')
         return True

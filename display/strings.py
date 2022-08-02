@@ -78,7 +78,7 @@ class AllStrings(Enum):
     MATCH_CREATE = "{} Match created ID: {}"
     MATCH_INFO = "", match_info
     MATCH_INVITED = "{} You've been invited to a match by {}, accept or decline below", None
-    MATCH_ACCEPT = "You have accepted the invite."
+    MATCH_ACCEPT = "You have accepted the invite, join {}."
     MATCH_DECLINE = "You have decline the invite."
     MATCH_JOIN = "{} You have joined the match"
     MATCH_LEAVE = "{} You have left the match."
