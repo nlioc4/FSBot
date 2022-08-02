@@ -155,8 +155,8 @@ def register_info(player) -> Embed:
     pref_fac_str = ''.join([cfg.emojis[fac] for fac in player.pref_factions]) if player.pref_factions else 'Any'
     pref_level_str = ' '.join([str(level) for level in player.req_skill_levels]) if player.req_skill_levels else 'Any'
     preferences_string = f'Player Skill Level: **{player.skill_level.rank}**:{str(player.skill_level)}\n'
-    preferences_string += f"Player Preferred Factions: {pref_fac_str}\n"
-    preferences_string += f"Player Requested Skill Levels: {pref_level_str}\n"
+    preferences_string += f"Player Preferred Faction(s): {pref_fac_str}\n"
+    preferences_string += f"Player Requested Skill Level(s): {pref_level_str}\n"
 
     embed.add_field(
         name="Player Preferences",
