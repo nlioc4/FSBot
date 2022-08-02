@@ -56,10 +56,12 @@ class BaseMatch:
 
     @classmethod
     async def create(cls, owner: Player, invited: Player):
+        global _match_id_counter  # init _match_id_counter if first match created
+        if not _match_id_counter:
+            last_match = await db.async_db_call(db.get_last_element, 'matches')
+            if last_match:
+                _match_id_counter = last_match['_id']
         obj = cls(owner, invited)
-        # last_match = None  # await db.async_db_call(db.get_last_element, 'matches')
-        # print('past db call')
-        # obj.set_id(1 if not last_match else last_match['match_id'] + 1)
 
         overwrites = {
             d_obj.guild.default_role: discord.PermissionOverwrite(view_channel=False),
@@ -119,7 +121,7 @@ class BaseMatch:
 
     def get_data(self):
         player_ids = [player.id for player in self.__players and self.__previous_players]
-        data = {'match_id': self.id, 'start_stamp': self.start_stamp, 'end_stamp': self.end_stamp,
+        data = {'_id': self.id, 'start_stamp': self.start_stamp, 'end_stamp': self.end_stamp,
                 'owner': self.owner.id, 'players': player_ids, 'match_log': self.match_log}
         return data
 
@@ -166,6 +168,12 @@ class BaseMatch:
     @property
     def id(self):
         return self.__id
+
+    @id.setter
+    def id(self, value):
+        if not value >= _match_id_counter:
+            raise ValueError('Match ID\'s must be equal to / higher than the Match Id Counter, %s', _match_id_counter)
+        self.__id = value
 
     @property
     def players(self):
