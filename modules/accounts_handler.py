@@ -285,7 +285,7 @@ async def terminate_account(acc: classes.Account = None, player: classes.Player 
 
 async def clean_account(acc):
     # Update DB Usage
-    acc.logout()
+    acc._logout()
     await db.async_db_call(db.push_element, 'account_usages', acc.id, acc.last_usage)
 
     # Adjust player & account objects, return to available directory.

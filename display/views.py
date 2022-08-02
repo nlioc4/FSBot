@@ -62,7 +62,6 @@ class InviteView(FSBotView):
 
         match = await lobby.accept_invite(self.owner, p)
         await inter.response.edit_message(view=self)
-        await asyncio.sleep(1)
         await disp.MATCH_ACCEPT.send(inter.message, match.text_channel.mention)
 
     @discord.ui.button(label="Decline Invite", style=discord.ButtonStyle.red)

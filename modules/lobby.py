@@ -141,6 +141,7 @@ async def accept_invite(owner, player):
                 del _invites[owner.id]
         lobby_leave(player, match)
         lobby_leave(owner, match)
+        return match
 
 def decline_invite(owner, player):
     if owner.match and owner.match.owner == owner:

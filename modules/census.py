@@ -104,46 +104,50 @@ async def get_ids_facs_from_chars(chars_list) -> dict[str, tuple[int, int]] | bo
         return char_dict
 
 
-async def login(char_id, acc_char_ids, player_char_ids):
+async def _login(char_id, acc_char_ids, player_char_ids):
     # Account Section
     if char_id in acc_char_ids:
         acc = acc_char_ids[char_id]
+        if acc.online_id == char_id:  # if already online
+            return
         acc.online_id = char_id
         if acc.a_player and acc.a_player.match:
-            await acc.a_player.match.update_match()
+            await acc.a_player.match.update_match(login=acc.a_player)
         log.debug(f'Login detected: {char_id}: {acc.online_name}')
 
     # Player Section
     if char_id in player_char_ids:
         p = player_char_ids[char_id]
+        if p.online_id == char_id:  # if already online
+            return
         p.online_id = char_id
         if p.match:
-            await p.match.update_match()
+            await p.match.update_match(login=p)
         log.debug(f'Login detected: {char_id}: {p.online_name}')
 
 
-async def logout(char_id, acc_char_ids, player_char_ids):
+async def _logout(char_id, acc_char_ids, player_char_ids):
     # Account Section
     if char_id in acc_char_ids:
         acc = accounts.account_char_ids[char_id]
         if not acc.online_id:  # if already offline
             return
+        log.debug(f'Logout detected: {char_id}: {acc.online_name}')
         acc.online_id = None
         if acc.a_player and acc.a_player.match:
             await acc.a_player.match.update_match()
         if acc.is_terminated:
             await accounts.clean_account(acc)
-        log.debug(f'Logout detected: {char_id}: {acc.online_name}')
 
     # Player Section
     if char_id in player_char_ids:
         p = player_char_ids[char_id]
         if not p.online_id:  # if already offline
             return
+        log.debug(f'Logout detected: {char_id}: {p.online_name}')
         p.online_id = None
         if p.match:
             await p.match.update_match()
-        log.debug(f'Logout detected: {char_id}: {p.online_name}')
 
 
 async def online_status_updater(chars_players_map_func):
@@ -155,11 +159,11 @@ async def online_status_updater(chars_players_map_func):
 
     async def login_action(evt: auraxium.event.PlayerLogin):
         player_char_ids = chars_players_map_func()
-        await login(evt.character_id, acc_char_ids, player_char_ids)
+        await _login(evt.character_id, acc_char_ids, player_char_ids)
 
     async def logout_action(evt: auraxium.event.PlayerLogout):
         player_char_ids = chars_players_map_func()
-        await logout(evt.character_id, acc_char_ids, player_char_ids)
+        await _logout(evt.character_id, acc_char_ids, player_char_ids)
 
     # noinspection PyTypeChecker
     login_trigger = auraxium.Trigger(auraxium.event.PlayerLogin, worlds=[WORLD_ID], action=login_action)
@@ -202,8 +206,8 @@ async def online_status_rest(chars_players_map):
             offline_ids.append(int(a_return['character_id']))
 
     for char_id in online_ids:
-        await login(char_id, acc_char_ids, chars_players_map)
+        await _login(char_id, acc_char_ids, chars_players_map)
     for char_id in offline_ids:
-        await logout(char_id, acc_char_ids, chars_players_map)
+        await _logout(char_id, acc_char_ids, chars_players_map)
 
     return True

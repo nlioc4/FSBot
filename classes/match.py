@@ -62,7 +62,7 @@ class BaseMatch:
             if last_match:
                 _match_id_counter = last_match['_id']
         obj = cls(owner, invited)
-        obj.log(f'Owner: {owner.name} created the match with {invited.name}')
+        obj.log(f'{owner.name} created the match with {invited.name}')
 
         overwrites = {
             d_obj.guild.default_role: discord.PermissionOverwrite(view_channel=False),
@@ -148,7 +148,11 @@ class BaseMatch:
         elif self.online_players:
             self.status = MatchState.PLAYING
 
-    async def update_match(self, check_timeout=True):
+    async def update_match(self, check_timeout=True, login=None):
+        """Update the match object.  Check_timeout is used to specify whether the timeout should be checked, default True.
+        Login can be used to log a login action, pass a player.
+        Otherwise, updates timeout, match status, and the embed if required"""
+
         if check_timeout:
             # check timeout, reset if new match or online_players
             if self.online_players or self.start_stamp < tools.timestamp_now() - MATCH_WARN_TIME:
@@ -163,6 +167,8 @@ class BaseMatch:
                     self.log("Match timed out for inactivity...")
                     await disp.MATCH_TIMEOUT.send(self.text_channel, self.all_mentions)
                     await self.end_match()
+        if login:
+            self.log(f"{login.name} logged in as {login.online_name}")
 
         self.update_status()
         await self.update_embed()
