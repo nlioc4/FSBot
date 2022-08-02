@@ -166,7 +166,7 @@ def register_info(player) -> Embed:
     return fs_author(Embed)
 
 
-def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)]) -> Embed:
+def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)], matches: list) -> Embed:
     """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels."""
     colour = Colour.blurple() if lobbied_players else Colour.greyple()
 
@@ -207,6 +207,16 @@ def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)]) -> E
         embed.add_field(name="----------------------------------------------------------------",
                         value=players_string,
                         inline=False)
+
+    if matches:
+        matches_str = ''
+        for match in matches:
+            matches_str += f"Match: {match.id_str} [Owner: {match.owner.mention}, Players: {len(match.players)}]"
+        embed.add_field(
+            name='Active Matches',
+            value=matches_str,
+            inline=False
+        )
 
     if logs:
         log_str = ''

@@ -30,7 +30,7 @@ class MatchesCog(commands.Cog, name="MatchesCog",
         # clear old match channels if any exist
         channels = d_obj.categories['user'].text_channels
         for channel in channels:
-            if channel.name.startswith('casual┊'):
+            if channel.name.startswith('casual'):
                 await channel.delete()
 
     @tasks.loop(seconds=30)

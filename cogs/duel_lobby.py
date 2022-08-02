@@ -165,7 +165,9 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
                 msg_id = await db.async_db_call(db.get_field, 'restart_data', 0, 'dashboard_msg_id')
             except KeyError:
                 log.info('No previous Duel Dashboard found, creating new message...')
-                self.dashboard_embed = embeds.duel_dashboard(lobby.lobbied(), lobby.logs_recent())
+                self.dashboard_embed = embeds.duel_dashboard(
+                    lobby.lobbied(), lobby.logs_recent(), BaseMatch.active_matches_list()
+                )
                 self.dashboard_msg = await self.dashboard_channel.send(content="",
                                                                        embed=self.dashboard_embed,
                                                                        view=DashboardView())
@@ -174,10 +176,6 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
             finally:
                 await db.async_db_call(db.set_field, 'restart_data', 0, {'dashboard_msg_id': self.dashboard_msg.id})
                 await self.dashboard_channel.purge(check=self.dashboard_purge_check)
-
-
-
-
 
     async def update_dashboard(self):
         """Checks if dashboard exists and either creates one, or updates the current dashboard and purges messages
@@ -189,7 +187,7 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
                                                 check=self.dashboard_purge_check)
 
         #  Post new embed only if embed has changed
-        new_embed = embeds.duel_dashboard(lobby.lobbied(), lobby.logs_recent())
+        new_embed = embeds.duel_dashboard(lobby.lobbied(), lobby.logs_recent(), BaseMatch.active_matches_list())
         if not tools.compare_embeds(new_embed, self.dashboard_embed):
             self.dashboard_embed = new_embed
             await self.dashboard_msg.edit(embed=new_embed,
