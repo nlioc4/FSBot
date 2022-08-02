@@ -124,7 +124,6 @@ async def accept_invite(owner, player):
         match = owner.match
         await match.join_match(player)
         await match.update_embed()
-        await disp.MATCH_JOIN.send_temp(match.text_channel, player.mention)
         lobby_leave(player, match)
         return match
     elif owner.active:

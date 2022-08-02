@@ -95,6 +95,7 @@ class BaseMatch:
         self.__invited.remove(player)
         self.__players.append(player.on_playing(self))
         await self.channel_update(player, True)
+        await disp.MATCH_JOIN.send_temp(self.text_channel, player.mention)
         self.log(f'{player.name} joined the match')
         await self.update_match()
 
