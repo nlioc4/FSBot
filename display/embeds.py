@@ -316,7 +316,8 @@ def match_info(match) -> Embed:
     if match.recent_logs:
         log_string = ''
         for log in match.recent_logs:
-            log_string += f"[{format_stamp(log[0], 'T')}]{log[1]}\n"
+            if log[2]:
+                log_string += f"[{format_stamp(log[0], 'T')}]{log[1]}\n"
         embed.add_field(name="Match Logs",
                         value=log_string,
                         inline=False)

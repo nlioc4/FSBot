@@ -324,6 +324,7 @@ class Player:
     def on_quit(self):
         self.__match = None
         self.__active = None
+        return self
 
 
 
@@ -487,3 +488,6 @@ class ActivePlayer:
     @property
     def current_faction(self):
         return self.player.current_faction
+
+    def on_quit(self):
+        return self.player.on_quit()

@@ -55,6 +55,10 @@ class BaseMatch:
         return BaseMatch._active_matches.values()
 
     @classmethod
+    def active_match_channel_ids(cls):
+        return {match.text_channel.id: match for match in BaseMatch._active_matches.values()}
+
+    @classmethod
     async def create(cls, owner: Player, invited: Player):
         global _match_id_counter  # init _match_id_counter if first match created
         if not _match_id_counter:
@@ -75,7 +79,8 @@ class BaseMatch:
 
         obj.text_channel = await d_obj.categories['user'].create_text_channel(
             name=f'casual┊{obj.id_str}┊',
-            overwrites=overwrites)
+            overwrites=overwrites,
+            topic=f"Match channel for Casual Match [{obj.id_str}], created by {obj.owner.name}")
         obj.embed_cache = embeds.match_info(obj)
 
         obj.info_message = await disp.MATCH_INFO.send(obj.text_channel, match=obj,
@@ -91,12 +96,12 @@ class BaseMatch:
         self.__players.append(player.on_playing(self))
         await self.channel_update(player, True)
         self.log(f'{player.name} joined the match')
+        await self.update_match()
 
     async def leave_match(self, player: ActivePlayer):
-        self.__previous_players.append(player.player)
         self.__players.remove(player)
+        self.__previous_players.append(player.on_quit())
         await self.channel_update(player, False)
-        player.player.on_quit()
         self.log(f'{player.name} left the match')
         await disp.MATCH_LEAVE.send_temp(self.text_channel, player.mention)
         if not self.__players and not self.end_stamp:  # if no players left, and match not already ended
@@ -104,6 +109,7 @@ class BaseMatch:
         if player.account:
             await accounts.terminate_account(player=player.player)
             player.player.set_account(None)
+            await self.update_match()
 
     async def end_match(self):
         self.end_stamp = tools.timestamp_now()
@@ -111,19 +117,21 @@ class BaseMatch:
         self.log('Match Ended')
         await disp.MATCH_END.send(self.text_channel, self.id)
         await self.update_match(check_timeout=False)
+        await db.async_db_call(db.set_element, 'matches', self.id, self.get_data())
         with self.text_channel.typing():
             await asyncio.sleep(10)
         for player in self.__players:
             await self.leave_match(player)
         await self.text_channel.delete(reason='Match Ended')
-        await db.async_db_call(db.set_element, 'matches', self.id, self.get_data())
         del BaseMatch._active_matches[self.id]
         BaseMatch._recent_matches[self.id] = self
 
     def get_data(self):
-        player_ids = [player.id for player in self.__players and self.__previous_players]
         data = {'_id': self.id, 'start_stamp': self.start_stamp, 'end_stamp': self.end_stamp,
-                'owner': self.owner.id, 'players': player_ids, 'match_log': self.match_log}
+                'owner': self.owner.id, 'channel_id': 0 if not self.text_channel else self.text_channel.id,
+                'current_players': [p.id for p in self.__players],
+                'previous_players': [p.id for p in self.__previous_players],
+                'match_log': self.match_log}
         return data
 
     async def channel_update(self, player, action: bool):
@@ -148,33 +156,37 @@ class BaseMatch:
         elif self.online_players:
             self.status = MatchState.PLAYING
 
+    async def update_timeout(self):
+        # check timeout, reset if new match or online_players
+        if self.online_players or self.start_stamp < tools.timestamp_now() - MATCH_WARN_TIME:
+            self.timeout_stamp = None
+        else:
+            if not self.timeout_stamp:  # set timeout stamp
+                self.timeout_stamp = tools.timestamp_now()
+            elif self.should_warn:  # Warn of timeout
+                self.log("Match will timeout in " + tools.format_time_from_stamp(self.timeout_stamp, 'R'))
+                await disp.MATCH_TIMEOUT_WARN.send(self.text_channel, self.all_mentions, delete_after=30)
+            elif self.should_timeout:  # Timeout Match
+                self.log("Match timed out for inactivity...")
+                await disp.MATCH_TIMEOUT.send(self.text_channel, self.all_mentions)
+                await self.end_match()
+
     async def update_match(self, check_timeout=True, login=None):
         """Update the match object.  Check_timeout is used to specify whether the timeout should be checked, default True.
         Login can be used to log a login action, pass a player.
         Otherwise, updates timeout, match status, and the embed if required"""
 
         if check_timeout:
-            # check timeout, reset if new match or online_players
-            if self.online_players or self.start_stamp < tools.timestamp_now() - MATCH_WARN_TIME:
-                self.timeout_stamp = None
-            else:
-                if not self.timeout_stamp:  # set timeout stamp
-                    self.timeout_stamp = tools.timestamp_now()
-                elif self.should_warn:  # Warn of timeout
-                    self.log("Match will timeout in " + tools.format_time_from_stamp(self.timeout_stamp, 'R'))
-                    await disp.MATCH_TIMEOUT_WARN.send(self.text_channel, self.all_mentions, delete_after=30)
-                elif self.should_timeout:  # Timeout Match
-                    self.log("Match timed out for inactivity...")
-                    await disp.MATCH_TIMEOUT.send(self.text_channel, self.all_mentions)
-                    await self.end_match()
+            await self.update_timeout()
+
         if login:
             self.log(f"{login.name} logged in as {login.online_name}")
 
         self.update_status()
         await self.update_embed()
 
-    def log(self, message):
-        self.match_log.append((tools.timestamp_now(), message))
+    def log(self, message, public=True):
+        self.match_log.append((tools.timestamp_now(), message, public))
         log.info(f'Match ID [{self.id}]: {message}')
 
     @property

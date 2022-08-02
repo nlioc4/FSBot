@@ -154,7 +154,12 @@ async def on_application_command_error(context, exception):
     elif isinstance(exception, discord.CheckFailure):
         await display.AllStrings.CHECK_FAILURE.send_priv(context)
     else:
-        await display.AllStrings.GENERAL_ERROR.send_priv(context, exception, d_obj.colin.mention)
+        try:
+            await display.AllStrings.GENERAL_ERROR.send_priv(context, exception, d_obj.colin.mention)
+        except discord.errors.InteractionResponded:
+            pass
+        finally:
+            await d_obj.d_log(exception, context.user)
 
     log.exception(f"Ignoring exception in command {context.command}", exc_info=exception)
     print(f"Ignoring exception in command {context.command}:", file=sys.stderr)

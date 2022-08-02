@@ -37,7 +37,12 @@ class FSBotView(discord.ui.View):
 
     async def on_error(self, error: Exception, item: discord.ui.Item, interaction: discord.Interaction) -> None:
 
-        await disp.GENERAL_ERROR.send_priv(interaction, error, d_obj.colin.mention)
+        try:
+            await disp.GENERAL_ERROR.send_priv(interaction, error, d_obj.colin.mention)
+        except discord.errors.InteractionResponded:
+            pass
+        finally:
+            await d_obj.d_log(error, interaction.user)
         print(f"Ignoring exception in view {self} for item {item}:", file=sys.stderr)
         traceback.print_exception(error.__class__, error, error.__traceback__, file=sys.stderr)
 
@@ -100,12 +105,11 @@ class MatchInfoView(FSBotView):
             return
 
         await disp.MATCH_LEAVE.send_priv(inter, p.mention)
-        await asyncio.sleep(2)
         if p == self.match.owner:
             await self.match.end_match()
         else:
+            await asyncio.sleep(0.5)
             await self.match.leave_match(p.active)
-        await disp.MATCH_INFO.edit(self.match.info_message, match=self.match)
 
     @discord.ui.button(label="Reset Timeout", style=discord.ButtonStyle.green)
     async def reset_timeout_button(self, button: discord.Button, inter: discord.Interaction):

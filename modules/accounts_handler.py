@@ -267,8 +267,7 @@ async def terminate_account(acc: classes.Account = None, player: classes.Player 
     if acc.message:
         for _ in range(3):
             try:
-                msg = await disp.ACCOUNT_LOG_OUT.send(user)
-                if msg:
+                if await disp.ACCOUNT_LOG_OUT.send(user):
                     break
             except discord.Forbidden:
                 continue

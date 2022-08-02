@@ -33,7 +33,7 @@ class MatchesCog(commands.Cog, name="MatchesCog",
             if channel.name.startswith('casual┊'):
                 await channel.delete()
 
-    @tasks.loop(seconds=10)
+    @tasks.loop(seconds=30)
     async def matches_loop(self):
         # update match info embeds
         for match in BaseMatch.active_matches_list():
@@ -42,20 +42,21 @@ class MatchesCog(commands.Cog, name="MatchesCog",
                 continue
             await match.update_match()
 
+    @commands.Cog.listener('on_message')
+    async def matches_message_listener(self, message: discord.Message):
 
+        if message.author == self.bot.user:
+            return
 
+        match_channel_dict = BaseMatch.active_match_channel_ids()
+        if message.channel.id not in match_channel_dict:
+            return
 
-
-
-
-
+        match_channel_dict[message.channel.id].log(
+            f'{message.author.name}: {message.content}', public=False
+        )
+        await match_channel_dict[message.channel.id].update_match()
 
 
 def setup(client):
     client.add_cog(MatchesCog(client))
-
-
-
-
-
-

@@ -2,7 +2,6 @@
 Handles interactions with commonly used discord objects, and role updates
 """
 
-
 #  External Imports
 from typing import Union
 from logging import getLogger
@@ -75,3 +74,7 @@ async def is_registered(ctx, user: discord.Member | discord.User | classes.Playe
         await disp.NOT_REGISTERED.send_priv(ctx, user.mention, channels['register'].mention)
         return False
 
+
+async def d_log(message, user=None) -> bool:
+    """Utility function to send logs to #logs channel"""
+    return True if await disp.LOG_ERROR.send(channels['logs'], user, message, colin.mention) else False
