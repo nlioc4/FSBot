@@ -13,6 +13,7 @@ import modules.accounts_handler as accounts
 import modules.discord_obj as d_obj
 import modules.census as census
 import modules.loader as loader
+import modules.tools as tools
 from classes import Player, ActivePlayer
 from classes.match import BaseMatch
 from display import AllStrings as disp, views
@@ -92,6 +93,9 @@ class AdminCog(commands.Cog):
         except KeyError:
             await disp.MATCH_NOT_FOUND.send_priv(ctx, match_channel.mention)
             return
+        if p.match:
+            await disp.MATCH_ALREADY.send_priv(ctx, p.name, p.match.str_id)
+            return
 
         await match.join_match(p)
         await disp.MATCH_JOIN_2.send_priv(ctx, p.name, match.text_channel.mention)
@@ -108,9 +112,11 @@ class AdminCog(commands.Cog):
         except KeyError:
             await disp.MATCH_NOT_FOUND.send_priv(ctx, match_channel.mention)
             return
-
-        await match.leave_match(p)
-        await disp.MATCH_LEAVE_2.send_priv(ctx, p.name, match.text_channel.mention)
+        if p.match == match:
+            await match.leave_match(p.active)
+            await disp.MATCH_LEAVE_2.send_priv(ctx, p.name, match.text_channel.mention)
+        else:
+            await disp.MATCH_NOT_IN.send_priv(ctx, p.name, match.text_channel.mention)
 
     @match_admin.command(name="endmatch")
     async def end_match(self, ctx: discord.ApplicationContext,
@@ -223,6 +229,17 @@ class AdminCog(commands.Cog):
         for acc in accounts.all_accounts.values():
             if acc.online_id and not acc.a_player:
                 unassigned_online.add(acc)
+
+            if acc.is_validated and not acc.is_terminated:
+                if acc.last_usage['start_time'] < tools.timestamp_now() + 3 * 60 * 60:
+                    await accounts.terminate(acc)
+
+            if acc.last_usage.get('end_time') and not acc.last_usage.get('logout_time'):
+                if acc.last_usage['end_time'] < tools.timestamp_now() + 5 * 60:
+                    await d_obj.d_log(f'User: {acc.a_player.mention} has not logged out of their Jaeger account'
+                                      f' 5 minutes after their session ending')
+
+
         # compare to cache to see if login is new. Ping only if login is new.
         new_online = unassigned_online - self.online_cache
         if new_online:

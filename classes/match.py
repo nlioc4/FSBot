@@ -167,13 +167,13 @@ class BaseMatch:
         else:
             if not self.timeout_stamp:  # set timeout stamp
                 self.timeout_stamp = tools.timestamp_now()
-            elif self.should_warn:  # Warn of timeout
-                self.log("Match will timeout in " + tools.format_time_from_stamp(self.timeout_stamp, 'R'))
-                await disp.MATCH_TIMEOUT_WARN.send(self.text_channel, self.all_mentions, delete_after=30)
             elif self.should_timeout:  # Timeout Match
                 self.log("Match timed out for inactivity...")
                 await disp.MATCH_TIMEOUT.send(self.text_channel, self.all_mentions)
                 await self.end_match()
+            elif self.should_warn:  # Warn of timeout
+                self.log("Match will timeout in " + tools.format_time_from_stamp(self.timeout_at, 'R'))
+                await disp.MATCH_TIMEOUT_WARN.send(self.text_channel, self.all_mentions, delete_after=30)
 
     async def update_match(self, check_timeout=True, login=None):
         """Update the match object.  Check_timeout is used to specify whether the timeout should be checked, default True.

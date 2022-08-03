@@ -186,7 +186,7 @@ class ValidateView(views.FSBotView):
         button.style = discord.ButtonStyle.grey
         self.end_session_button.disabled = False
         self.timeout = None
-        log.info(f'Account [{self.acc.id}] sent to player: ID: [{inter.user.id}], name: [{inter.user.id}]')
+        log.info(f'Account [{self.acc.id}] sent to player: ID: [{inter.user.id}], name: [{inter.user.name}]')
         await disp.LOG_ACCOUNT.send(d_obj.channels['logs'], self.acc.id, inter.user.id, inter.user.mention,
                                     allowed_mentions=False)
         await disp.ACCOUNT_EMBED.edit(inter, acc=self.acc, view=self)
@@ -200,8 +200,7 @@ class ValidateView(views.FSBotView):
     async def on_timeout(self) -> None:
         self.disable_all_items()
         await disp.ACCOUNT_TOKEN_EXPIRED.edit(self.acc.message, remove_embed=True, view=self)
-        self.acc.a_player.set_account(None)
-        self.acc.clean()
+        await clean_account(self.acc)
 
 
 async def send_account(acc: classes.Account = None, player: classes.Player = None):
@@ -283,9 +282,10 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
 
 
 async def clean_account(acc):
-    # Update DB Usage
-    acc.logout()
-    await db.async_db_call(db.push_element, 'account_usages', acc.id, acc.last_usage)
+    if acc.is_validated:
+        # Update DB Usage, only if account was actually used
+        acc.logout()
+        await db.async_db_call(db.push_element, 'account_usages', acc.id, acc.last_usage)
 
     # Adjust player & account objects, return to available directory.
     acc.a_player.set_account(None)

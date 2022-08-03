@@ -11,6 +11,7 @@ from logging import getLogger
 
 # Internal Imports
 import modules.config as cfg
+import modules.discord_obj as d_obj
 
 TEST_LIST = ['.com', '.ru', '.net', '.org', '.info', '.biz', '.io', '.co', "https://", "http://", "www.", ".ca"]
 log = getLogger("fs_bot")
@@ -30,6 +31,8 @@ class ContentPlug(commands.Cog, name="ContentPlug"):
             return
         elif not message.channel.id == cfg.channels['content-plug']:
             return
+        elif d_obj.roles['app_admin'] in message.author.roles:
+            return
         elif matches or message.attachments:
             await message.create_thread(name=f"{message.author.display_name}'s content thread")
         elif not matches:
@@ -47,6 +50,8 @@ class ContentPlug(commands.Cog, name="ContentPlug"):
         if after.author == self.bot.user:
             return
         elif not after.channel.id == cfg.channels['content-plug']:
+            return
+        elif d_obj.roles['app_admin'] in after.author.roles:
             return
         elif matches or before.attachments or after.attachments:
             return
