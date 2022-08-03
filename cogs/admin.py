@@ -16,7 +16,8 @@ import modules.loader as loader
 import modules.tools as tools
 from classes import Player, ActivePlayer
 from classes.match import BaseMatch
-from display import AllStrings as disp, views
+from display import AllStrings as disp, views, embeds
+import cogs.register as register
 
 log = getLogger('fs_bot')
 
@@ -49,7 +50,7 @@ class AdminCog(commands.Cog):
         """Unlock, Lock or Reload all bot extensions other than the Admin cog."""
         match action:
             case "Unlock":
-                loader.unlock_all(self.bot)
+                await loader.unlock_all(self.bot)
                 await disp.LOADER_TOGGLE.send_priv(ctx, action)
             case "Lock":
                 loader.lock_all(self.bot)
@@ -57,7 +58,7 @@ class AdminCog(commands.Cog):
             case "Reload":
                 loader.lock_all(self.bot)
                 await asyncio.sleep(1)
-                loader.unlock_all(self.bot)
+                await loader.unlock_all(self.bot)
                 await disp.LOADER_TOGGLE.send_priv(ctx, action)
 
     @admin.command()
@@ -74,6 +75,37 @@ class AdminCog(commands.Cog):
             cog.enabled = False
         await d_obj.d_log(f"{action}ed {channel.mention}'s content filter")
         await ctx.respond(f"{action}ed {channel.mention}'s content filter", ephemeral=True)
+
+    @admin.command(name="rulesinit", )
+    async def rulesinit(self, ctx: discord.ApplicationContext,
+                        message_id: discord.Option(str, "Existing FSBot Rules message", required=False)):
+        """Posts Rules Message in current channel or replaces message at given ID"""
+        if message_id:
+            msg = await d_obj.channels['rules'].fetch_message(int(message_id))
+            try:
+                await msg.edit(content="", view=register.RulesView(), embed=embeds.fsbot_rules_embed())
+            except discord.Forbidden:
+                await ctx.respond(content="Selected Message not owned by the bot!", ephemeral=True)
+                return
+        else:
+            await ctx.channel.send(content="", view=register.RulesView(),
+                                   embed=embeds.fsbot_rules_embed())
+        await ctx.respond(content="Rules Message Posted", ephemeral=True)
+
+    @admin.command(name="registerinit")
+    async def registerinit(self, ctx: discord.ApplicationContext,
+                           message_id: discord.Option(str, "Existing FSBot Register message", required=False)):
+        """Posts Register Message in current channel or replaces message at given ID"""
+        if message_id:
+
+            msg = await d_obj.channels['register'].fetch_message(int(message_id))
+            try:
+                await msg.edit(content="", view=register.RegisterView(), embed=embeds.fsbot_info_embed())
+            except discord.Forbidden:
+                await ctx.respond(content="Selected Message not owned by the bot!", ephemeral=True)
+                return
+        await ctx.channel.send(content="", view=register.RegisterView(), embed=embeds.fsbot_info_embed())
+        await ctx.respond(content="Register and Settings Message Posted", ephemeral=True)
 
     ##########################################################
 

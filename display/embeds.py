@@ -147,29 +147,30 @@ def register_info(player) -> Embed:
 
     if player.has_own_account:
         embed.add_field(name="Registered Characters",
-                        value=','.join([player.ig_names[i] for i in range(3)]),
-                        inline=True)
+                        value='\n'.join([f'{player.ig_names[i]}{cfg.emojis[cfg.factions[i+1]]}' for i in range(3)]),
+                        inline=False)
     elif player.is_registered:
         embed.add_field(name="Registered Characters",
                         value="Registered with No Jaeger Account",
-                        inline=True)
+                        inline=False)
     else:
         embed.add_field(name="Registered Characters",
                         value="Player is not registered",
-                        inline=True)
+                        inline=False)
 
     pref_fac_str = ''.join([cfg.emojis[fac] for fac in player.pref_factions]) if player.pref_factions else 'Any'
-    pref_level_str = ' '.join([str(level) for level in player.req_skill_levels]) if player.req_skill_levels else 'Any'
+    pref_level_str = ' '.join([f'**{level.rank}**:{str(level)}' for level in player.req_skill_levels]) if player.req_skill_levels else 'Any'
     preferences_string = f'Player Skill Level: **{player.skill_level.rank}**:{str(player.skill_level)}\n'
     preferences_string += f"Player Preferred Faction(s): {pref_fac_str}\n"
     preferences_string += f"Player Requested Skill Level(s): {pref_level_str}\n"
 
     embed.add_field(
         name="Player Preferences",
-        value=preferences_string
+        value=preferences_string,
+        inline=False
     )
 
-    return fs_author(Embed)
+    return fs_author(embed)
 
 
 def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)], matches: list) -> Embed:
@@ -258,19 +259,20 @@ def longer_lobby_logs(logs: list[(int, str)]) -> Embed:
 
 def match_info(match) -> Embed:
     """Match info for match channel, should go along with match control View"""
-    colour = None
     match match.status.name:
         case 'INVITING':
-            colour = Colour.dark_blue()
+            colour = Colour.orange()
         case 'GETTING_READY':
-            colour = Colour.blurple()
-        case 'Playing':
+            colour = Colour.yellow()
+        case 'PLAYING':
             colour = Colour.green()
         case 'ENDED':
             colour = Colour.red()
+        case _:
+            colour = Colour.dark_grey()
 
     embed = Embed(
-        colour=Colour.green(),
+        colour=colour,
         title=f"Match Info for Match: {match.id_str}",
         description="",
         timestamp=dt.now()
@@ -387,3 +389,129 @@ def from_staff_dm_embed(msg: 'discord.Message') -> Embed:
         return embed
     else:
         return fs_author(embed)
+
+
+def fsbot_rules_embed() -> Embed:
+
+    embed = Embed(
+        colour=Colour.blurple(),
+        title="Flight School Bot Rules",
+        description="These rules are to be followed at all times while using the Flight School Bot!\n"
+                    "Flight School Discord rules are still in effect...\n"
+                    "If you ever need to speak to an admin, simply DM the bot,"
+                    " starting with 'dm ', 'modmail ' or 'staff ' followed by your message."
+    )
+
+    embed.add_field(
+        name="General Rules",
+        value="\n"
+              "1) Be kind! We're here to have fun, along with improving our skills, please be courteous to your fellow"
+              " players during matches, and all of the time!\n"
+              "2) Do not harass other players, whether this be through pings to duel or following them on Jaeger\n"
+              "3) Do not exploit the system, if you find a bug please let @Colin know!\n",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Jaeger Account Info",
+        value="\n"
+              "Jaeger is a private server that uses the live game client, and can be used to duel in peace away "
+              "from the general public on live servers. "
+              "Access to Jaeger is mostly controlled by [PSB](https://discord.gg/enE4ZW6MuM), who have provided this "
+              "discord with 24 **temporary use** accounts for players to use for one session and one session only.\n"
+              "While on Jaeger you must insure you are not interfering with any schedule events,"
+              " regardless of what account you are on.  [Click here](https://docs.google.com/spreadsheets/d/1eA4ybkAiz"
+              "-nv_mPxu_laL504nwTDmc-9GnsojnTiSRE/edit?usp=sharing) to see the current Jaeger Calendar \n"
+              "While you can find out how to get your own account [here](https://docs.google.com/document/d/1fQy3tJS8Y7"
+              "muivo9EHlWKwE6ZTdHhHTcP6-21cPVlcA/edit?usp=sharing), you can request a temporary account through"
+              " the FSBot provided you adhere to the following rules.\n",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Jaeger Account Rules",
+        value="\n1) Accounts are to be used for **one** session only!  You will receive a discord DM telling you to "
+              "log out when your session expires, you **MUST** log out at this point!\n\n"
+              "2) Account sessions will automatically expire 3 hours after their start time or when the players match "
+              "ends. If you still need an account at that time, simply request another after your session expires.\n\n"
+              "3) Do not save the accounts login details into your launcher\n\n"
+              "4) Do not delete characters and do not create characters\n\n"
+              "5) Do not ASP (prestige) characters\n\n"
+              "6) Do not interfere with other users of Jaeger\n\n"
+              "7) Do not leave the Flight School outfits\n\n"
+              "8) Do not leave a character with less than 350 Nanites.",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Failure to follow any of the above rules may result in your removal from  FSBot.",
+        value="Click the button below to signify your agreement to the above terms, and reveal the rest of the "
+              "FSBot channels",
+        inline=False
+    )
+
+    return fs_author(embed)
+
+
+def fsbot_info_embed() -> Embed:
+
+    embed = Embed(
+        colour=Colour.blurple(),
+        title="Info and Usage",
+        description="\n The basic function of the bot is to provide a way for users to mark themselves as "
+                    "'looking for duels', by joining a lobby.  Once in the lobby, players can be invited to a match "
+                    "by anyone in or out of the lobby.  Match invites are accepted through an interaction in the users "
+                    "private messages.  Once a match is joined, users are prompted to log in, and can request a "
+                    "temporary Jaeger account if necessary."
+    )
+    embed.add_field(
+        name="Registration",
+        value="Before joining a match players must first register their Jaeger characters with the bot. "
+              "If you do not have a personal Jaeger account, simply select 'Register: No Jaeger Account' to indicate "
+              "to the bot that you require a temporary Jaeger account for matches.  If you have a personal Jaeger "
+              "account select 'Register: Personal Jaeger Account', and enter either one generic character name to"
+              " which faction suffixes will be added, or enter three specific character names, one for each faction, "
+              "separated by commas.",
+        inline=False
+    )
+    embed.add_field(
+        name="Preferences",
+        value="In order for users to find compatible duel partners more quickly, several preferences can be declared "
+              "by the user.  These preferences will be displayed in the duel lobby next to your name. Self-assigned "
+              "skill levels are available to help pick balanced partners.  Keep in mind that skill levels are "
+              "self-assigned, and may not be entirely accurate.  Requested skill levels can also be chosen, "
+              "for those who might wish to duel those outside their own skill range.  Users preferred faction can help"
+              "match them up with an opponent using the specific ESF they want to practice against.",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Lobby",
+        value=f"The duel lobby remains in <#{cfg.channels['dashboard']}> where a constantly updated embed shows the "
+              f"currently lobbied players, along with their preferences, and gives buttons and a dropdown to interact "
+              f"with the lobby.  The select menu can be used to invite any number of players to a match, though you "
+              f"obviously can not invite yourself. The select menu can also be used by a match owner to invite new "
+              f"users to an ongoing match.  Active matches and their owner are also displayed in the dashboard Embed.",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Matches",
+        value="Invites are sent out to users DM's, and once an invite is accepted, a match is created.  When a new "
+              "match is created, a private Discord channel is created along with it.  This channel is only visible to "
+              "current players of the match, along with the mod team.  In the match channel, there is a familiar "
+              "looking embed with info relating to this specific match.  If you require a temporary account, you can "
+              "select the 'Request Account' button here, and one will be sent to you."
+              " Matches will timeout after 10 minutes if no players log in to Jaeger.  Once players log in to Jaeger, "
+              "their online characters will be displayed in the match embed.  Players can leave or join the match while"
+              " it is running, but if the owner leaves the match, the match will end.  Once the match ends, the channel"
+              " will close and all temporary Jaeger account users will be asked to log out of their accounts.",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Elo",
+        value="A ranked leaderboard, with 1v1 Elo Rated matches is coming soon(tm)",
+        inline=False
+    )
+    return fs_author(embed)

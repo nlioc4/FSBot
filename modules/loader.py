@@ -21,7 +21,7 @@ def lock_all(client):
     __is_global_locked = True
 
 
-def unlock_all(client):
+async def unlock_all(client):
     for cog in standard_cogs:
         try:
             client.load_extension(cog)
@@ -29,6 +29,7 @@ def unlock_all(client):
             pass
     global __is_global_locked
     __is_global_locked = False
+    await client.register_commands()
 
 
 def is_all_locked():

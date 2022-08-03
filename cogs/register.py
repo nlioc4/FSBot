@@ -11,7 +11,7 @@ import modules.config as cfg
 import classes
 from classes.players import Player, SkillLevel
 import modules.database as db
-from display import AllStrings as disp, views
+from display import AllStrings as disp, views, embeds
 import modules.discord_obj as d_obj
 
 
@@ -223,32 +223,16 @@ class RegisterView(views.FSBotView):
 
     @discord.ui.button(label="View Registration Info", custom_id='register-info',
                        style=discord.ButtonStyle.blurple)
-    async def register_info_button(self, button :discord.ui.Button, inter: discord.Interaction):
+    async def register_info_button(self, button: discord.ui.Button, inter: discord.Interaction):
         p = classes.Player.get(inter.user.id)
-        await disp.REG_INFO.send_priv(inter, p)
+        await disp.REG_INFO.send_priv(inter, player=p)
 
 
-class RegisterCog(discord.Cog, name='RegisterCog', command_attrs=dict(guild_ids=[cfg.general['guild_id']],
-                                                                      default_permission=False)):
+class RegisterCog(discord.Cog, name='RegisterCog'):
     def __init__(self, bot):
         self.bot = bot
-        self.register_message = None
-        self.rules_message = None
         self.bot.add_view(RulesView())
         self.bot.add_view(RegisterView())
-
-    @commands.slash_command(name="rulesinit")
-    async def rulesinit(self, ctx: discord.ApplicationContext):
-        """Posts Rules Message in current channel"""
-        self.rules_message = await ctx.channel.send(content="Click below to accept the rules or hide the FSBot "
-                                                            "channels!", view=RulesView())
-        await ctx.respond(content="Rules Message Posted", ephemeral=True)
-
-    @commands.slash_command(name="registerinit")
-    async def registerinit(self, ctx: discord.ApplicationContext):
-        """Posts Register Message in current channel"""
-        self.register_message = await ctx.channel.send(content="PLACEHOLDER: REGISTER/Settings", view=RegisterView())
-        await ctx.respond(content="Register and Settings Message Posted", ephemeral=True)
 
 
 def setup(client):

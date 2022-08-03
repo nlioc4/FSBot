@@ -208,9 +208,10 @@ async def online_status_rest(chars_players_map):
     log.debug(f"Online IDs: {online_ids}")
     log.debug(f"Offline IDs: {offline_ids}")
 
-    for char_id in online_ids:
-        await _login(char_id, acc_char_ids, chars_players_map)
     for char_id in offline_ids:
         await _logout(char_id, acc_char_ids, chars_players_map)
+    for char_id in online_ids:
+        await _login(char_id, acc_char_ids, chars_players_map)
+
 
     return True

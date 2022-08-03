@@ -85,7 +85,7 @@ async def on_ready():
     log.info(f"Logged in as {bot.user} (ID: {bot.user.id})")
     d_obj.init(bot)
     await modules.accounts_handler.init(cfg.GAPI_SERVICE)
-    loader.unlock_all(bot)
+    await loader.unlock_all(bot)
 
 
 #  Global Bot Interaction Check
