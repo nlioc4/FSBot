@@ -105,11 +105,7 @@ class MatchInfoView(FSBotView):
             return
 
         await disp.MATCH_LEAVE.send_priv(inter, p.mention)
-        if p == self.match.owner:
-            await self.match.end_match()
-        else:
-            await asyncio.sleep(0.5)
-            await self.match.leave_match(p.active)
+        await self.match.leave_match(p.active)
 
     @discord.ui.button(label="Reset Timeout", style=discord.ButtonStyle.green)
     async def reset_timeout_button(self, button: discord.Button, inter: discord.Interaction):

@@ -18,6 +18,7 @@ log = getLogger('fs_bot')
 class AllStrings(Enum):
     NOT_REGISTERED = "You are not registered {}, please go to {} first!"
     NOT_PLAYER = "You are not a player {}, please go to {} first!"
+    NOT_PLAYER_2 = "{} is not a player"
     STOP_SPAM = "{}: Please stop spamming!"
     ALL_LOCKED = "FSBot is currently disabled, please try again later!"
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
@@ -96,14 +97,18 @@ class AllStrings(Enum):
     SKILL_LEVEL = "Your skill level has been set to: {}."
 
     ACCOUNT_HAS_OWN = "You have registered with your own Jaeger account, you can't request a temporary account."
-    ACCOUNT_ALREADY = "You have already been assigned an account, you can't request another."
+    ACCOUNT_ALREADY = "You have already been assigned an account!"
+    ACCOUNT_ALREADY_2 = "{} already has been assigned an account, ID: {}"
     ACCOUNT_SENT = "You have been sent an account, check your DM's."
+    ACCOUNT_SENT_2 = "{} has been sent account ID: {}."
     ACCOUNT_LOG_OUT = "Your session has been ended, please log out!"
     ACCOUNT_TOKEN_EXPIRED = "After 5 minutes this account token has expired, please request another" \
                             " if you still need an account."
-    ACCOUNT_NO_DMS = "You must allow the bot to send you DM's in order to recieve an account!"
+    ACCOUNT_NO_DMS = "You must allow the bot to send you DM's in order to receive an account!"
     ACCOUNT_NO_ACCOUNT = "Sorry, there are no accounts available at the moment.  Please ping Colin!"
     ACCOUNT_EMBED = "", account
+    ACCOUNT_IN_USE = "Account ID: {} is already in use, please pick another account!"
+
 
     def __init__(self, string, embed=None):
         self.__string = string

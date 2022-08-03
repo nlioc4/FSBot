@@ -18,9 +18,12 @@ log = getLogger("fs_bot")
 class ContentPlug(commands.Cog, name="ContentPlug"):
     def __init__(self, bot):
         self.bot = bot
+        self.enabled = True
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        if not self.enabled:
+            return
         matches = [item for item in TEST_LIST if (item in message.content)]
 
         if message.author == self.bot.user:
@@ -37,6 +40,8 @@ class ContentPlug(commands.Cog, name="ContentPlug"):
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
+        if not self.enabled:
+            return
         matches = [item for item in TEST_LIST if (item in after.content)]
 
         if after.author == self.bot.user:

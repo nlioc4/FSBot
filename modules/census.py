@@ -200,10 +200,13 @@ async def online_status_rest(chars_players_map):
     online_ids = list()
     offline_ids = list()
     for a_return in data['character_list']:
-        if a_return['character_id_join_characters_online_status']['online_status'] != "0":
-            online_ids.append(int(a_return['character_id']))
-        else:
+        if a_return['character_id_join_characters_online_status']['online_status'] == "0":
             offline_ids.append(int(a_return['character_id']))
+        else:
+            online_ids.append(int(a_return['character_id']))
+
+    log.debug(f"Online IDs: {online_ids}")
+    log.debug(f"Offline IDs: {offline_ids}")
 
     for char_id in online_ids:
         await _login(char_id, acc_char_ids, chars_players_map)

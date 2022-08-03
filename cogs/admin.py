@@ -59,10 +59,22 @@ class AdminCog(commands.Cog):
                 loader.unlock_all(self.bot)
                 await disp.LOADER_TOGGLE.send_priv(ctx, action)
 
-    # @admin.subgroup()
-    # @discord.SlashCommandGroup(name="match", description="Admin Match Commands")
-    # async def match_admin(self, ctx: discord.ApplicationContext):
-    #     await disp.HELLO.send_priv(ctx, ctx.user.mention)
+    @admin.command()
+    async def contentplug(self, ctx: discord.ApplicationContext,
+                          action: discord.Option(str, "Enable, Disable or check statusof the #contentplug filter",
+                                                 choices=("Enable", "Disable", "Status"),
+                                                 required=True)):
+        """Enable or disable the #contentplug filter"""
+        channel = d_obj.channels['content-plug']
+        cog = self.bot.cogs['ContentPlug']
+        if action == "Enable":
+            cog.enabled = True
+        elif action == "Disable":
+            cog.enabled = False
+        await d_obj.d_log(f"{action}ed {channel.mention}'s content filter")
+        await ctx.respond(f"{action}ed {channel.mention}'s content filter", ephemeral=True)
+
+    ##########################################################
 
     match_admin = admin.create_subgroup(
         name="match", description="Admin Match Commands"
@@ -73,6 +85,7 @@ class AdminCog(commands.Cog):
                          match_channel: discord.Option(discord.TextChannel, "Match Channel to invite member to",
                                                        required=True),
                          member: discord.Option(discord.Member, "User to invite to match", required=True)):
+        """Add a player to a given match."""
         p = Player.get(member.id)
         try:
             match = BaseMatch.active_match_channel_ids()[match_channel.id]
@@ -88,6 +101,7 @@ class AdminCog(commands.Cog):
                             match_channel: discord.Option(discord.TextChannel, "Match Channel to remove member from",
                                                           required=True),
                             member: discord.Option(discord.Member, "User to remove from match", required=True)):
+        """Remove a player from a given match.  If the owner is removed from a match, the match will end."""
         p = Player.get(member.id)
         try:
             match = BaseMatch.active_match_channel_ids()[match_channel.id]
@@ -97,6 +111,85 @@ class AdminCog(commands.Cog):
 
         await match.leave_match(p)
         await disp.MATCH_LEAVE_2.send_priv(ctx, p.name, match.text_channel.mention)
+
+    @match_admin.command(name="endmatch")
+    async def end_match(self, ctx: discord.ApplicationContext,
+                        match_channel: discord.Option(discord.TextChannel, "Match Channel to remove member from",
+                                                      required=True)):
+        """End a given match forcibly."""
+        try:
+            match = BaseMatch.active_match_channel_ids()[match_channel.id]
+        except KeyError:
+            await disp.MATCH_NOT_FOUND.send_priv(ctx, match_channel.mention)
+            return
+
+        await match.end_match()
+        await disp.MATCH_END.send_priv(ctx, match.str_id)
+
+    #########################################################
+
+    accounts = admin.create_subgroup(
+        name="accounts", description="Admin Accounts Commands"
+    )
+
+    @accounts.command(name="assign")
+    async def assign(self, ctx: discord.ApplicationContext,
+                     member: discord.Option(discord.Member, "Recipients @mention", required=True),
+                     acc_id: discord.Option(int, "A specific account ID to assign, 1-24", min_value=1, max_value=24,
+                                            required=False)):
+        """Assign an account to a user, with optional specific account ID"""
+        await ctx.defer(ephemeral=True)
+        p = Player.get(member.id)
+        if not p:
+            await disp.NOT_PLAYER.send_priv(ctx, member.mention)
+            return
+        if p.account:
+            await accounts.terminate(p.account)
+        if not acc_id:
+            acc = accounts.pick_account(p)
+        else:
+            acc = accounts.all_accounts[acc_id]
+            if acc.a_player:
+                await disp.ACCOUNT_IN_USE.send_priv(ctx, acc.id)
+                return
+            accounts.set_account(p, acc)
+        await accounts.send_account(acc, p)
+        await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
+
+    @commands.message_command(name="Assign Account")
+    @commands.max_concurrency(number=1, wait=True)
+    async def msg_assign_account(self, ctx: discord.ApplicationContext, message: discord.Message):
+        """
+            Assign an account via Message Interaction
+        """
+        await ctx.defer(ephemeral=True)
+
+        p = Player.get(message.author.id)
+        if not p:  # if not a player
+            await disp.NOT_PLAYER.send_priv(ctx, message.author.mention)
+            await message.add_reaction("\u274C")
+            return
+
+        if p.account:  # if already has account
+            await disp.ACCOUNT_ALREADY_2.send_priv(ctx, p.mention, p.account.id)
+            await message.add_reaction("\u274C")
+            return
+
+        acc = accounts.pick_account(p)
+        if not acc:  # if no accounts available
+            await disp.ACCOUNT_NO_ACCOUNT.send_priv(ctx)
+            await message.add_reaction("\u274C")
+            return
+
+        # if all checks passed, send account
+        await accounts.send_account(acc, p)
+        await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
+        await message.add_reaction("\u2705")
+
+    @msg_assign_account.error
+    async def msg_assign_account_concurrency_error(self, ctx, error):
+        if isinstance(error, commands.MaxConcurrencyReached):
+            await ctx.respond('Someone else is using this command right now, try again soon!', ephemeral=True)
 
     @commands.Cog.listener('on_ready')
     async def on_ready(self):
@@ -109,13 +202,10 @@ class AdminCog(commands.Cog):
 
     @tasks.loop(minutes=15)
     async def census_rest(self):
-        init = False
         for _ in range(5):
-            init = await census.online_status_rest(Player.map_chars_to_players())
-            if init:
-                break
-        if not init:
-            log.warning("Could not reach REST api during census rest after 5 tries...")
+            if await census.online_status_rest(Player.map_chars_to_players()):
+                return
+        log.warning("Could not reach REST api during census rest after 5 tries...")
 
     @tasks.loop(count=1)
     async def census_watchtower(self):

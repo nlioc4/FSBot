@@ -195,7 +195,7 @@ class ValidateView(views.FSBotView):
     async def end_session_button(self, button: discord.Button, inter: discord.Interaction):
         button.disabled = True
         self.stop()
-        await terminate_account(acc=self.acc, inter=inter, view=self)
+        await terminate(acc=self.acc, inter=inter, view=self)
 
     async def on_timeout(self) -> None:
         self.disable_all_items()
@@ -250,8 +250,8 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
     ws.format(cells_list[0].address, {"numberFormat": {"type": "DATE", "pattern": "mmmm dd"}})
 
 
-async def terminate_account(acc: classes.Account = None, player: classes.Player = None, inter=None,
-                            view: discord.ui.View | int = 0):
+async def terminate(acc: classes.Account = None, player: classes.Player = None, inter=None,
+                    view: discord.ui.View | int = 0):
     """Terminates account and sends message to log off, provide either account or player"""
     if not acc and not player:
         raise ValueError("No args provided")
@@ -284,7 +284,7 @@ async def terminate_account(acc: classes.Account = None, player: classes.Player 
 
 async def clean_account(acc):
     # Update DB Usage
-    acc._logout()
+    acc.logout()
     await db.async_db_call(db.push_element, 'account_usages', acc.id, acc.last_usage)
 
     # Adjust player & account objects, return to available directory.

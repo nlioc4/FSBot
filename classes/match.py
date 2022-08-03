@@ -100,6 +100,9 @@ class BaseMatch:
         await self.update_match()
 
     async def leave_match(self, player: ActivePlayer):
+        if player == self.owner:
+            await self.end_match()
+            return
         self.__players.remove(player)
         self.__previous_players.append(player.on_quit())
         await self.channel_update(player, False)
@@ -108,7 +111,7 @@ class BaseMatch:
         if not self.__players and not self.end_stamp:  # if no players left, and match not already ended
             await self.end_match()
         if player.account:
-            await accounts.terminate_account(player=player.player)
+            await accounts.terminate(player=player.player)
             player.player.set_account(None)
             await self.update_match()
 

@@ -147,9 +147,11 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
 
         self.dashboard_loop.start()
 
+
     def cog_check(self, ctx):
         player = Player.get(ctx.user.id)
         return True if player else False
+    commands.Cog.cog_check(cog_check)
 
     def dashboard_purge_check(self, message: discord.Message):
         """Checks if messages are either the dashboard message, or an admin message before purging them"""

@@ -86,26 +86,6 @@ async def on_ready():
     loader.unlock_all(bot)
 
 
-@bot.slash_command(name="filtercontentplug", guild_ids=[cfg.general['guild_id']], default_permission=False)
-async def filtercontentplug(ctx: discord.ApplicationContext,
-                            selection: discord.Option(str, "Enable or Disable", choices=("Enable", "Disable"))):
-    """Enable or Disable the #content-plug filter"""
-    channel = ctx.guild.get_channel(cfg.channels['content-plug'])
-    if selection == "Enable":
-        try:
-            bot.load_extension("cogs.contentplug")
-        except discord.ExtensionAlreadyLoaded:
-            await ctx.respond("Filter already enabled")
-            return
-    elif selection == "Disable":
-        try:
-            bot.unload_extension("cogs.contentplug")
-        except discord.ExtensionNotLoaded:
-            await ctx.respond("Filter already disabled")
-            return
-    await ctx.respond(f"{selection}d {channel.mention}'s content filter")
-
-
 #  Global Bot Interaction Check
 @bot.check
 async def global_interaction_check(interaction):
