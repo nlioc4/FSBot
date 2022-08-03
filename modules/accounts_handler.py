@@ -181,6 +181,7 @@ class ValidateView(views.FSBotView):
 
     @discord.ui.button(label="Confirm Rules", style=discord.ButtonStyle.green)
     async def validate_button(self, button: discord.Button, inter: discord.Interaction):
+        await inter.response.defer()
         validate_account(acc=self.acc)
         button.disabled = True
         button.style = discord.ButtonStyle.grey
