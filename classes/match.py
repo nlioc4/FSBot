@@ -78,7 +78,7 @@ class BaseMatch:
             d_obj.roles['admin']: discord.PermissionOverwrite(view_channel=True),
             d_obj.roles['mod']: discord.PermissionOverwrite(view_channel=True),
             d_obj.roles['bot']: discord.PermissionOverwrite(view_channel=True, manage_channels=True,
-                                                            manage_permissions=True,),
+                                                            manage_permissions=True),
             d_obj.guild.get_member(owner.id): discord.PermissionOverwrite(view_channel=True),
             d_obj.guild.get_member(invited.id): discord.PermissionOverwrite(view_channel=True)
         }
