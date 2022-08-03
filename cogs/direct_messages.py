@@ -54,7 +54,6 @@ class DMCog(commands.Cog):
         self.bot = client
         self.bot.add_view(self.ThreadStopView())
 
-    @commands.dm_only()
     @commands.slash_command(name="modmail")
     async def modmail(self, ctx: discord.ApplicationContext,
                       init_msg: discord.Option(str, 'Input your initial message to the mods here', required=True),
@@ -67,7 +66,11 @@ class DMCog(commands.Cog):
         msg = await disp.DM_TO_STAFF.send(d_obj.channels['staff'], d_obj.roles['app_admin'].mention, author=ctx.author,
                                           msg=init_msg, view=self.ThreadStopView(), files=files)
         thread = await msg.create_thread(name=f'Modmail from {ctx.author.name}')
-        await disp.DM_RECEIVED.send(ctx, init_msg)
+        user = ctx
+        if ctx.guild:
+            user = ctx.user
+            await disp.DM_RECEIVED_GUILD.send_temp(ctx, init_msg)
+        await disp.DM_RECEIVED.send(user, init_msg)
         DM_THREADS[ctx.author.id] = thread.id
         await db.async_db_call(db.set_element, 'restart_data', 0, {'dm_threads': dm_threads_to_str()})
 
@@ -89,7 +92,7 @@ class DMCog(commands.Cog):
             return
 
         # alternate to /modmail
-        if not message.guild and message.content.startswith(('modmail ', 'dm ', 'staff ')):
+        if not message.guild and message.content.lower().startswith(('modmail ', 'dm ', 'staff ')):
             files = []
             for file in message.attachments:
                 files.append(await file.to_file())

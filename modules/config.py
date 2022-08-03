@@ -73,8 +73,7 @@ channels = {
     "staff": "",
     "logs": "",
     "usage": "",
-    "content-plug": "",
-    "anomaly-notification": ""
+    "content-plug": ""
 }
 
 # Discord Role ID's

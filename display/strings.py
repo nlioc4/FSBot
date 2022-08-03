@@ -39,6 +39,7 @@ class AllStrings(Enum):
     DM_RECEIVED = "Opened modmail thread, the mod team will get back to you as soon as possible!\n" \
                   "Further messages will be sent to the same thread and marked with '📨'.\n" \
                   "To stop sending messages reply with ``=quit``"
+    DM_RECEIVED_GUILD = "Check DM's for your new modmail thread!"
     DM_IN_THREAD = '{} : {}'
     DM_TO_USER = None, from_staff_dm_embed
     DM_TO_STAFF = "{} New Modmail", to_staff_dm_embed
@@ -110,6 +111,7 @@ class AllStrings(Enum):
     ACCOUNT_NO_ACCOUNT = "Sorry, there are no accounts available at the moment.  Please ping Colin!"
     ACCOUNT_EMBED = "", account
     ACCOUNT_IN_USE = "Account ID: {} is already in use, please pick another account!"
+    ACCOUNT_INFO = "", accountcheck
 
 
     def __init__(self, string, embed=None):

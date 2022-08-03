@@ -10,7 +10,7 @@ import pytz
 # Internal Imports
 import modules.config as cfg
 from modules.tools import format_time_from_stamp as format_stamp
-from classes.players import SkillLevel
+from classes.players import SkillLevel, Player
 import modules.discord_obj as d_obj
 
 
@@ -66,7 +66,7 @@ def account(acc) -> Embed:
     return fs_author(embed)
 
 
-def accountcheck(available, used, usages, online) -> Embed:
+def accountcheck(num_available, num_used, assigned, online) -> Embed:
     """Jaeger Account Embed
     """
     embed = Embed(
@@ -77,15 +77,18 @@ def accountcheck(available, used, usages, online) -> Embed:
     )
 
     embed.add_field(name='Usage',
-                    value=f"Available Accounts: **{available}**\n"
-                          f"Used Accounts: **{used}**\n",
+                    value=f"Available Accounts: **{num_available}**\n"
+                          f"Used Accounts: **{num_used}**\n",
                     inline=False
                     )
     string = 'None'
-    if usages:
-        string = ''
-        for usage in usages:
-            string += f'[{usage[0]}] : {usage[1]}\n'
+    if assigned:
+        string = '\u2705 : validated\n' \
+                 '\u274C : terminated\n\n'
+        for acc in assigned:
+            pref = "\u2705" if acc.is_validated else ''
+            pref = "\u274C" if acc.is_terminated else pref
+            string += f'{pref}[{acc.id}] : {acc.a_player.name}\n'
 
     embed.add_field(name='Currently Assigned Accounts',
                     value=string,
@@ -94,9 +97,12 @@ def accountcheck(available, used, usages, online) -> Embed:
     if online:
         string = '*Character Name : Last Player*\n'
         for acc in online:
-            char_name = online[acc][0]
-            last_player = d_obj.guild.get_member(online[acc][1])
-            string = string + f'{char_name} : {last_player.mention}\n'
+            last_player = d_obj.bot.get_user(acc.last_user_id)
+            if not last_player:
+                player_ment = f"User not found for ID {acc.last_user_id}"
+            else:
+                player_ment = last_player.mention
+            string += f'{acc.online_name} : {player_ment}\n'
         embed.add_field(name='Currently Online Accounts',
                         value=string,
                         inline=False

@@ -77,6 +77,8 @@ intents.message_content = True
 
 bot = commands.Bot(intents=intents)
 
+bot.activity = discord.Game(name="on Jaeger in some epic ESF duels... type 'modmail ' in DM's to talk to the mods!")
+
 
 @bot.event
 async def on_ready():

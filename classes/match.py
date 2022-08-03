@@ -55,6 +55,10 @@ class BaseMatch:
         return BaseMatch._active_matches.values()
 
     @classmethod
+    def active_matches_dict(cls):
+        return BaseMatch._active_matches
+
+    @classmethod
     def active_match_channel_ids(cls):
         return {match.text_channel.id: match for match in BaseMatch._active_matches.values()}
 
@@ -92,7 +96,8 @@ class BaseMatch:
 
     async def join_match(self, player: Player):
         #  Joins player to match and updates permissions
-        self.__invited.remove(player)
+        if player in self.__invited:
+            self.__invited.remove(player)
         self.__players.append(player.on_playing(self))
         await self.channel_update(player, True)
         await disp.MATCH_JOIN.send_temp(self.text_channel, player.mention)

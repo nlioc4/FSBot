@@ -120,13 +120,13 @@ class AdminCog(commands.Cog):
 
     @match_admin.command(name="endmatch")
     async def end_match(self, ctx: discord.ApplicationContext,
-                        match_channel: discord.Option(discord.TextChannel, "Match Channel to remove member from",
-                                                      required=True)):
+                        match_id: discord.Option(int, "Match ID to end",
+                                                 required=True)):
         """End a given match forcibly."""
         try:
-            match = BaseMatch.active_match_channel_ids()[match_channel.id]
+            match = BaseMatch.active_matches_dict()[match_id]
         except KeyError:
-            await disp.MATCH_NOT_FOUND.send_priv(ctx, match_channel.mention)
+            await disp.MATCH_NOT_FOUND.send_priv(ctx, match_id)
             return
 
         await match.end_match()
@@ -161,6 +161,15 @@ class AdminCog(commands.Cog):
             accounts.set_account(p, acc)
         await accounts.send_account(acc, p)
         await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
+
+    @accounts.command(nane='info')
+    async def info(self, ctx: discord.ApplicationContext):
+        num_available = len(accounts._available_accounts)
+        assigned = accounts._busy_accounts.values()
+        num_used = len(assigned)
+        online = [acc for acc in accounts.all_accounts.values() if acc.online_id]
+        await disp.ACCOUNT_INFO.send_priv(ctx, num_available=num_available, num_used=num_used, assigned=assigned,
+                                          online=online)
 
     @commands.message_command(name="Assign Account")
     @commands.max_concurrency(number=1, wait=True)
@@ -230,15 +239,16 @@ class AdminCog(commands.Cog):
             if acc.online_id and not acc.a_player:
                 unassigned_online.add(acc)
 
-            if acc.is_validated and not acc.is_terminated:
-                if acc.last_usage['start_time'] < tools.timestamp_now() + 3 * 60 * 60:
+            #  account session over 3 hours
+            elif acc.is_validated and not acc.is_terminated:
+                if acc.last_usage['start_time'] < tools.timestamp_now() - 3 * 60 * 60:
                     await accounts.terminate(acc)
 
-            if acc.last_usage.get('end_time') and not acc.last_usage.get('logout_time'):
-                if acc.last_usage['end_time'] < tools.timestamp_now() + 5 * 60:
+            #  account terminated but user still online 10 minutes later
+            elif acc.online_id and acc.is_terminated:
+                if acc.last_usage['end_time'] < tools.timestamp_now() - 10 * 60:
                     await d_obj.d_log(f'User: {acc.a_player.mention} has not logged out of their Jaeger account'
-                                      f' 5 minutes after their session ending')
-
+                                      f' 10 minutes after their session ended')
 
         # compare to cache to see if login is new. Ping only if login is new.
         new_online = unassigned_online - self.online_cache
