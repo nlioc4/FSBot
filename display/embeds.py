@@ -33,7 +33,7 @@ def account(acc) -> Embed:
     embed = Embed(
         colour=Colour.blue(),
         title="Flight School Jaeger Account",
-        description=f"\nFollow all Jaeger and PREY's Flight School <#{cfg.channels['rules']} while using this "
+        description=f"\nFollow all Jaeger and PREY's Flight School <#{cfg.channels['rules']}> while using this "
                     "account\n "
                     f"[Be careful not to interfere with other Jaeger users, "
                     f"check the calendar here]({cfg.JAEGER_CALENDAR_URL})\n"
