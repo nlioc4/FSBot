@@ -173,8 +173,11 @@ class AllStrings(Enum):
                     return await getattr(await ctx.fetch_message(), 'edit_message')(**args_dict)
 
             case discord.Interaction:
-                if ctx.response.is_done() and action == 'send':
-                    return await getattr(ctx.followup, 'send')(**args_dict)
+                if ctx.response.is_done():
+                    if action == 'send':
+                        return await getattr(ctx.followup, 'send')(**args_dict)
+                    if action == 'edit':
+                        return await getattr(ctx.message, 'edit')(**args_dict)
                 return await getattr(ctx.response, action + '_message')(**args_dict)
 
             case discord.ApplicationContext:
