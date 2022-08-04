@@ -56,7 +56,7 @@ class MatchesCog(commands.Cog, name="MatchesCog",
             return
 
         match_channel_dict[message.channel.id].log(
-            f'{message.author.name}: {message.content}', public=False
+            f'{message.author.name}: {message.clean_content}', public=False
         )
         await match_channel_dict[message.channel.id].update_match()
 

@@ -81,6 +81,7 @@ roles = {
     "admin": "",
     "mod": "",
     "app_admin": "",
+    "bot": "",
     "registered": "",
     "view_channels": ""
 
