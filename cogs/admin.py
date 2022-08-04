@@ -150,11 +150,12 @@ class AdminCog(commands.Cog):
         else:
             await disp.MATCH_NOT_IN.send_priv(ctx, p.name, match.text_channel.mention)
 
-    @match_admin.command(name="endmatch")
+    @match_admin.command(name="end")
     async def end_match(self, ctx: discord.ApplicationContext,
                         match_id: discord.Option(int, "Match ID to end",
                                                  required=True)):
         """End a given match forcibly."""
+        ctx.defer(ephemeral=True)
         try:
             match = BaseMatch.active_matches_dict()[match_id]
         except KeyError:
@@ -162,7 +163,7 @@ class AdminCog(commands.Cog):
             return
 
         await match.end_match()
-        await disp.MATCH_END.send_priv(ctx, match.str_id)
+        await disp.MATCH_END.send_priv(ctx, match.id_str)
 
     #########################################################
 
@@ -247,7 +248,7 @@ class AdminCog(commands.Cog):
         self.account_watchtower.start()
         self.census_rest.start()
 
-    @tasks.loop(minutes=15)
+    @tasks.loop(minutes=10, count=2)
     async def census_rest(self):
         for _ in range(5):
             if await census.online_status_rest(Player.map_chars_to_players()):
