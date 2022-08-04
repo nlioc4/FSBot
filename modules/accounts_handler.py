@@ -241,13 +241,13 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
     column = len(ws.row_values(row)) + 1  # updates via counting row values, instead of below counting nb_uniques
     # column = acc.nb_unique_usages + USAGE_OFFSET # column of the account to be updated
     cells_list = ws.range(row, column, row + 2, column)
-    date = datetime.now().astimezone(eastern).date().strftime('%m/%d/%Y %H%M%S')
+    date = datetime.now().astimezone(eastern).date().strftime('%m/%d/%Y')
     cells_list[0].value = date
     cells_list[1].value = player.name
     cells_list[2].value = str(player.id)
 
     ws.update_cells(cells_list, 'USER_ENTERED')  # actually update the sheet
-    ws.format(cells_list[0].address, {"numberFormat": {"type": "DATE", "pattern": "mmmm dd"}})
+    ws.format(cells_list[0].address, {"numberFormat": {"type": "DATE", "pattern": "mmmm dd"}, "horizontalAlignment": "CENTER"})
 
 
 async def terminate(acc: classes.Account = None, player: classes.Player = None, inter=None,
