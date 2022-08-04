@@ -21,7 +21,7 @@ _match_id_counter = 0
 
 
 class MatchState(Enum):
-    INVITING = "Waiting for an invite to be accepted..."
+    INVITING = "Waiting for players to join the match..."
     GETTING_READY = "Waiting for players to log in..."
     PLAYING = "Currently playing..."
     ENDED = "Match ended..."
@@ -135,6 +135,10 @@ class BaseMatch:
         await self.text_channel.delete(reason='Match Ended')
         del BaseMatch._active_matches[self.id]
         BaseMatch._recent_matches[self.id] = self
+        if len(BaseMatch._recent_matches) > 50:  # Trim _recent_matches if it reaches over 50
+            keys = list(BaseMatch._recent_matches.keys())
+            for i in range(20):
+                del BaseMatch._recent_matches[keys[i]]
 
     def get_data(self):
         data = {'_id': self.id, 'start_stamp': self.start_stamp, 'end_stamp': self.end_stamp,
@@ -168,7 +172,7 @@ class BaseMatch:
 
     async def update_timeout(self):
         # check timeout, reset if new match or online_players
-        if self.online_players or self.start_stamp < tools.timestamp_now() - MATCH_WARN_TIME:
+        if len(self.online_players) >= 2 or self.start_stamp < tools.timestamp_now() - MATCH_WARN_TIME:
             self.timeout_stamp = None
         else:
             if not self.timeout_stamp:  # set timeout stamp
@@ -181,7 +185,7 @@ class BaseMatch:
                 self.log("Match will timeout in " + tools.format_time_from_stamp(self.timeout_at, 'R'))
                 await disp.MATCH_TIMEOUT_WARN.send(self.text_channel, self.all_mentions, delete_after=30)
 
-    async def update_match(self, check_timeout=True, login=None):
+    async def update_match(self, check_timeout=True, user=None, char_name=None):
         """Update the match object.  Check_timeout is used to specify whether the timeout should be checked, default True.
         Login can be used to log a login action, pass a player.
         Otherwise, updates timeout, match status, and the embed if required"""
@@ -189,8 +193,11 @@ class BaseMatch:
         if check_timeout:
             await self.update_timeout()
 
-        if login:
-            self.log(f"{login.name} logged in as {login.online_name}")
+        if user and char_name:
+            self.log(f"{user.name} logged out from {char_name}")
+
+        if user and not char_name:
+            self.log(f"{user.name} logged in as {user.online_name}")
 
         self.update_status()
         await self.update_embed()
