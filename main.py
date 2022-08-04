@@ -138,7 +138,7 @@ async def on_application_command_error(context, exception):
     else:
         try:
             await display.AllStrings.GENERAL_ERROR.send_priv(context, exception, d_obj.colin.mention)
-        except discord.errors.InteractionResponded:
+        except discord.errors.InteractionResponded or discord.errors.NotFound:
             pass
         finally:
             await d_obj.d_log(exception, context.user)

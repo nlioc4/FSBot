@@ -39,7 +39,7 @@ class FSBotView(discord.ui.View):
 
         try:
             await disp.GENERAL_ERROR.send_priv(interaction, error, d_obj.colin.mention)
-        except discord.errors.InteractionResponded:
+        except discord.errors.InteractionResponded or discord.errors.NotFound:
             pass
         finally:
             await d_obj.d_log(error, interaction.user)
@@ -117,6 +117,7 @@ class MatchInfoView(FSBotView):
     @discord.ui.button(label="Request Account", style=discord.ButtonStyle.blurple)
     async def account_button(self, button: discord.Button, inter: discord.Interaction):
         """Requests an account for the player"""
+        await inter.response.defer()
         p: Player = Player.get(inter.user.id)
         if not await d_obj.is_registered(inter, p):
             return
