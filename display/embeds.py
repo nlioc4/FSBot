@@ -219,7 +219,7 @@ def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)], matc
         matches_str = ''
         for match in matches:
             matches_str += f"Match: {match.id_str} [Owner: {match.owner.mention}, " \
-                           f"Players: {', '.join([p.mention for p in match.players])}]\n"
+                           f"Players: {', '.join([p.mention for p in match.players if p is not match.owner])}]\n"
         embed.add_field(
             name='Active Matches',
             value=matches_str,
@@ -335,7 +335,7 @@ def match_info(match) -> Embed:
         online_string = ''
         for p in match.online_players:
             fac_emoji = cfg.emojis[p.current_faction]
-            string = f'{p.mention} as [{fac_emoji}{p.online_name}]'
+            string = f'{p.mention} as [{fac_emoji}{p.online_name}]\n'
             online_string += string
 
         embed.add_field(name="Currently Online",
