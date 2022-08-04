@@ -187,10 +187,10 @@ class ValidateView(views.FSBotView):
         button.style = discord.ButtonStyle.grey
         self.end_session_button.disabled = False
         self.timeout = None
+        await disp.ACCOUNT_EMBED.edit(inter, acc=self.acc, view=self)
         log.info(f'Account [{self.acc.id}] sent to player: ID: [{inter.user.id}], name: [{inter.user.name}]')
         await disp.LOG_ACCOUNT.send(d_obj.channels['logs'], self.acc.id, inter.user.id, inter.user.mention,
                                     allowed_mentions=False)
-        await disp.ACCOUNT_EMBED.edit(inter, acc=self.acc, view=self)
 
     @discord.ui.button(label="End Session", style=discord.ButtonStyle.red)
     async def end_session_button(self, button: discord.Button, inter: discord.Interaction):
@@ -241,13 +241,13 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
     column = len(ws.row_values(row)) + 1  # updates via counting row values, instead of below counting nb_uniques
     # column = acc.nb_unique_usages + USAGE_OFFSET # column of the account to be updated
     cells_list = ws.range(row, column, row + 2, column)
-    date = datetime.now().astimezone(eastern).date().strftime('%m/%d/%Y %H%M%S')
+    date = datetime.now().astimezone(eastern).date().strftime('%m/%d/%Y')
     cells_list[0].value = date
     cells_list[1].value = player.name
     cells_list[2].value = str(player.id)
 
     ws.update_cells(cells_list, 'USER_ENTERED')  # actually update the sheet
-    ws.format(cells_list[0].address, {"numberFormat": {"type": "DATE", "pattern": "mmmm dd"}})
+    ws.format(cells_list[0].address, {"numberFormat": {"type": "DATE", "pattern": "mmmm dd"}, "horizontalAlignment": "CENTER"})
 
 
 async def terminate(acc: classes.Account = None, player: classes.Player = None, inter=None,
@@ -286,7 +286,7 @@ async def clean_account(acc):
     if acc.is_validated:
         # Update DB Usage, only if account was actually used
         acc.logout()
-        # await db.async_db_call(db.push_element, 'account_usages', acc.id, acc.last_usage)
+        await db.async_db_call(db.upsert_push_element, 'account_usages', acc.id, {'usages': acc.last_usage})
 
     # Adjust player & account objects, return to available directory.
     acc.a_player.set_account(None)

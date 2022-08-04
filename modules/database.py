@@ -22,6 +22,7 @@ class DatabaseError(Exception):
 
     :param msg: Error message.
     """
+
     def __init__(self, msg: str):
         message = "Error in database: " + msg
         super().__init__(message)
@@ -124,6 +125,17 @@ def push_element(collection: str, e_id: int, doc: dict):
         _collections[collection].update_one({"_id": e_id}, {"$push": doc})
     else:
         raise DatabaseError(f"set_field: Element {e_id} doesn't exist in collection {collection}")
+
+
+def upsert_push_element(collection: str, e_id: int, doc: dict):
+    """
+    Push data in the field of an element.  Create the element if it does not already exist
+
+    :param collection: Collection name.
+    :param e_id: Element id.
+    :param doc: Data to push. The key should be the field to push to.
+    """
+    _collections[collection].update_one({"_id": e_id}, {"$push": doc}, upsert=True)
 
 
 def get_element(collection: str, item_id: int) -> (dict, None):

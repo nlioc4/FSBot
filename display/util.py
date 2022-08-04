@@ -1,5 +1,5 @@
 """
-Main display classes, involving Message Enum for easier sending.
+Display utilities, involving Message Enum for easier sending.
 """
 
 #  External Imports
@@ -21,4 +21,6 @@ class Message:
             return self.__string.format(*args)
         else:
             return False
+
+
 
