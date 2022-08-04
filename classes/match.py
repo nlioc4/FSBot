@@ -231,7 +231,7 @@ class BaseMatch:
 
     @property
     def online_players(self):
-        return [p for p in self.__players if p.online_id]
+        return [p for p in self.__players if p.online_name]
 
     @property
     def all_mentions(self):
