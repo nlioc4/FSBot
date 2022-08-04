@@ -38,7 +38,7 @@ class RulesView(views.FSBotView):
                                                             f"{interaction.user.mention}!",
                                                     ephemeral=True, delete_after=15)
         else:
-            p = classes.Player(interaction.user.id, interaction.user.display_name)
+            p = classes.Player(interaction.user.id, interaction.user.name)
             await db.async_db_call(db.set_element, 'users', p.id, p.get_data())
             await interaction.user.add_roles(d_obj.roles['view_channels'], reason="Rules Accepted")
             await interaction.response.send_message(content=f"You have accepted the rules "
