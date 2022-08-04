@@ -100,7 +100,7 @@ class BaseMatch:
             self.__invited.remove(player)
         self.__players.append(player.on_playing(self))
         await self.channel_update(player, True)
-        await disp.MATCH_JOIN.send_temp(self.text_channel, player.mention)
+        await disp.MATCH_JOIN.send(self.text_channel, player.mention)
         self.log(f'{player.name} joined the match')
         await self.update_match()
 
@@ -112,7 +112,7 @@ class BaseMatch:
         self.__previous_players.append(player.on_quit())
         await self.channel_update(player, False)
         self.log(f'{player.name} left the match')
-        await disp.MATCH_LEAVE.send_temp(self.text_channel, player.mention)
+        await disp.MATCH_LEAVE.send(self.text_channel, player.mention)
         if not self.__players and not self.end_stamp:  # if no players left, and match not already ended
             await self.end_match()
         if player.account:

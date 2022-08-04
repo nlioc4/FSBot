@@ -147,7 +147,7 @@ def register_info(player) -> Embed:
 
     if player.has_own_account:
         embed.add_field(name="Registered Characters",
-                        value='\n'.join([f'{player.ig_names[i]}{cfg.emojis[cfg.factions[i+1]]}' for i in range(3)]),
+                        value='\n'.join([f'{player.ig_names[i]}{cfg.emojis[cfg.factions[i + 1]]}' for i in range(3)]),
                         inline=False)
     elif player.is_registered:
         embed.add_field(name="Registered Characters",
@@ -159,7 +159,8 @@ def register_info(player) -> Embed:
                         inline=False)
 
     pref_fac_str = ''.join([cfg.emojis[fac] for fac in player.pref_factions]) if player.pref_factions else 'Any'
-    pref_level_str = ' '.join([f'**{level.rank}**:{str(level)}' for level in player.req_skill_levels]) if player.req_skill_levels else 'Any'
+    pref_level_str = ' '.join(
+        [f'**{level.rank}**:{str(level)}' for level in player.req_skill_levels]) if player.req_skill_levels else 'Any'
     preferences_string = f'Player Skill Level: **{player.skill_level.rank}**:{str(player.skill_level)}\n'
     preferences_string += f"Player Preferred Faction(s): {pref_fac_str}\n"
     preferences_string += f"Player Requested Skill Level(s): {pref_level_str}\n"
@@ -218,7 +219,8 @@ def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)], matc
     if matches:
         matches_str = ''
         for match in matches:
-            matches_str += f"Match: {match.id_str} [Owner: {match.owner.mention}, Players: {len(match.players)}]"
+            matches_str += f"Match: {match.id_str} [Owner: {match.owner.mention}, " \
+                           f"Players: {[p.mention for p in match.players]}]\n"
         embed.add_field(
             name='Active Matches',
             value=matches_str,
@@ -252,11 +254,15 @@ def longer_lobby_logs(logs: list[(int, str)]) -> Embed:
             time_formatted = format_stamp(log[0], 'T')
             next_str = f'[{time_formatted}]{log[1]}\n'
             if len(log_str) + len(next_str) > 1024:
-                break
+                embed.add_field(name="\u200b",
+                                value=log_str,
+                                inline=False)
+                log_str = ''
             log_str = next_str + log_str
-        embed.add_field(name="Extended Recent Activity",
-                        value=log_str,
-                        inline=False)
+        if log_str:
+            embed.add_field(name="\u200b",
+                            value=log_str,
+                            inline=False)
     return fs_author(embed)
 
 
@@ -395,7 +401,6 @@ def from_staff_dm_embed(msg: 'discord.Message') -> Embed:
 
 
 def fsbot_rules_embed() -> Embed:
-
     embed = Embed(
         colour=Colour.blurple(),
         title="Flight School Bot Rules",
@@ -457,7 +462,6 @@ def fsbot_rules_embed() -> Embed:
 
 
 def fsbot_info_embed() -> Embed:
-
     embed = Embed(
         colour=Colour.blurple(),
         title="Info and Usage",

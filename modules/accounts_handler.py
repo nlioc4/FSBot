@@ -286,7 +286,7 @@ async def clean_account(acc):
     if acc.is_validated:
         # Update DB Usage, only if account was actually used
         acc.logout()
-        await db.async_db_call(db.push_element, 'account_usages', acc.id, acc.last_usage)
+        await db.async_db_call(db.upsert_push_element, 'account_usages', acc.id, {'usages': acc.last_usage})
 
     # Adjust player & account objects, return to available directory.
     acc.a_player.set_account(None)
