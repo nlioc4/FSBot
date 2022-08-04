@@ -38,7 +38,7 @@ class FSBotView(discord.ui.View):
     async def on_error(self, error: Exception, item: discord.ui.Item, interaction: discord.Interaction) -> None:
 
         try:
-            await disp.GENERAL_ERROR.send_priv(interaction, error, d_obj.colin.mention)
+            await disp.GENERAL_ERROR.send_priv(interaction, error)
         except discord.errors.InteractionResponded or discord.errors.NotFound:
             pass
         finally:

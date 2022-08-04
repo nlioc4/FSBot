@@ -172,7 +172,7 @@ class BaseMatch:
 
     async def update_timeout(self):
         # check timeout, reset if new match or online_players
-        if len(self.online_players) >= 2 or self.start_stamp < tools.timestamp_now() - MATCH_WARN_TIME:
+        if len(self.players) >= 2 and self.online_players or self.start_stamp < tools.timestamp_now() - MATCH_WARN_TIME:
             self.timeout_stamp = None
         else:
             if not self.timeout_stamp:  # set timeout stamp

@@ -335,7 +335,7 @@ def match_info(match) -> Embed:
         online_string = ''
         for p in match.online_players:
             fac_emoji = cfg.emojis[p.current_faction]
-            string = f'{p.mention} as [{fac_emoji}{p.online_name}]'
+            string = f'{p.mention} as [{fac_emoji}{p.online_name}]\n'
             online_string += string
 
         embed.add_field(name="Currently Online",
@@ -347,9 +347,11 @@ def match_info(match) -> Embed:
         for log in match.recent_logs:
             if log[2]:
                 log_string += f"[{format_stamp(log[0], 'T')}]{log[1]}\n"
-        embed.add_field(name="Match Logs",
-                        value=log_string,
-                        inline=False)
+
+        if log_string:
+            embed.add_field(name="Match Logs",
+                            value=log_string,
+                            inline=False)
 
     return fs_author(embed)
 

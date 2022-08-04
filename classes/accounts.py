@@ -100,9 +100,12 @@ class Account:
                                   "match_id": self.a_player.match if self.a_player.match else 0})
 
     def validate(self):
+        if self.__validated:
+            return False
         self.__validated = True
         self.__unique_usages.append(self.a_player.id)
         self.__last_usage.update({"start_time": tools.timestamp_now()})
+        return True
 
     def terminate(self):
         self.__terminated = True

@@ -22,7 +22,7 @@ class AllStrings(Enum):
     STOP_SPAM = "{}: Please stop spamming!"
     ALL_LOCKED = "FSBot is currently disabled, please try again later!"
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
-    GENERAL_ERROR = "An error has occurred, {}, please ping {}"
+    GENERAL_ERROR = "An error has occurred, {}"
     LOG_ERROR = "User: {} has run into an error, {}."
     LOG_GENERAL = "Log: {}"
     CHECK_FAILURE = "You have failed a check to run this command!"
@@ -114,6 +114,8 @@ class AllStrings(Enum):
     ACCOUNT_EMBED = "", account
     ACCOUNT_IN_USE = "Account ID: {} is already in use, please pick another account!"
     ACCOUNT_INFO = "", accountcheck
+    ACCOUNT_VALIDATE_ERROR = "There was an error logging this usage.  Please try again, and if the " \
+                             "issue persists please ask for help!"
 
 
     def __init__(self, string, embed=None):

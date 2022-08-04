@@ -161,7 +161,7 @@ async def on_application_command_error(context, exception):
         await display.AllStrings.CHECK_FAILURE.send_priv(context)
     else:
         try:
-            await display.AllStrings.GENERAL_ERROR.send_priv(context, exception, d_obj.colin.mention)
+            await display.AllStrings.GENERAL_ERROR.send_priv(context, exception)
         except discord.errors.InteractionResponded or discord.errors.NotFound:
             pass
         finally:

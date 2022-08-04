@@ -58,7 +58,6 @@ class MatchesCog(commands.Cog, name="MatchesCog",
         match_channel_dict[message.channel.id].log(
             f'{message.author.name}: {message.clean_content}', public=False
         )
-        await match_channel_dict[message.channel.id].update_match()
 
 
 def setup(client):
