@@ -507,10 +507,10 @@ def fsbot_info_embed() -> Embed:
         name="Matches",
         value="Invites are sent out to users DM's, and once an invite is accepted, a match is created.  When a new "
               "match is created, a private Discord channel is created along with it.  This channel is only visible to "
-              "current players of the match, along with the mod team.  In the match channel, there is a familiar "
+              "current players of the match, along with the mod team.\nIn the match channel, there is a familiar "
               "looking embed with info relating to this specific match.  If you require a temporary account, you can "
-              "select the 'Request Account' button here, and one will be sent to you."
-              " Matches will timeout after 10 minutes if no players log in to Jaeger.  Once players log in to Jaeger, "
+              "select the 'Request Account' button here, and one will be sent to you.\n"
+              "Matches will timeout after 10 minutes if no players log in to Jaeger.  Once players log in to Jaeger, "
               "their online characters will be displayed in the match embed.  Players can leave or join the match while"
               " it is running, but if the owner leaves the match, the match will end.  Once the match ends, the channel"
               " will close and all temporary Jaeger account users will be asked to log out of their accounts.",
