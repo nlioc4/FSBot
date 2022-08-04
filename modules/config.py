@@ -93,7 +93,7 @@ _collections = {
     "user_stats": "",
     "matches": "",
     "accounts": "",
-    "accounts_usages": "",
+    "account_usages": "",
     "restart_data": ""
 }
 
