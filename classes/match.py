@@ -15,8 +15,8 @@ import modules.accounts_handler as accounts
 
 log = getLogger('fs_bot')
 
-MATCH_TIMEOUT_TIME = 600
-MATCH_WARN_TIME = 300
+MATCH_TIMEOUT_TIME = 900
+MATCH_WARN_TIME = 600
 _match_id_counter = 0
 
 
@@ -171,7 +171,7 @@ class BaseMatch:
             self.status = MatchState.PLAYING
 
     async def update_timeout(self):
-        # check timeout, reset if new match or online_players
+        # check timeout, reset if new match or at least 2 players and online_players
         if len(self.players) >= 2 and self.online_players or self.start_stamp < tools.timestamp_now() - MATCH_WARN_TIME:
             self.timeout_stamp = None
         else:

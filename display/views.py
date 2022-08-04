@@ -136,7 +136,7 @@ class MatchInfoView(FSBotView):
             acc = accounts.pick_account(p)
             if acc:  # if account found
                 msg = await accounts.send_account(acc)
-                if msg:  # if could dm user
+                if msg:  # if allowed to dm user
                     await disp.ACCOUNT_SENT.send_priv(inter)
                 else:  # if couldn't dm
                     await disp.ACCOUNT_NO_DMS.send_priv(inter)
