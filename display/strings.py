@@ -169,10 +169,12 @@ class AllStrings(Enum):
             case discord.Webhook if ctx.type == discord.WebhookType.application:
                 if action == "send":
                     return await getattr(ctx, 'send')(**args_dict)
-                if action == "edit":  # Probably doesn't work
-                    return await getattr(ctx.fetch_message(), 'edit_message')(**args_dict)
+                if action == "edit":  # Probably (definitely) doesn't work
+                    return await getattr(await ctx.fetch_message(), 'edit_message')(**args_dict)
 
             case discord.Interaction:
+                if ctx.response.is_done() and action == 'send':
+                    return await getattr(ctx.followup, 'send')(**args_dict)
                 return await getattr(ctx.response, action + '_message')(**args_dict)
 
             case discord.ApplicationContext:
