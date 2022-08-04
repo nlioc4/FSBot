@@ -20,11 +20,15 @@ WORLD_ID = 19  # Jaeger ID
 
 
 class SkillLevel(Enum):
-    # skill levels to be self perscribed
-    BEGINNER = (0, "Still learning how to handle an ESF, much less duel one")
-    NOVICE = (1, "Has the basics down, but still working on tuning skills")
-    PROFICIENT = (2, "Capable of taking on all but the most skilled pilots")
-    EXPERT = (3, "Peak skill, effortlessly lead targets while dodging")
+    # skill levels to be self proscribed
+    HARMLESS = (0, "Still learning how to handle an ESF, much less duel one")
+    MOSTLY_HARMLESS = (1, "")
+    NOVICE = (2, "Has the basics down, but still working on tuning skills")
+    COMPETENT = (3, "")
+    PROFICIENT = (4, "Capable of taking on most ESF pilots, but needs refinement on aiming")
+    DANGEROUS = (5, "")
+    EXPERT = (6, "Capable of taking on all but the most skilled pilots")
+    MASTER = (7, "Top tier pilot, both aiming and movement mastered")
 
     def __str__(self):
         first = self.name[0]
