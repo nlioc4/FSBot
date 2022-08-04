@@ -26,10 +26,6 @@ class SkillLevel(Enum):
     PROFICIENT = (2, "Capable of taking on all but the most skilled pilots")
     EXPERT = (3, "Peak skill, effortlessly lead targets while dodging")
 
-    def __int__(self, rank, description):
-        self.rank = rank
-        self.description = description
-
     def __str__(self):
         first = self.name[0]
         rest = self.name[1:].lower()
