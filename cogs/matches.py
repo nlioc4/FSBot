@@ -36,11 +36,14 @@ class MatchesCog(commands.Cog, name="MatchesCog",
     @tasks.loop(seconds=30)
     async def matches_loop(self):
         # update match info embeds
-        for match in BaseMatch.active_matches_list():
-            # only iterate on matches that have started > 5 seconds ago, and are not stopped
-            if match.start_stamp > tools.timestamp_now() - 5 or match.end_stamp:
-                continue
-            await match.update_match()
+        try:
+            for match in BaseMatch.active_matches_list():
+                # only iterate on matches that have started > 5 seconds ago, and are not stopped
+                if match.start_stamp > tools.timestamp_now() - 5 or match.end_stamp:
+                    continue
+                await match.update_match()
+        except:  # TODO this is far too broad.
+            pass
 
     @commands.Cog.listener('on_message')
     async def matches_message_listener(self, message: discord.Message):
