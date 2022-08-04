@@ -92,7 +92,8 @@ class AllStrings(Enum):
     MATCH_TIMEOUT = "{} Match is being closed due to inactivity"
     MATCH_END = "Match ID: {} Ended, closing match channel..."
     MATCH_NOT_FOUND = "Match for channel {} not found!"
-    MATCH_NOT_IN = "Player {} is not in match {}."
+    MATCH_NOT_IN = "You are not in match {}."
+    MATCH_NOT_IN_2 = "Player {} is not in match {}."
     MATCH_ALREADY = "{} is already in match {}."
 
     SKILL_LEVEL_REQ_ONE = "Your requested skill level has been set to: {}."

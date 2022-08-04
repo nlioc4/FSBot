@@ -98,10 +98,15 @@ class MatchInfoView(FSBotView):
             self.reset_timeout_button.style = discord.ButtonStyle.grey
             self.reset_timeout_button.disabled = True
 
+    async def in_match_check(self, inter, p) -> bool:
+        if p in self.match.players:
+            return True
+        await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
+
     @discord.ui.button(label="Leave Match", style=discord.ButtonStyle.red)
     async def leave_button(self, button: discord.Button, inter: discord.Interaction):
         p: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, p):
+        if not await d_obj.is_registered(inter, p) and not self.in_match_check(inter, p):
             return
 
         await disp.MATCH_LEAVE.send_priv(inter, p.mention)
@@ -119,7 +124,7 @@ class MatchInfoView(FSBotView):
         """Requests an account for the player"""
         await inter.response.defer()
         p: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, p):
+        if not await d_obj.is_registered(inter, p) and not self.in_match_check(inter, p):
             return
         elif p.has_own_account:
             await disp.ACCOUNT_HAS_OWN.send_priv(inter)

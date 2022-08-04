@@ -148,7 +148,7 @@ class AdminCog(commands.Cog):
             await match.leave_match(p.active)
             await disp.MATCH_LEAVE_2.send_priv(ctx, p.name, match.text_channel.mention)
         else:
-            await disp.MATCH_NOT_IN.send_priv(ctx, p.name, match.text_channel.mention)
+            await disp.MATCH_NOT_IN_2.send_priv(ctx, p.name, match.text_channel.mention)
 
     @match_admin.command(name="end")
     async def end_match(self, ctx: discord.ApplicationContext,
