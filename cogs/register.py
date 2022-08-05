@@ -15,8 +15,6 @@ from display import AllStrings as disp, views, embeds
 import modules.discord_obj as d_obj
 
 
-
-
 # Views
 class RulesView(views.FSBotView):
     """Defines view to accept rules and start a player profile"""

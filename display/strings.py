@@ -63,6 +63,7 @@ class AllStrings(Enum):
     LOBBY_INVITED = "{} invited {} to a match."
     LOBBY_INVITED_MATCH = "{} invited {} to match: {}."
     LOBBY_INVITED_ALREADY = "You've already sent an invite to {}."
+    LOBBY_CANT_INVITE = "You can't invite a player to a match when you're not in a lobby!"
     LOBBY_JOIN = "{} you have joined the lobby!"
     LOBBY_LEAVE = "{} you have left the lobby!"
     LOBBY_NOT_IN = "{} you are not in this lobby!"

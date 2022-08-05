@@ -97,7 +97,7 @@ class Account:
     def add_usage(self, player):
         self.a_player = player
         self.__last_usage.update({"user_id": self.a_player.id,
-                                  "match_id": self.a_player.match if self.a_player.match else 0})
+                                  "match_id": self.a_player.match.id if self.a_player.match else 0})
 
     def validate(self):
         if self.__validated:

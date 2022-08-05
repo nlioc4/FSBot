@@ -173,9 +173,10 @@ def register_info(player) -> Embed:
     return fs_author(embed)
 
 
-def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)], matches: list) -> Embed:
+def duel_dashboard(lobby) -> Embed:
     """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels."""
-    colour = Colour.blurple() if lobbied_players else Colour.greyple()
+
+    colour = Colour.blurple() if lobby.lobbied else Colour.greyple()
 
     embed = Embed(
         colour=colour,
@@ -201,23 +202,24 @@ def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)], matc
         value='@Mention [Preferred Faction(s)][Skill Level][Wanted Level(s)][Time]\n',
         inline=False
     )
-    if lobbied_players:
+    if lobby.lobbied:
         players_string = ''
-        for p in lobbied_players:
+        for p in lobby.lobbied:
+            timeout_warn = '⏳' if p in lobby.warned else ''
             preferred_facs = ''.join([cfg.emojis[fac] for fac in p.pref_factions]) if p.pref_factions else 'Any'
             req_skill_levels = ' '.join([str(level.rank) for level in p.req_skill_levels]) \
                 if p.req_skill_levels else 'Any'
             f_lobbied_stamp = format_stamp(p.first_lobbied_timestamp)
             string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}][{req_skill_levels}][{f_lobbied_stamp}]\n '
-            players_string += string
+            players_string += timeout_warn + string
 
         embed.add_field(name="----------------------------------------------------------------",
                         value=players_string,
                         inline=False)
 
-    if matches:
+    if lobby.matches:
         matches_str = ''
-        for match in matches:
+        for match in lobby.matches:
             matches_str += f"Match: {match.id_str} [Owner: {match.owner.mention}, " \
                            f"Players: {', '.join([p.mention for p in match.players if p is not match.owner])}]\n"
         embed.add_field(
@@ -226,9 +228,9 @@ def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)], matc
             inline=False
         )
 
-    if logs:
+    if lobby.logs_recent:
         log_str = ''
-        for log in logs:
+        for log in lobby.logs_recent:
             time_formatted = format_stamp(log[0], 'T')
             log_str += f'[{time_formatted}]{log[1]}\n'
         embed.add_field(name="Recent Activity",

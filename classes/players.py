@@ -137,6 +137,7 @@ class Player:
         self.__first_lobbied_timestamp = 0
         self.__active = None
         self.__match = None
+        self.__lobby = None
         self.skill_level: SkillLevel = SkillLevel.HARMLESS
         self.pref_factions: list[str] = []
         self.req_skill_levels = None
@@ -302,12 +303,13 @@ class Player:
         return self.__first_lobbied_timestamp
 
     @property
-    def is_lobbied(self):
-        return self.__lobbied_timestamp != 0
+    def lobby(self):
+        return self.__lobby
 
-    def on_lobby_add(self):
+    def on_lobby_add(self, lobby):
         self.__lobbied_timestamp = tools.timestamp_now()
         self.__first_lobbied_timestamp = tools.timestamp_now()
+        self.__lobby = lobby
 
     def reset_lobby_timestamp(self):
         self.__lobbied_timestamp = tools.timestamp_now()
@@ -315,6 +317,7 @@ class Player:
     def on_lobby_leave(self):
         self.__lobbied_timestamp = 0
         self.__first_lobbied_timestamp = 0
+        self.__lobby = None
 
     def set_account(self, account: Account | None):
         self.__account = account

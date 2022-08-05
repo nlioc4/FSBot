@@ -8,7 +8,6 @@ import traceback
 
 # Interal Imports
 import modules.discord_obj as d_obj
-import modules.lobby as lobby
 from modules.spam_detector import is_spam
 import modules.tools as tools
 from classes import Player
@@ -49,8 +48,9 @@ class FSBotView(discord.ui.View):
 class InviteView(FSBotView):
     """View to handle accepting or declining match invites"""
 
-    def __init__(self, owner, player):
+    def __init__(self, lobby, owner, player):
         super().__init__(timeout=300)
+        self.lobby = lobby
         self.owner: Player = owner
         self.player = player
         self.msg = None
@@ -64,16 +64,21 @@ class InviteView(FSBotView):
         self.disable_all_items()
         self.stop()
 
-        match = await lobby.accept_invite(self.owner, p)
-        await inter.response.edit_message(view=self)
-        await disp.MATCH_ACCEPT.send(inter.message, match.text_channel.mention)
+        match = await self.lobby.accept_invite(self.owner, p)
+
+        if match:
+            await disp.MATCH_ACCEPT.send(inter.message, match.text_channel.mention)
+            await inter.response.edit_message(view=self)
+            return
+        await disp.DM_INVITE_INVALID.edit(inter.message, view=self)
+
 
     @discord.ui.button(label="Decline Invite", style=discord.ButtonStyle.red)
     async def decline_button(self, button: discord.Button, inter: discord.Interaction):
         p: Player = Player.get(inter.user.id)
         if not await d_obj.is_registered(inter, p):
             return
-        lobby.decline_invite(self.owner, p)
+        self.lobby.decline_invite(self.owner, p)
         self.disable_all_items()
         self.stop()
 
@@ -84,7 +89,7 @@ class InviteView(FSBotView):
         self.disable_all_items()
         await self.msg.edit(view=self)
         await disp.DM_INVITE_EXPIRED.send(self.msg)
-        lobby.decline_invite(self.owner, self.player)
+        self.lobby.decline_invite(self.owner, self.player)
 
 
 class MatchInfoView(FSBotView):
