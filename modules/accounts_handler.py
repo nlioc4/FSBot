@@ -264,7 +264,7 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
 
 
 async def terminate(acc: classes.Account = None, player: classes.Player = None, inter=None,
-                    view: discord.ui.View | int = 0):
+                    view: discord.ui.View | bool = False):
     """Terminates account and sends message to log off, provide either account or player"""
     if not acc and not player:
         raise ValueError("No args provided")
@@ -273,17 +273,18 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
     if not player:
         player = acc.a_player
 
-    acc.terminate()  # mark account as terminated
+    if not acc.is_terminated:
+        acc.terminate()  # if not already terminated
 
-    # Send log-out message, adjust embed
-    user = d_obj.bot.get_user(player.id)
-    if acc.message:
-        for _ in range(3):
-            try:
-                if await disp.ACCOUNT_LOG_OUT.send(user):
-                    break
-            except discord.Forbidden:
-                continue
+        # Send log-out message, adjust embed
+        user = d_obj.bot.get_user(player.id)
+        if acc.message:
+            for _ in range(3):
+                try:
+                    if await disp.ACCOUNT_LOG_OUT.send(user):
+                        break
+                except discord.Forbidden:
+                    continue
 
     if inter:
         await disp.ACCOUNT_EMBED.edit(inter, acc=acc, view=view)  # use interaction response to edit

@@ -101,20 +101,35 @@ def lobby_join(player):
         return False
 
 
+async def send_invite(owner, invited) -> BaseMatch | bool:
+    """Send an invitation to a player, and invite them to a match if sent"""
+    for _ in range(3):
+        try:
+            memb = d_obj.guild.get_member(invited.id)
+            view = views.InviteView(owner, invited)
+            msg = await disp.DM_INVITED.send(memb, invited.mention, owner.mention, view=view)
+            view.msg = msg
+            return invite(owner, invited)
+        except discord.Forbidden:
+            return False
+
+
 def invite(owner: Player, invited: Player):
-    """Invite Player to match, if match already existed returns match.  If player in match but not owner, returns false"""
+    """Invite Player to match, if match already existed returns match.  Returns False if player couldn't be DM'd"""
     if owner.match:
         if owner.match.owner == owner:
             owner.match.invite(invited)
             return owner.match
         else:
-            return False
+            raise tools.UnexpectedError("Non match owner attempted to invite player")
 
     else:
         try:
             _invites[owner.id].append(invited)
+            return True
         except KeyError:
             _invites[owner.id] = [invited]
+            return True
 
 
 async def accept_invite(owner, player):
@@ -142,6 +157,7 @@ async def accept_invite(owner, player):
         lobby_leave(owner, match)
         return match
 
+
 def decline_invite(owner, player):
     if owner.match and owner.match.owner == owner:
         owner.match.decline_invite(player)
@@ -155,7 +171,9 @@ def already_invited(owner, invited_players):
     already_invited_list = []
     for match in BaseMatch._active_matches.values():
         if match.owner.id == owner.id:
-            already_invited_list.extend([p for p in invited_players if p in match.invited])  # check matches for already invited players
+            already_invited_list.extend(
+                [p for p in invited_players if p in match.invited])  # check matches for already invited players
     if owner.id in _invites:
-        already_invited_list.extend([p for p in invited_players if p in _invites[owner.id]])  # check invites for already invited players
+        already_invited_list.extend(
+            [p for p in invited_players if p in _invites[owner.id]])  # check invites for already invited players
     return already_invited_list

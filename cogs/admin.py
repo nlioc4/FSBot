@@ -155,7 +155,6 @@ class AdminCog(commands.Cog):
                         match_id: discord.Option(int, "Match ID to end",
                                                  required=True)):
         """End a given match forcibly."""
-        ctx.defer(ephemeral=True)
         try:
             match = BaseMatch.active_matches_dict()[match_id]
         except KeyError:
@@ -197,6 +196,7 @@ class AdminCog(commands.Cog):
 
     @accounts.command(nane='info')
     async def info(self, ctx: discord.ApplicationContext):
+        """Provide info on FSBot's connected Jaeger Accounts"""
         num_available = len(accounts._available_accounts)
         assigned = accounts._busy_accounts.values()
         num_used = len(assigned)

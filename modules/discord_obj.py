@@ -75,8 +75,8 @@ async def is_registered(ctx, user: discord.Member | discord.User | classes.Playe
         return False
 
 
-async def d_log(message, user=None, error=True) -> bool:
+async def d_log(message=None, user=None, error=None) -> bool:
     """Utility function to send logs to #logs channel"""
     if error:
-        return True if await disp.LOG_ERROR.send(channels['logs'], user, message) else False
+        return True if await disp.LOG_ERROR.send(channels['logs'], user, error) else False
     return await disp.LOG_GENERAL.send(channels['logs'], message)

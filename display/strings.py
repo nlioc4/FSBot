@@ -66,6 +66,8 @@ class AllStrings(Enum):
     LOBBY_JOIN = "{} you have joined the lobby!"
     LOBBY_LEAVE = "{} you have left the lobby!"
     LOBBY_NOT_IN = "{} you are not in this lobby!"
+    LOBBY_NOT_IN_2 = "{} is not in the lobby!"
+    LOBBY_NOT_OWNER = "You can't invite players to a match you don't own!"
     LOBBY_NO_DM = "{} could not be invited as they are refusing DM's from the bot!"
     LOBBY_NO_DM_ALL = "{} no players could be invited."
     LOBBY_ALREADY_IN = "{} you are already in this lobby!"

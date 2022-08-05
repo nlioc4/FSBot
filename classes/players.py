@@ -19,16 +19,19 @@ log = getLogger("fs_Bot")
 WORLD_ID = 19  # Jaeger ID
 
 
-class SkillLevel(Enum):
+class SkillLevel(tools.AutoNumber):
     # skill levels to be self proscribed
-    HARMLESS = (0, "Still learning how to handle an ESF, much less duel one")
-    MOSTLY_HARMLESS = (1, "")
-    NOVICE = (2, "Has the basics down, but still working on tuning skills")
-    COMPETENT = (3, "")
-    PROFICIENT = (4, "Capable of taking on most ESF pilots, but needs refinement on aiming")
-    DANGEROUS = (5, "")
-    EXPERT = (6, "Capable of taking on all but the most skilled pilots")
-    MASTER = (7, "Top tier pilot, both aiming and movement mastered")
+    HARMLESS = "Still learning how to handle an ESF, much less duel one"
+    BEGINNER = "Making progress, knows up from down"
+    NOVICE = "Has the basics down, but still working on tuning skills"
+    COMPETENT = "Average ESF pilot, doesn't run from a fight, even though they might not win"
+    PROFICIENT = "Capable of taking on most ESF pilots, but needs refinement on aiming"
+    DANGEROUS = "Excellent aim or movement, but not both at the same time"
+    EXPERT = "Capable of taking on all but the most skilled pilots"
+    MASTER = "Top tier pilot, both aiming and movement mastered"
+
+    def __init__(self, description=' '):
+        self.description = description
 
     def __str__(self):
         first = self.name[0]
@@ -37,14 +40,14 @@ class SkillLevel(Enum):
 
     @property
     def rank(self):
-        return self.value[0]
+        return self._rank
 
     @property
-    def description(self):
-        return self.value[1]
+    def value(self):
+        return self.description
 
     def sort(self):
-        return self.value[0]
+        return self._rank
 
 
 class CharInvalidWorld(Exception):
@@ -134,7 +137,7 @@ class Player:
         self.__first_lobbied_timestamp = 0
         self.__active = None
         self.__match = None
-        self.skill_level: SkillLevel = SkillLevel.BEGINNER
+        self.skill_level: SkillLevel = SkillLevel.HARMLESS
         self.pref_factions: list[str] = []
         self.req_skill_levels = None
         Player._all_players[p_id] = self  # adding to all players dictionary
@@ -199,7 +202,8 @@ class Player:
             case 'skill_level':
                 await db.async_db_call(db.set_field, 'users', self.id, {'skill_level': self.skill_level.name})
             case 'req_skill_levels':
-                await db.async_db_call(db.set_field, 'users', self.id, {'req_skill_levels': [level.name for level in self.req_skill_levels]})
+                await db.async_db_call(db.set_field, 'users', self.id,
+                                       {'req_skill_levels': [level.name for level in self.req_skill_levels]})
             case 'pref_factions':
                 await db.async_db_call(db.set_field, 'users', self.id, {'pref_factions': self.pref_factions})
             case 'hidden':
@@ -315,7 +319,6 @@ class Player:
     def set_account(self, account: Account | None):
         self.__account = account
 
-
     def on_playing(self, match):
         self.__match = match
         self.__active = ActivePlayer(self)
@@ -325,8 +328,6 @@ class Player:
         self.__match = None
         self.__active = None
         return self
-
-
 
     async def register(self, char_list: list | None) -> bool:
         """
@@ -425,6 +426,7 @@ class ActivePlayer:
     ActivePlayer class has added attributes and methods relevant to their current match.
     Called after a player starts a match
     """
+
     def __init__(self, player: Player):
         self.__player = player
         self.__match = player.match
@@ -483,7 +485,6 @@ class ActivePlayer:
     @property
     def current_ig_id(self):
         return self.player.current_ig_id
-
 
     @property
     def current_faction(self):

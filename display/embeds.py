@@ -33,7 +33,7 @@ def account(acc) -> Embed:
     embed = Embed(
         colour=Colour.blue(),
         title="Flight School Jaeger Account",
-        description=f"\nFollow all Jaeger and PREY's Flight School <#{cfg.channels['rules']} while using this "
+        description=f"\nFollow all Jaeger and PREY's Flight School <#{cfg.channels['rules']}> while using this "
                     "account\n "
                     f"[Be careful not to interfere with other Jaeger users, "
                     f"check the calendar here]({cfg.JAEGER_CALENDAR_URL})\n"
@@ -219,7 +219,7 @@ def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)], matc
         matches_str = ''
         for match in matches:
             matches_str += f"Match: {match.id_str} [Owner: {match.owner.mention}, " \
-                           f"Players: {', '.join([p.mention for p in match.players])}]\n"
+                           f"Players: {', '.join([p.mention for p in match.players if p is not match.owner])}]\n"
         embed.add_field(
             name='Active Matches',
             value=matches_str,
@@ -519,7 +519,7 @@ def fsbot_info_embed() -> Embed:
 
     embed.add_field(
         name="Elo",
-        value="A ranked leaderboard, with 1v1 Elo Rated matches is coming soon(tm)",
+        value="A separate ranked lobby with 1v1 Elo Rated matches and a leaderboard is coming soon(tm)",
         inline=False
     )
     return fs_author(embed)

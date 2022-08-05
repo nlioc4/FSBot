@@ -97,6 +97,7 @@ else:
 
 intents = discord.Intents.default()
 intents.members = True
+intents.presences = True
 intents.message_content = True
 
 bot = commands.Bot(intents=intents)
@@ -168,7 +169,6 @@ async def on_application_command_error(context, exception):
             await d_obj.d_log(exception, context.user)
 
     log.exception(f"Ignoring exception in command {context.command}", exc_info=exception)
-    print(f"Ignoring exception in command {context.command}:", file=sys.stderr)
     traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
 
 

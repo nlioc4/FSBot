@@ -37,13 +37,16 @@ class ChallengeDropdown(discord.ui.Select):
                          max_values=len(options),
                          )
 
-    async def callback(self, inter: discord.Interaction):
-        owner: Player = Player.get(inter.user.id)
+    async def callback(self, inter: discord.Interaction, owner=None):
+        owner: Player = owner if owner else Player.get(inter.user.id)
         if not await d_obj.is_registered(inter, owner):
             return
         invited_players: list[Player] = [Player.get(int(value)) for value in self.values]
         if owner in invited_players:
             await disp.LOBBY_INVITED_SELF.send_temp(inter, owner.mention)
+            return
+        if owner.match and owner.match.owner != owner:
+            await disp.LOBBY_NOT_OWNER.send_priv(inter)
             return
         already_invited = lobby.already_invited(owner, invited_players)
         if already_invited:
@@ -51,30 +54,20 @@ class ChallengeDropdown(discord.ui.Select):
             [invited_players.remove(p) for p in already_invited]
             inter = inter.followup
         no_dms = list()
-        match = None
         for invited in invited_players:
-            for _ in range(3):
-                try:
-                    memb = d_obj.guild.get_member(invited.id)
-                    view = views.InviteView(owner, invited)
-                    msg = await disp.DM_INVITED.send(memb, invited.mention, owner.mention, view=view)
-                    view.msg = msg
-                    match = lobby.invite(owner, invited)
-                    break
-                except discord.Forbidden:
-                    if invited not in no_dms:
-                        no_dms.append(invited)
+            if not await lobby.send_invite(owner, invited):
+                no_dms.append(invited)
         if no_dms:
             await disp.LOBBY_NO_DM.send_temp(inter.channel, ','.join([p.mention for p in no_dms]))
             lobby.lobby_log(
                 f'{",".join([p.name for p in no_dms])} could not be invited, as they are not accepting DM\'s')
         remaining = [p for p in invited_players if p not in no_dms]
         remaining_mentions = ",".join([p.mention for p in remaining])
-        if remaining and match:
-            await disp.LOBBY_INVITED_MATCH.send_temp(inter, owner.mention, remaining_mentions, match.id,
+        if remaining and owner.match:
+            await disp.LOBBY_INVITED_MATCH.send_temp(inter, owner.mention, remaining_mentions, match.id_str,
                                                      allowed_mentions=discord.AllowedMentions(users=[inter.user]))
-            lobby.lobby_log(f'{owner.name} invited {",".join([p.name for p in remaining])} to Match: {match.id}')
-        elif remaining and not match:
+            lobby.lobby_log(f'{owner.name} invited {",".join([p.name for p in remaining])} to Match: {match.id_str}')
+        elif remaining:
             await disp.LOBBY_INVITED.send_temp(inter, owner.mention, remaining_mentions,
                                                allowed_mentions=discord.AllowedMentions(users=[inter.user]))
             lobby.lobby_log(f'{owner.name} invited {",".join([p.name for p in remaining])} to a match')
@@ -209,6 +202,27 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
                 await disp.LOBBY_TIMEOUT_SOON.send(self.dashboard_channel, p.mention, delete_after=30)
 
         await self.update_dashboard()
+
+    @commands.user_command(name="Invite To Match")
+    async def user_match_invite(self, ctx: discord.ApplicationContext, user: discord.User):
+        p = Player.get(user.id)
+        owner = Player.get(ctx.user.id)
+        if p not in lobby.lobbied():
+            await disp.LOBBY_NOT_IN_2.send_priv(ctx, p.mention)
+            return
+        if owner.match and owner.match.owner != owner:
+            await disp.LOBBY_NOT_OWNER.send_priv(ctx)
+            return
+        sent = await lobby.send_invite(owner, p)
+        if sent and owner.match:
+            await disp.LOBBY_INVITED_MATCH.send_priv(ctx, owner.mention, p.mention, owner.match.id_str)
+            lobby.lobby_log(lobby.lobby_log(f'{owner.name} invited {p.name} to Match: {owner.match.id_str}'))
+        elif sent:
+            await disp.LOBBY_INVITED.send_priv(ctx, owner.mention, p.mention)
+            lobby.lobby_log(lobby.lobby_log(f'{owner.name} invited {p.name} to a match.'))
+        else:
+            await disp.LOBBY_NO_DM.send_priv(ctx, p.mention)
+
 
 
 _cog: DuelLobbyCog = None

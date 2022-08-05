@@ -43,7 +43,6 @@ class FSBotView(discord.ui.View):
             pass
         finally:
             await d_obj.d_log(error, interaction.user)
-        print(f"Ignoring exception in view {self} for item {item}:", file=sys.stderr)
         traceback.print_exception(error.__class__, error, error.__traceback__, file=sys.stderr)
 
 
