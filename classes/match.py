@@ -32,22 +32,31 @@ class BaseMatch:
     _recent_matches = dict()
 
     def __init__(self, owner: Player, player: Player):
+        # Vars
         global _match_id_counter
         _match_id_counter += 1
         self.__id = _match_id_counter
         self.owner = owner
-        self.__invited = list()
         self.start_stamp = tools.timestamp_now()
         self.end_stamp = None
         self.timeout_stamp = None
-        self.__players: list[ActivePlayer] = [owner.on_playing(self),
-                                              player.on_playing(self)]  # player list, add owners active_player
-        self.__previous_players: list[Player] = list()
-        self.match_log = list()  # logs recorded as list of tuples, (timestamp, message)
         self.status = MatchState.GETTING_READY
+
+        # Display
         self.text_channel: discord.TextChannel | None = None
         self.info_message: discord.Message | None = None
         self.embed_cache: discord.Embed | None = None
+        self.__embed_func = embeds.match_info
+        self.__view: views.MatchInfoView | None = None
+        self.view_func = views.MatchInfoView
+
+        #  Containers
+        self.__players: list[ActivePlayer] = [owner.on_playing(self),
+                                              player.on_playing(self)]  # player list, add owners active_player
+        self.__previous_players: list[Player] = list()
+        self.__invited = list()
+        self.match_log = list()  # logs recorded as list of tuples, (timestamp, message)
+
         BaseMatch._active_matches[self.id] = self
 
     @classmethod
@@ -86,13 +95,8 @@ class BaseMatch:
             name=f'casual┊{obj.id_str}┊',
             overwrites=overwrites,
             topic=f"Match channel for Casual Match [{obj.id_str}], created by {obj.owner.name}")
-        obj.embed_cache = embeds.match_info(obj)
 
-        obj.info_message = await disp.MATCH_INFO.send(obj.text_channel, match=obj,
-                                                      view=views.MatchInfoView(obj))
-
-        await obj.info_message.pin()
-
+        await obj.send_embed()
         return obj
 
     async def join_match(self, player: Player):
@@ -152,15 +156,27 @@ class BaseMatch:
         player_member = d_obj.guild.get_member(player.id)
         await self.text_channel.set_permissions(player_member, view_channel=action)
 
+    async def _new_embed(self):
+        return self.__embed_func(self)
+
+    def view(self, new=False):
+        if not new and self.__view:
+            return self.__view.update()
+        return self.view_func(self)
+
+    async def send_embed(self):
+        if not self.embed_cache:
+            self.embed_cache = self._new_embed()
+        self.info_message = await disp.MATCH_INFO.send(self.text_channel, embed=self.embed_cache, view=self.view())
+        await self.info_message.pin()
+
     async def update_embed(self):
         if self.info_message:
-            new_embed = embeds.match_info(self)
-            if not tools.compare_embeds(new_embed, self.embed_cache):
-                self.embed_cache = new_embed
-                await disp.MATCH_INFO.edit(self.info_message, embed=new_embed, view=views.MatchInfoView(self))
+            self.embed_cache = self.embed_cache if tools.compare_embeds(self.embed_cache,
+                                                                        self._new_embed()) else self._new_embed()
+            await disp.MATCH_INFO.edit(self.info_message, embed=self.embed_cache, view=self.view())
         else:
-            self.info_message = await disp.MATCH_INFO.send(self.text_channel, match=self, view=views.MatchInfoView(self))
-            await self.info_message.pin()
+            await self.send_embed()
 
     def update_status(self):
         if len(self.players) < 2:

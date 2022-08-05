@@ -181,8 +181,8 @@ class Lobby:
         #  Display
         self.dashboard_msg: discord.Message | None = None
         self.dashboard_embed: discord.Embed | None = None
-        self.__view: DashboardView | None = None
         self.embed_func = embeds.duel_dashboard
+        self.__view: DashboardView | None = None
         self.view_func = DashboardView
 
         #  Containers
