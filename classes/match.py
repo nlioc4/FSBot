@@ -12,6 +12,7 @@ import modules.tools as tools
 from classes.players import Player, ActivePlayer
 import modules.database as db
 import modules.accounts_handler as accounts
+from classes.player_stats import PlayerStats
 
 log = getLogger('fs_bot')
 
@@ -33,13 +34,13 @@ class BaseMatch:
     _active_matches = dict()
     _recent_matches = dict()
     MAX_PLAYERS = 10
+    TYPE = "casual"
 
     def __init__(self, owner: Player, player: Player):
         # Vars
         global _match_id_counter
         _match_id_counter += 1
         self.__id = _match_id_counter
-        self.__max_players = BaseMatch.MAX_PLAYERS
         self.owner = owner
         self.start_stamp = tools.timestamp_now()
         self.end_stamp = None
@@ -86,27 +87,43 @@ class BaseMatch:
         obj = cls(owner, invited)
         obj.log(f'{owner.name} created the match with {invited.name}')
 
+        await obj._make_channel()
+
+        await obj.send_embed()
+        obj.setup()
+        return obj
+
+    async def _make_channel(self):
+        try:
+            self.text_channel = await d_obj.categories['user'].create_text_channel(
+                name=f'{self.TYPE}┊{self.id_str}┊',
+                overwrites=self._get_overwrites(),
+                topic=f'Match channel for {self.TYPE} Match [{self.id_str}], created by {self.owner.name}'
+            )
+        except (discord.HTTPException, discord.Forbidden) as e:
+            await d_obj.d_log(source=self.owner.name,
+                              message=f"Error Creating Match Channel for Match {self.id_str}",
+                              error=e)
+            await self.end_match()
+
+    def _get_overwrites(self):
         overwrites = {
             d_obj.guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            d_obj.roles['timeout']: discord.PermissionOverwrite(view_channel=False),
             d_obj.roles['app_admin']: discord.PermissionOverwrite(view_channel=True),
             d_obj.roles['admin']: discord.PermissionOverwrite(view_channel=True),
             d_obj.roles['mod']: discord.PermissionOverwrite(view_channel=True),
             d_obj.roles['bot']: discord.PermissionOverwrite(view_channel=True),
-            d_obj.roles['timeout']: discord.PermissionOverwrite(view_channel=False),
-            d_obj.guild.get_member(owner.id): discord.PermissionOverwrite(view_channel=True),
-            d_obj.guild.get_member(invited.id): discord.PermissionOverwrite(view_channel=True)
-        }
+                    }
+        overwrites.update({d_obj.guild.get_member(p.id): discord.PermissionOverwrite(view_channel=True)
+                           for p in self.__players})
+        return overwrites
 
-        obj.text_channel = await d_obj.categories['user'].create_text_channel(
-            name=f'casual┊{obj.id_str}┊',
-            overwrites=overwrites,
-            topic=f"Match channel for Casual Match [{obj.id_str}], created by {obj.owner.name}")
-
-        await obj.send_embed()
-        return obj
+    def setup(self):
+        """For Inheritance, called post match_create"""
 
     async def join_match(self, player: Player):
-        if len(self.__players) >= self.__max_players:
+        if len(self.__players) >= self.MAX_PLAYERS:
             return False
         #  Joins player to match and updates permissions
         if player in self.__invited:
@@ -143,16 +160,19 @@ class BaseMatch:
         self.__ended = True
         await db.async_db_call(db.set_element, 'matches', self.id, self.get_data())
         with self.text_channel.typing():
-            await asyncio.sleep(10)
-        for player in self.__players:
-            await self.leave_match(player)
-        await self.text_channel.delete(reason='Match Ended')
+            await asyncio.sleep(2)
+            for player in self.__players:
+                await self.leave_match(player)
         del BaseMatch._active_matches[self.id]
         BaseMatch._recent_matches[self.id] = self
         if len(BaseMatch._recent_matches) > 50:  # Trim _recent_matches if it reaches over 50
             keys = list(BaseMatch._recent_matches.keys())
             for i in range(20):
                 del BaseMatch._recent_matches[keys[i]]
+        try:
+            await self.text_channel.delete(reason='Match Ended')
+        except discord.NotFound:
+            pass
 
     def get_data(self):
         data = {'_id': self.id, 'start_stamp': self.start_stamp, 'end_stamp': self.end_stamp,
@@ -166,7 +186,7 @@ class BaseMatch:
         player_member = d_obj.guild.get_member(player.id)
         await self.text_channel.set_permissions(player_member, view_channel=action)
 
-    async def _new_embed(self):
+    def _new_embed(self):
         return self.__embed_func(self)
 
     def view(self, new=False):
@@ -309,9 +329,101 @@ class BaseMatch:
             self.__invited.remove(player)
 
 
+
 class RankedMatch(BaseMatch):
+
+    MATCH_LENGTH = 7
+    MAX_PLAYERS = 2
+    TYPE = 'ranked'
+
+    class RankedMatchView(views.MatchInfoView):
+
+        def __init__(self, match: 'RankedMatch'):
+            super().__init__(match)
+            self.match = match
+
+        @discord.ui.button(label="Round Won", style=discord.ButtonStyle.green, row=1)
+        async def round_won_button(self, button: discord.Button, inter: discord.Interaction):
+            p = Player.get(inter.user.id)
+            self.match.submit_score(p, 1)
+
+            if self.match._check_scores:
+                if self.match._check_scores_equal():
+                    button.disabled = True
+
+            pass
+
+        @discord.ui.button(label="Round Lost", style=discord.ButtonStyle.green, row=1)
+        async def round_lost_button(self, button: discord.Button, inter: discord.Interaction):
+            pass
+
+        @discord.ui.button(label="Dispute", style=discord.ButtonStyle.red)
+        async def round_lost_button(self, button: discord.Button, inter: discord.Interaction):
+            pass
 
     def __init__(self, owner: Player, invited: Player):
         super().__init__(owner, invited)
-        super().__max_players = 2
+        self.__round_counter = 0
+        self.__round_wrong_scores_counter = 0
+        self.__round_winner = None
+        self.__player1 = owner
+        self.__player2 = invited
+        self.__player1_stats = PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
+        self.__player2_stats = PlayerStats.get_from_db(p_id=invited.id, p_name=invited.name)
+        self.__p1_submitted_score = None
+        self.__p2_submitted_score = None
+        super().view_func = self.RankedMatchView
+
+    def setup(self):
+        pass
+
+    def _check_scores(self):
+        if self.__p1_submitted_score and self.__p2_submitted_score:
+            return True
+
+    def _check_scores_equal(self):
+        if not self._check_scores():
+            raise tools.UnexpectedError("Both scores haven't been submitted yet!")
+        if self.__p1_submitted_score == -self.__p2_submitted_score:
+            return True
+        return False
+
+    def _check_round_winner(self):
+        if self.__p1_submitted_score == -self.__p2_submitted_score == 1:
+            self.__round_winner = self.__player1
+            return self.__round_winner
+        elif self.__p1_submitted_score == -self.__p2_submitted_score == -1:
+            self.__round_winner = self.__player2
+            return self.__round_winner
+        else:
+            raise tools.UnexpectedError("Error determining round winner!")
+
+    def submit_score(self, player, score):
+        """submits scores, returns player"""
+        if player == self.__player1:
+            self.__p1_submitted_score = score
+        if player == self.__player2:
+            self.__p2_submitted_score = score
+
+    async def _progress_round(self):
+        if self.__round_counter >= self.MATCH_LENGTH:
+            await self.end_match()  ## todo, subclass end_match or add more functionality to successful match end
+
+        self._check_round_winner()
+        self.__round_counter += 1
+
+        self.__round_wrong_scores_counter = 0
+
+
+
+
+
+
+
+
+
+
+
+
+
 

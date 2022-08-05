@@ -106,6 +106,7 @@ class MatchInfoView(FSBotView):
             self.reset_timeout_button.disabled = True
 
     def update(self):
+        self._update()
         if not self.match.should_warn:
             if self.match.should_warn:
                 self.reset_timeout_button.style = discord.ButtonStyle.green
@@ -114,6 +115,10 @@ class MatchInfoView(FSBotView):
                 self.reset_timeout_button.style = discord.ButtonStyle.grey
                 self.reset_timeout_button.disabled = True
             return True
+
+    def _update(self):
+        """For Inheritance"""
+        pass
 
     async def in_match_check(self, inter, p) -> bool:
         if p in self.match.players:

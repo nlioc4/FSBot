@@ -128,9 +128,9 @@ class DashboardView(views.FSBotView):
             return
         elif player in self.lobby.lobbied:
             self.lobby.lobby_timeout_reset(player)
-            await disp.LOBBY_TIMEOUT_RESET.send_temp(inter, player.mention)
+            await disp.LOBBY_TIMEOUT_RESET.send_priv(inter, player.mention)
         else:
-            await disp.LOBBY_NOT_IN.send_temp(inter, player.mention)
+            await disp.LOBBY_NOT_IN.send_priv(inter, player.mention)
 
     @discord.ui.button(label="Extended History", style=discord.ButtonStyle.blurple)
     async def history_lobby_button(self, button: discord.Button, inter: discord.Interaction):

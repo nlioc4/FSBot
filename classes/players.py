@@ -276,6 +276,10 @@ class Player:
         else:
             return False
 
+    def online_name_by_id(self, char_id):
+        if char_id in self.ig_ids:
+            return self.ig_names[self.ig_ids.index(char_id)]
+
     @property
     def current_ig_id(self):
         if self.online_id:
@@ -351,9 +355,11 @@ class Player:
 
                 # update db
                 await self.db_update('account')
+                log.info(f"{self.name} changed registration to no account")
                 return True
             elif not self.__is_registered:  # if player wasn't registered, register
                 self.__is_registered = True
+                log.info(f"{self.name} registered with no account")
                 await self.db_update('register')
                 return True
             else:
@@ -363,11 +369,14 @@ class Player:
             if not await self._add_characters(char_list):
                 return False
             else:
+
                 if not self.__is_registered:
                     self.__is_registered = True
                     await self.db_update('register')
+                    log.info(f"{self.name} registered with {self.__ig_names, self.ig_names}")
                     return True
                 await self.db_update('account')
+                log.info(f"{self.name} changed registration to {self.__ig_names, self.ig_names}")
                 return True
 
     async def _add_characters(self, char_list: list) -> bool:
@@ -435,6 +444,7 @@ class ActivePlayer:
         self.__match = player.match
         self.__account = player.account
         self.online_id = player.online_id
+        self.chosen_faction = None
         self.round_wins = 0
         self.round_losses = 0
         self.match_win = None
@@ -484,6 +494,8 @@ class ActivePlayer:
     @property
     def online_name(self):
         return self.player.online_name
+
+
 
     @property
     def current_ig_id(self):
