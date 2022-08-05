@@ -29,6 +29,8 @@ import display
 import modules.spam_detector as spam
 
 # parse commandline args
+
+
 ap = argparse.ArgumentParser()
 ap.add_argument('--test', default=False, type=bool)
 ap.add_argument('-l', '--loglevel', default='INFO', type=str)
@@ -179,4 +181,5 @@ log.info("Loaded Players from Database: %s", len(classes.Player.get_all_players(
 
 modules.signal.init(bot)
 loader.init(bot)
+bot_status.init(bot)
 bot.run(cfg.general['token'])

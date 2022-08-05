@@ -57,10 +57,11 @@ def is_admin(member: discord.Member) -> bool:
         return False
 
 
-def is_player(user: discord.Member | discord.User) -> bool:
-    """Simple check if a user is a player, returns True if passed"""
-    if classes.Player.get(user.id):
-        return True
+def is_player(user: discord.Member | discord.User) -> classes.Player | bool:
+    """Simple check if a user is a player, returns Player if passed"""
+    p = classes.Player.get(user.id)
+    if p:
+        return p
     else:
         return False
 
@@ -83,3 +84,29 @@ async def d_log(message=None, source=None, error=None) -> bool:
     log.warning(f"{source + ': ' if source else ''}{message}")
     return await disp.LOG_GENERAL.send(channels['logs'], message, error)
 
+
+async def role_update(member: discord.Member = None, player: classes.Player = None, reason="FSBot Role Update"):
+    """Takes either a member or a player checks what roles they should have"""
+    member = member or await guild.get_member(player.id)
+    p = player or is_player(member)
+    if not p and not member:
+        raise ValueError("No args in role_update")
+    current_roles = member.roles
+    roles_to_add = []
+    roles_to_remove = []
+
+    if p and roles['view_channels'] not in current_roles:
+        roles_to_add.append(roles['view_channels'])
+    elif not p and roles['view_channels'] in current_roles:
+        roles_to_remove.append(roles['view_channels'])
+
+    if p:
+        if p.is_timeout and roles['timeout'] not in current_roles:
+            roles_to_add.append(roles['timeout'])
+        elif not p.is_timeout and roles['timeout'] in current_roles:
+            roles_to_remove.append(roles['view_channels'])
+
+    if roles_to_add:
+        await member.add_roles(*roles_to_add, reason=reason)
+    if roles_to_remove:
+        await member.remove_roles(*roles_to_remove, reason=reason)

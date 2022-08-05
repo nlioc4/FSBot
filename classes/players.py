@@ -245,11 +245,11 @@ class Player:
         return self.__account
 
     @property
-    def timeout(self):
+    def timeout_until(self):
         return self.__timeout
 
-    @timeout.setter
-    def timeout(self, time):
+    @timeout_until.setter
+    def timeout_until(self, time):
         self.__timeout = time
 
     @property

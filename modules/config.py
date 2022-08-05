@@ -83,9 +83,8 @@ roles = {
     "app_admin": "",
     "bot": "",
     "registered": "",
-    "view_channels": ""
-
-
+    "view_channels": "",
+    "timeout": ""
 }
 
 # Database Collections

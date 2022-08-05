@@ -14,7 +14,7 @@ log = getLogger('fs_bot')
 __spam_list = dict()
 __last_requests = dict()
 _msg_frequency = 5
-_msg_distance = 20
+_msg_distance = 10
 
 
 async def is_spam(ctx, view=False):
