@@ -254,13 +254,13 @@ class BaseMatch:
     def should_warn(self):
         if not self.timeout_stamp:
             return False
-        return True if self.timeout_stamp < tools.timestamp_now() - MATCH_WARN_TIME else False
+        return True if self.timeout_stamp + MATCH_WARN_TIME <= tools.timestamp_now() else False
 
     @property
     def should_timeout(self):
         if not self.timeout_stamp:
             return False
-        return True if self.timeout_stamp < tools.timestamp_now() - MATCH_TIMEOUT_TIME else False
+        return True if self.timeout_stamp + MATCH_TIMEOUT_TIME <= tools.timestamp_now() else False
 
     def invite(self, player: Player):
         if player not in self.__invited:
