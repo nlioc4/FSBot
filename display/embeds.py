@@ -432,7 +432,7 @@ def fsbot_rules_embed() -> Embed:
               "discord with 24 **temporary use** accounts for players to use for one session and one session only.\n"
               "While on Jaeger you must insure you are not interfering with any schedule events,"
               " regardless of what account you are on.  [Click here](https://docs.google.com/spreadsheets/d/1eA4ybkAiz"
-              "-nv_mPxu_laL504nwTDmc-9GnsojnTiSRE/edit?usp=sharing) to see the current Jaeger Calendar \n"
+              "-nv_mPxu_laL504nwTDmc-9GnsojnTiSRE/edit?usp=sharing) to see the current Jaeger Calendar. \n"
               "While you can find out how to get your own account [here](https://docs.google.com/document/d/1fQy3tJS8Y7"
               "muivo9EHlWKwE6ZTdHhHTcP6-21cPVlcA/edit?usp=sharing), you can request a temporary account through"
               " the FSBot provided you adhere to the following rules.\n",
@@ -440,7 +440,7 @@ def fsbot_rules_embed() -> Embed:
     )
 
     embed.add_field(
-        name="Jaeger Account Rules",
+        name="FSBot Temporary Jaeger Account Rules",
         value="\n1) Accounts are to be used for **one** session only!  You will receive a discord DM telling you to "
               "log out when your session expires, you **MUST** log out at this point!\n\n"
               "2) Account sessions will automatically expire 3 hours after their start time or when the players match "
@@ -507,7 +507,7 @@ def fsbot_info_embed() -> Embed:
 
     embed.add_field(
         name="Matches",
-        value="Invites are sent out to users DM's, and once an invite is accepted, a match is created.  When a new "
+        value="Invites are sent out to user's DM's, and once an invite is accepted, a match is created.  When a new "
               "match is created, a private Discord channel is created along with it.  This channel is only visible to "
               "current players of the match, along with the mod team.\nIn the match channel, there is a familiar "
               "looking embed with info relating to this specific match.  If you require a temporary account, you can "
