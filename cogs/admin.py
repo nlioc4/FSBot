@@ -105,7 +105,8 @@ class AdminCog(commands.Cog):
             except discord.Forbidden:
                 await ctx.respond(content="Selected Message not owned by the bot!", ephemeral=True)
                 return
-        await ctx.channel.send(content="", view=register.RegisterView(), embed=embeds.fsbot_info_embed())
+        else:
+            await ctx.channel.send(content="", view=register.RegisterView(), embed=embeds.fsbot_info_embed())
         await ctx.respond(content="Register and Settings Message Posted", ephemeral=True)
 
     ##########################################################
