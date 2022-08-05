@@ -36,10 +36,14 @@ def init(client):
 
     for role in cfg.roles:
         roles[role] = guild.get_role(cfg.roles[role])
-    log.info("Initialized Roles: %s", [role.name for role in roles.values()])
+        if not roles[role]:
+            raise KeyError(f'Missing Discord Role for {role}')
+    log.info("Initialized Roles: %s", {role_name: role.name for role_name, role in roles.items()})
     for channel in cfg.channels:
         channels[channel] = guild.get_channel(cfg.channels[channel])
-    log.info("Initialized Channels: %s", [channel.name for channel in channels.values()])
+        if not channels[channel]:
+            raise KeyError(f'Missing Discord Channel for {channel}')
+    log.info("Initialized Channels: %s", {channel_name: channel.name for channel_name, channel in channels.items()})
 
     categories['user'] = channels['dashboard'].category
     categories['admin'] = channels['staff'].category

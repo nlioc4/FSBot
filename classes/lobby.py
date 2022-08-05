@@ -40,6 +40,7 @@ class DashboardView(views.FSBotView):
             return self
         self.enable_all_items()
         if self.lobby.lobbied:
+
             self.add_item(self.ChallengeDropdown(self.lobby))
         else:
             self.leave_lobby_button.disabled = True
@@ -54,11 +55,13 @@ class DashboardView(views.FSBotView):
                 option = discord.SelectOption(label=player.name, value=str(player.id))
                 options.append(option)
 
-            super().__init__(placeholder="Pick Player(s) in the lobby to challenge...",
-                             custom_id='dashboard-challenge',
+            plural = self.lobby.max_match_players > 2
+
+            super().__init__(placeholder=f"Pick{' a' if not plural else ''} Player{'(s)' if plural else ''}"
+                                         f" in the lobby to challenge...",
                              options=options,
                              min_values=1,
-                             max_values=len(options),
+                             max_values=self.lobby.max_match_players - 1,
                              )
 
         async def callback(self, inter: discord.Interaction, owner=None):
@@ -181,9 +184,9 @@ class Lobby:
         #  Display
         self.dashboard_msg: discord.Message | None = None
         self.dashboard_embed: discord.Embed | None = None
-        self.embed_func = embeds.duel_dashboard
+        self.__embed_func = embeds.duel_dashboard
         self.__view: DashboardView | None = None
-        self.view_func = DashboardView
+        self.__view_func = DashboardView
 
         #  Containers
         self.__lobbied_players: list[Player] = []  # List of players currently in lobby
@@ -222,6 +225,10 @@ class Lobby:
     def warned(self):
         return self.__warned_players
 
+    @property
+    def max_match_players(self):
+        return self.__match_type.max_players
+
     def dashboard_purge_check(self, message: discord.Message):
         """Checks if messages are either the dashboard message, or an admin message before purging them"""
         if message != self.dashboard_msg and not d_obj.is_admin(message.author):
@@ -230,12 +237,12 @@ class Lobby:
             return False
 
     def _new_embed(self):
-        return self.embed_func(self)
+        return self.__embed_func(self)
 
     def view(self, new=False):
         if not new and self.__view:
             return self.__view.update()
-        return self.view_func(self)
+        return self.__view_func(self)
 
     async def _dashboard_message(self, action="send", force=False):
         """Either sends a new dashboard message, or edits the existing message if required."""
@@ -305,20 +312,22 @@ class Lobby:
         await self.update_timeouts()
         await self.update_dashboard()
 
-    def disable(self):
+    async def disable(self):
         if self.__disabled:
             return False
         self.__disabled = True
         for p in self.lobbied:
             self.lobby_leave(p)
         self.lobby_log("Lobby Disabled")
+        await self.update()
         return True
 
-    def enable(self):
+    async def enable(self):
         if not self.__disabled:
             return False
         self.__disabled = False
         self.lobby_log("Lobby Enabled")
+        await self.update()
         return True
 
     @property

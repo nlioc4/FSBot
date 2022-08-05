@@ -181,5 +181,4 @@ log.info("Loaded Players from Database: %s", len(classes.Player.get_all_players(
 
 modules.signal.init(bot)
 loader.init(bot)
-bot_status.init(bot)
 bot.run(cfg.general['token'])

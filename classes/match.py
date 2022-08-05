@@ -36,6 +36,7 @@ class BaseMatch:
         global _match_id_counter
         _match_id_counter += 1
         self.__id = _match_id_counter
+        self.__max_players = 10
         self.owner = owner
         self.start_stamp = tools.timestamp_now()
         self.end_stamp = None
@@ -87,6 +88,7 @@ class BaseMatch:
             d_obj.roles['admin']: discord.PermissionOverwrite(view_channel=True),
             d_obj.roles['mod']: discord.PermissionOverwrite(view_channel=True),
             d_obj.roles['bot']: discord.PermissionOverwrite(view_channel=True),
+            d_obj.roles['timeout']: discord.PermissionOverwrite(view_channel=False),
             d_obj.guild.get_member(owner.id): discord.PermissionOverwrite(view_channel=True),
             d_obj.guild.get_member(invited.id): discord.PermissionOverwrite(view_channel=True)
         }
@@ -100,6 +102,8 @@ class BaseMatch:
         return obj
 
     async def join_match(self, player: Player):
+        if len(self.__players) >= self.__max_players:
+            return False
         #  Joins player to match and updates permissions
         if player in self.__invited:
             self.__invited.remove(player)
@@ -108,6 +112,7 @@ class BaseMatch:
         await disp.MATCH_JOIN.send(self.text_channel, player.mention)
         self.log(f'{player.name} joined the match')
         await self.update_match()
+        return True
 
     async def leave_match(self, player: ActivePlayer):
         if player == self.owner:
@@ -186,6 +191,10 @@ class BaseMatch:
         elif self.online_players:
             self.status = MatchState.PLAYING
 
+    async def _on_timeout(self):
+        """for inheritance purposes"""
+        await self.end_match()
+
     async def update_timeout(self):
         # check timeout, reset if new match or at least 2 players and online_players
         if len(self.players) >= 2 and self.online_players or self.start_stamp < tools.timestamp_now() - MATCH_WARN_TIME:
@@ -196,7 +205,7 @@ class BaseMatch:
             elif self.should_timeout:  # Timeout Match
                 self.log("Match timed out for inactivity...")
                 await disp.MATCH_TIMEOUT.send(self.text_channel, self.all_mentions)
-                await self.end_match()
+                await self._on_timeout()
             elif self.should_warn:  # Warn of timeout
                 self.log("Match will timeout in " + tools.format_time_from_stamp(self.timeout_at, 'R'))
                 await disp.MATCH_TIMEOUT_WARN.send(self.text_channel, self.all_mentions, delete_after=30)
@@ -224,7 +233,7 @@ class BaseMatch:
 
     @property
     def recent_logs(self):
-        return self.match_log[-10:]
+        return self.match_log[-15:]
 
     @property
     def id(self):
@@ -239,6 +248,10 @@ class BaseMatch:
     @property
     def id_str(self):
         return str(self.__id).zfill(4)
+
+    @property
+    def max_players(self):
+        return self.__max_players
 
     @property
     def players(self):
@@ -285,4 +298,11 @@ class BaseMatch:
     def decline_invite(self, player: Player):
         if player in self.__invited:
             self.__invited.remove(player)
+
+
+class RankedMatch(BaseMatch):
+
+    def __init__(self, owner: Player, invited: Player):
+        super().__init__(owner, invited)
+        super().__max_players = 2
 
