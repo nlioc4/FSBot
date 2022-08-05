@@ -307,8 +307,14 @@ class Lobby:
                 self.lobby_log(f'{p.name} will soon be timed out of the lobby')
                 await disp.LOBBY_TIMEOUT_SOON.send(self.channel, p.mention, delete_after=30)
 
+    def update_matches(self):
+        for match in self.__matches:
+            if match.is_ended:
+                self.__matches.remove(match)
+
     async def update(self):
         """Runs all update methods"""
+        self.update_matches()
         await self.update_timeouts()
         await self.update_dashboard()
 

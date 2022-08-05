@@ -44,6 +44,7 @@ class BaseMatch:
         self.end_stamp = None
         self.timeout_stamp = None
         self.status = MatchState.LOGGING_IN
+        self.__ended = False
 
         # Display
         self.text_channel: discord.TextChannel | None = None
@@ -138,6 +139,7 @@ class BaseMatch:
         self.log('Match Ended')
         await disp.MATCH_END.send(self.text_channel, self.id)
         await self.update_match(check_timeout=False)
+        self.__ended = True
         await db.async_db_call(db.set_element, 'matches', self.id, self.get_data())
         with self.text_channel.typing():
             await asyncio.sleep(10)
@@ -266,6 +268,10 @@ class BaseMatch:
     @property
     def invited(self):
         return self.__invited
+
+    @property
+    def is_ended(self):
+        return self.__ended
 
     @property
     def online_players(self):
