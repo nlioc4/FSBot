@@ -48,7 +48,10 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
     async def user_match_invite(self, ctx: discord.ApplicationContext, user: discord.User):
         p = Player.get(user.id)
         owner = Player.get(ctx.user.id)
-        lobby = p.lobby or Lobby.channel_to_lobby(ctx.channel)
+        lobby = owner.lobby or Lobby.channel_to_lobby(ctx.channel)
+        if p == owner:
+            await disp.LOBBY_INVITED_SELF.send_priv(ctx, owner.mention)
+            return
         if not lobby:
             await disp.LOBBY_CANT_INVITE.send_priv(ctx)
             return
