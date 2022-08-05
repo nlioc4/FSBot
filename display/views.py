@@ -5,16 +5,18 @@ import discord
 import asyncio
 import sys
 import traceback
+from logging import getLogger
 
 # Interal Imports
 import modules.discord_obj as d_obj
-import modules.lobby as lobby
 from modules.spam_detector import is_spam
 import modules.tools as tools
 from classes import Player
 from display import AllStrings as disp
 import modules.accounts_handler as accounts
 from modules.loader import is_all_locked
+
+log = getLogger('fs_bot')
 
 
 class FSBotView(discord.ui.View):
@@ -38,20 +40,21 @@ class FSBotView(discord.ui.View):
     async def on_error(self, error: Exception, item: discord.ui.Item, interaction: discord.Interaction) -> None:
 
         try:
-            await disp.GENERAL_ERROR.send_priv(interaction, error, d_obj.colin.mention)
+            await disp.GENERAL_ERROR.send_priv(interaction, error)
         except discord.errors.InteractionResponded or discord.errors.NotFound:
             pass
         finally:
-            await d_obj.d_log(error, interaction.user)
-        print(f"Ignoring exception in view {self} for item {item}:", file=sys.stderr)
-        traceback.print_exception(error.__class__, error, error.__traceback__, file=sys.stderr)
+            await d_obj.d_log(source=interaction.user, message="Error on component interaction", error=error)
+            # log.error("Error on component interaction", exc_info=error)
+        # traceback.print_exception(error.__class__, error, error.__traceback__, file=sys.stderr)
 
 
 class InviteView(FSBotView):
     """View to handle accepting or declining match invites"""
 
-    def __init__(self, owner, player):
+    def __init__(self, lobby, owner, player):
         super().__init__(timeout=300)
+        self.lobby = lobby
         self.owner: Player = owner
         self.player = player
         self.msg = None
@@ -65,16 +68,20 @@ class InviteView(FSBotView):
         self.disable_all_items()
         self.stop()
 
-        match = await lobby.accept_invite(self.owner, p)
-        await inter.response.edit_message(view=self)
-        await disp.MATCH_ACCEPT.send(inter.message, match.text_channel.mention)
+        match = await self.lobby.accept_invite(self.owner, p)
+
+        if match:
+            await disp.MATCH_ACCEPT.send(inter.message, match.text_channel.mention)
+            await inter.response.edit_message(view=self)
+            return
+        await disp.DM_INVITE_INVALID.edit(inter.message, view=self)
 
     @discord.ui.button(label="Decline Invite", style=discord.ButtonStyle.red)
     async def decline_button(self, button: discord.Button, inter: discord.Interaction):
         p: Player = Player.get(inter.user.id)
         if not await d_obj.is_registered(inter, p):
             return
-        lobby.decline_invite(self.owner, p)
+        self.lobby.decline_invite(self.owner, p)
         self.disable_all_items()
         self.stop()
 
@@ -85,7 +92,7 @@ class InviteView(FSBotView):
         self.disable_all_items()
         await self.msg.edit(view=self)
         await disp.DM_INVITE_EXPIRED.send(self.msg)
-        lobby.decline_invite(self.owner, self.player)
+        self.lobby.decline_invite(self.owner, self.player)
 
 
 class MatchInfoView(FSBotView):
@@ -98,10 +105,15 @@ class MatchInfoView(FSBotView):
             self.reset_timeout_button.style = discord.ButtonStyle.grey
             self.reset_timeout_button.disabled = True
 
+    async def in_match_check(self, inter, p) -> bool:
+        if p in self.match.players:
+            return True
+        await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
+
     @discord.ui.button(label="Leave Match", style=discord.ButtonStyle.red)
     async def leave_button(self, button: discord.Button, inter: discord.Interaction):
         p: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, p):
+        if not await d_obj.is_registered(inter, p) and not self.in_match_check(inter, p):
             return
 
         await disp.MATCH_LEAVE.send_priv(inter, p.mention)
@@ -119,7 +131,7 @@ class MatchInfoView(FSBotView):
         """Requests an account for the player"""
         await inter.response.defer()
         p: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, p):
+        if not await d_obj.is_registered(inter, p) and not self.in_match_check(inter, p):
             return
         elif p.has_own_account:
             await disp.ACCOUNT_HAS_OWN.send_priv(inter)
@@ -131,7 +143,7 @@ class MatchInfoView(FSBotView):
             acc = accounts.pick_account(p)
             if acc:  # if account found
                 msg = await accounts.send_account(acc)
-                if msg:  # if could dm user
+                if msg:  # if allowed to dm user
                     await disp.ACCOUNT_SENT.send_priv(inter)
                 else:  # if couldn't dm
                     await disp.ACCOUNT_NO_DMS.send_priv(inter)

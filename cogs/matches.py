@@ -2,6 +2,7 @@
 
 # External Imports
 import discord
+from logging import getLogger
 
 from discord.ext import commands, tasks
 
@@ -16,6 +17,8 @@ from modules import discord_obj as d_obj
 from modules.spam_detector import is_spam
 import modules.accounts_handler as accounts
 
+
+log = getLogger('fs_bot')
 
 class MatchesCog(commands.Cog, name="MatchesCog",
                  command_attrs=dict(guild_ids=cfg.general['guild_id'], default_permission=True)):
@@ -42,8 +45,8 @@ class MatchesCog(commands.Cog, name="MatchesCog",
                 if match.start_stamp > tools.timestamp_now() - 5 or match.end_stamp:
                     continue
                 await match.update_match()
-        except:  # TODO this is far too broad.
-            pass
+        except Exception as e:  # TODO this is far too broad.
+            await d_obj.d_log(source="match_loop", error=e)
 
     @commands.Cog.listener('on_message')
     async def matches_message_listener(self, message: discord.Message):
@@ -58,7 +61,6 @@ class MatchesCog(commands.Cog, name="MatchesCog",
         match_channel_dict[message.channel.id].log(
             f'{message.author.name}: {message.clean_content}', public=False
         )
-        await match_channel_dict[message.channel.id].update_match()
 
 
 def setup(client):

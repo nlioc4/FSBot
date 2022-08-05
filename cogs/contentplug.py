@@ -3,7 +3,6 @@ Simple filter setup to create threads in #contentplug, and enforce the content o
 
 """
 
-
 # External Imports
 from discord.ext import commands
 import discord

@@ -1,6 +1,7 @@
 """Admin cog, handles admin functions of FSBot"""
 
 # External Imports
+import auraxium
 import discord
 from discord.ext import commands, tasks
 from logging import getLogger
@@ -148,14 +149,13 @@ class AdminCog(commands.Cog):
             await match.leave_match(p.active)
             await disp.MATCH_LEAVE_2.send_priv(ctx, p.name, match.text_channel.mention)
         else:
-            await disp.MATCH_NOT_IN.send_priv(ctx, p.name, match.text_channel.mention)
+            await disp.MATCH_NOT_IN_2.send_priv(ctx, p.name, match.text_channel.mention)
 
     @match_admin.command(name="end")
     async def end_match(self, ctx: discord.ApplicationContext,
                         match_id: discord.Option(int, "Match ID to end",
                                                  required=True)):
         """End a given match forcibly."""
-        ctx.defer(ephemeral=True)
         try:
             match = BaseMatch.active_matches_dict()[match_id]
         except KeyError:
@@ -197,6 +197,7 @@ class AdminCog(commands.Cog):
 
     @accounts.command(nane='info')
     async def info(self, ctx: discord.ApplicationContext):
+        """Provide info on FSBot's connected Jaeger Accounts"""
         num_available = len(accounts._available_accounts)
         assigned = accounts._busy_accounts.values()
         num_used = len(assigned)
@@ -255,9 +256,13 @@ class AdminCog(commands.Cog):
                 return
         log.warning("Could not reach REST api during census rest after 5 tries...")
 
+    census_rest.add_exception_type(auraxium.errors.ResponseError)
+
     @tasks.loop(count=1)
     async def census_watchtower(self):
         await census.online_status_updater(Player.map_chars_to_players)
+
+    census_rest.add_exception_type(auraxium.errors.ResponseError)
 
     @tasks.loop(time=time(hour=11, minute=0, second=0))
     async def account_sheet_reload(self):

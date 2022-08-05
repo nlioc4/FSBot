@@ -2,6 +2,7 @@
 
 from datetime import datetime as dt
 from typing import Literal
+from enum import Enum
 
 import discord
 
@@ -28,6 +29,14 @@ class UnexpectedError(Exception):
         message = "Encountered unexpected error: " + msg
         log.error(message)
         super().__init__(message)
+
+
+class AutoNumber(Enum):
+    def __new__(cls, *args):
+        rank = len(cls.__members__) + 1
+        obj = object.__new__(cls)
+        obj._rank = rank
+        return obj
 
 
 def timestamp_now():

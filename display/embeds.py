@@ -33,7 +33,7 @@ def account(acc) -> Embed:
     embed = Embed(
         colour=Colour.blue(),
         title="Flight School Jaeger Account",
-        description=f"\nFollow all Jaeger and PREY's Flight School <#{cfg.channels['rules']} while using this "
+        description=f"\nFollow all Jaeger and PREY's Flight School <#{cfg.channels['rules']}> while using this "
                     "account\n "
                     f"[Be careful not to interfere with other Jaeger users, "
                     f"check the calendar here]({cfg.JAEGER_CALENDAR_URL})\n"
@@ -173,9 +173,10 @@ def register_info(player) -> Embed:
     return fs_author(embed)
 
 
-def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)], matches: list) -> Embed:
+def duel_dashboard(lobby) -> Embed:
     """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels."""
-    colour = Colour.blurple() if lobbied_players else Colour.greyple()
+
+    colour = Colour.blurple() if lobby.lobbied else Colour.greyple()
 
     embed = Embed(
         colour=colour,
@@ -201,23 +202,24 @@ def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)], matc
         value='@Mention [Preferred Faction(s)][Skill Level][Wanted Level(s)][Time]\n',
         inline=False
     )
-    if lobbied_players:
+    if lobby.lobbied:
         players_string = ''
-        for p in lobbied_players:
+        for p in lobby.lobbied:
+            timeout_warn = '⏳' if p in lobby.warned else ''
             preferred_facs = ''.join([cfg.emojis[fac] for fac in p.pref_factions]) if p.pref_factions else 'Any'
             req_skill_levels = ' '.join([str(level.rank) for level in p.req_skill_levels]) \
                 if p.req_skill_levels else 'Any'
             f_lobbied_stamp = format_stamp(p.first_lobbied_timestamp)
             string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}][{req_skill_levels}][{f_lobbied_stamp}]\n '
-            players_string += string
+            players_string += timeout_warn + string
 
         embed.add_field(name="----------------------------------------------------------------",
                         value=players_string,
                         inline=False)
 
-    if matches:
+    if lobby.matches:
         matches_str = ''
-        for match in matches:
+        for match in lobby.matches:
             matches_str += f"Match: {match.id_str} [Owner: {match.owner.mention}, " \
                            f"Players: {', '.join([p.mention for p in match.players if p is not match.owner])}]\n"
         embed.add_field(
@@ -226,9 +228,9 @@ def duel_dashboard(lobbied_players: list['Player'], logs: list[(int, str)], matc
             inline=False
         )
 
-    if logs:
+    if lobby.logs_recent:
         log_str = ''
-        for log in logs:
+        for log in lobby.logs_recent:
             time_formatted = format_stamp(log[0], 'T')
             log_str += f'[{time_formatted}]{log[1]}\n'
         embed.add_field(name="Recent Activity",
@@ -347,9 +349,11 @@ def match_info(match) -> Embed:
         for log in match.recent_logs:
             if log[2]:
                 log_string += f"[{format_stamp(log[0], 'T')}]{log[1]}\n"
-        embed.add_field(name="Match Logs",
-                        value=log_string,
-                        inline=False)
+
+        if log_string:
+            embed.add_field(name="Match Logs",
+                            value=log_string,
+                            inline=False)
 
     return fs_author(embed)
 
@@ -428,7 +432,7 @@ def fsbot_rules_embed() -> Embed:
               "discord with 24 **temporary use** accounts for players to use for one session and one session only.\n"
               "While on Jaeger you must insure you are not interfering with any schedule events,"
               " regardless of what account you are on.  [Click here](https://docs.google.com/spreadsheets/d/1eA4ybkAiz"
-              "-nv_mPxu_laL504nwTDmc-9GnsojnTiSRE/edit?usp=sharing) to see the current Jaeger Calendar \n"
+              "-nv_mPxu_laL504nwTDmc-9GnsojnTiSRE/edit?usp=sharing) to see the current Jaeger Calendar. \n"
               "While you can find out how to get your own account [here](https://docs.google.com/document/d/1fQy3tJS8Y7"
               "muivo9EHlWKwE6ZTdHhHTcP6-21cPVlcA/edit?usp=sharing), you can request a temporary account through"
               " the FSBot provided you adhere to the following rules.\n",
@@ -436,7 +440,7 @@ def fsbot_rules_embed() -> Embed:
     )
 
     embed.add_field(
-        name="Jaeger Account Rules",
+        name="FSBot Temporary Jaeger Account Rules",
         value="\n1) Accounts are to be used for **one** session only!  You will receive a discord DM telling you to "
               "log out when your session expires, you **MUST** log out at this point!\n\n"
               "2) Account sessions will automatically expire 3 hours after their start time or when the players match "
@@ -503,12 +507,12 @@ def fsbot_info_embed() -> Embed:
 
     embed.add_field(
         name="Matches",
-        value="Invites are sent out to users DM's, and once an invite is accepted, a match is created.  When a new "
+        value="Invites are sent out to user's DM's, and once an invite is accepted, a match is created.  When a new "
               "match is created, a private Discord channel is created along with it.  This channel is only visible to "
-              "current players of the match, along with the mod team.  In the match channel, there is a familiar "
+              "current players of the match, along with the mod team.\nIn the match channel, there is a familiar "
               "looking embed with info relating to this specific match.  If you require a temporary account, you can "
-              "select the 'Request Account' button here, and one will be sent to you."
-              " Matches will timeout after 10 minutes if no players log in to Jaeger.  Once players log in to Jaeger, "
+              "select the 'Request Account' button here, and one will be sent to you.\n"
+              "Matches will timeout after 10 minutes if no players log in to Jaeger.  Once players log in to Jaeger, "
               "their online characters will be displayed in the match embed.  Players can leave or join the match while"
               " it is running, but if the owner leaves the match, the match will end.  Once the match ends, the channel"
               " will close and all temporary Jaeger account users will be asked to log out of their accounts.",
@@ -517,7 +521,7 @@ def fsbot_info_embed() -> Embed:
 
     embed.add_field(
         name="Elo",
-        value="A ranked leaderboard, with 1v1 Elo Rated matches is coming soon(tm)",
+        value="A separate ranked lobby with 1v1 Elo Rated matches and a leaderboard is coming soon(tm)",
         inline=False
     )
     return fs_author(embed)

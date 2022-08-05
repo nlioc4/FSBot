@@ -44,7 +44,7 @@ log = logging.getLogger('fs_bot')
 log.setLevel(numeric_level)
 log_formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s')
 # Log to file
-log_path = f'{pathlib.Path(__file__).parent.absolute()}/../fs_bot_logs/fs_bot.log'
+log_path = f'{pathlib.Path(__file__).parent.absolute()}/../FSBotData/FSBotlogs/fs_bot.log'
 if not os.path.exists(log_path.rstrip('fs_bot.log')):
     os.makedirs(log_path.rstrip('fs_bot.log'))
 
@@ -61,10 +61,34 @@ discord_logger.addHandler(console_handler)
 # Log to file only if not testing
 if not c_args.get('test'):
     # single_ log_handler = logging.FileHandler(filename=log_path, encoding='utf-8', mode='w')  # single log
-    log_handler = logging.handlers.TimedRotatingFileHandler(log_path, when='D', interval=3) # rotating log files, every 3 days
+    log_handler = logging.handlers.TimedRotatingFileHandler(log_path, when='D',
+                                                            interval=3)  # rotating log files, every 3 days
     log_handler.setFormatter(log_formatter)
     log.addHandler(log_handler)
     discord_logger.addHandler(log_handler)
+
+
+class StreamToLogger(object):
+    """
+    Fake file-like stream object that redirects writes to a logger instance.
+    """
+
+    def __init__(self, logger, log_level=logging.INFO):
+        self.logger = logger
+        self.log_level = log_level
+        self.linebuf = ''
+
+    def write(self, buf):
+        for line in buf.rstrip().splitlines():
+            self.logger.log(self.log_level, line.rstrip())
+
+    def flush(self):
+        pass
+
+
+# Redirect stdout and stderr to log:
+sys.stdout = StreamToLogger(log, logging.INFO)
+sys.stderr = StreamToLogger(log, logging.ERROR)
 
 if c_args.get('test'):
     cfg.get_config('config_test.ini')
@@ -73,6 +97,7 @@ else:
 
 intents = discord.Intents.default()
 intents.members = True
+intents.presences = True
 intents.message_content = True
 
 bot = commands.Bot(intents=intents)
@@ -137,15 +162,14 @@ async def on_application_command_error(context, exception):
         await display.AllStrings.CHECK_FAILURE.send_priv(context)
     else:
         try:
-            await display.AllStrings.GENERAL_ERROR.send_priv(context, exception, d_obj.colin.mention)
+            await display.AllStrings.GENERAL_ERROR.send_priv(context, exception)
         except discord.errors.InteractionResponded or discord.errors.NotFound:
             pass
         finally:
-            await d_obj.d_log(exception, context.user)
+            await d_obj.d_log(source=context.user, message=f"Ignoring exception in command {context.command}",
+                              error=exception)
 
-    log.exception(f"Ignoring exception in command {context.command}", exc_info=exception)
-    print(f"Ignoring exception in command {context.command}:", file=sys.stderr)
-    traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
+    # traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
 
 
 # database init

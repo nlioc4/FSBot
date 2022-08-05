@@ -22,8 +22,9 @@ class AllStrings(Enum):
     STOP_SPAM = "{}: Please stop spamming!"
     ALL_LOCKED = "FSBot is currently disabled, please try again later!"
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
-    GENERAL_ERROR = "An error has occurred, {}, please ping {}"
-    LOG_ERROR = "User: {} has run into an error, {}.  What did you do {}"
+    GENERAL_ERROR = "An error has occurred, {}"
+    LOG_ERROR = "{} has run into an error, {} {}."
+    LOG_GENERAL = "Log: {}"
     CHECK_FAILURE = "You have failed a check to run this command!"
     UNASSIGNED_ONLINE = "{} Unassigned Login", account_online_check
     LOADER_TOGGLE = "FSBot {}ed"
@@ -62,9 +63,12 @@ class AllStrings(Enum):
     LOBBY_INVITED = "{} invited {} to a match."
     LOBBY_INVITED_MATCH = "{} invited {} to match: {}."
     LOBBY_INVITED_ALREADY = "You've already sent an invite to {}."
+    LOBBY_CANT_INVITE = "You can't invite a player to a match when you're not in a lobby!"
     LOBBY_JOIN = "{} you have joined the lobby!"
     LOBBY_LEAVE = "{} you have left the lobby!"
     LOBBY_NOT_IN = "{} you are not in this lobby!"
+    LOBBY_NOT_IN_2 = "{} is not in the lobby!"
+    LOBBY_NOT_OWNER = "You can't invite players to a match you don't own!"
     LOBBY_NO_DM = "{} could not be invited as they are refusing DM's from the bot!"
     LOBBY_NO_DM_ALL = "{} no players could be invited."
     LOBBY_ALREADY_IN = "{} you are already in this lobby!"
@@ -92,7 +96,8 @@ class AllStrings(Enum):
     MATCH_TIMEOUT = "{} Match is being closed due to inactivity"
     MATCH_END = "Match ID: {} Ended, closing match channel..."
     MATCH_NOT_FOUND = "Match for channel {} not found!"
-    MATCH_NOT_IN = "Player {} is not in match {}."
+    MATCH_NOT_IN = "You are not in match {}."
+    MATCH_NOT_IN_2 = "Player {} is not in match {}."
     MATCH_ALREADY = "{} is already in match {}."
 
     SKILL_LEVEL_REQ_ONE = "Your requested skill level has been set to: {}."
@@ -112,6 +117,8 @@ class AllStrings(Enum):
     ACCOUNT_EMBED = "", account
     ACCOUNT_IN_USE = "Account ID: {} is already in use, please pick another account!"
     ACCOUNT_INFO = "", accountcheck
+    ACCOUNT_VALIDATE_ERROR = "There was an error logging this usage.  Please try again, and if the " \
+                             "issue persists please ask for help!"
 
 
     def __init__(self, string, embed=None):

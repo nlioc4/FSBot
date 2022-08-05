@@ -112,7 +112,7 @@ async def _login(char_id, acc_char_ids, player_char_ids):
             return
         acc.online_id = char_id
         if acc.a_player and acc.a_player.match:
-            await acc.a_player.match.update_match(login=acc.a_player)
+            await acc.a_player.match.update_match(user=acc.a_player)
         log.debug(f'Login detected: {char_id}: {acc.online_name}')
 
     # Player Section
@@ -122,7 +122,7 @@ async def _login(char_id, acc_char_ids, player_char_ids):
             return
         p.online_id = char_id
         if p.match:
-            await p.match.update_match(login=p)
+            await p.match.update_match(user=p)
         log.debug(f'Login detected: {char_id}: {p.online_name}')
 
 
@@ -132,10 +132,11 @@ async def _logout(char_id, acc_char_ids, player_char_ids):
         acc = accounts.account_char_ids[char_id]
         if not acc.online_id:  # if already offline
             return
-        log.debug(f'Logout detected: {char_id}: {acc.online_name}')
+        char_name = acc.online_name
+        log.debug(f'Logout detected: {char_id}: {char_name}')
         acc.online_id = None
         if acc.a_player and acc.a_player.match:
-            await acc.a_player.match.update_match()
+            await acc.a_player.match.update_match(user=acc.a_player, char_name=char_name)
         if acc.is_terminated:
             await accounts.clean_account(acc)
 
@@ -144,10 +145,11 @@ async def _logout(char_id, acc_char_ids, player_char_ids):
         p = player_char_ids[char_id]
         if not p.online_id:  # if already offline
             return
-        log.debug(f'Logout detected: {char_id}: {p.online_name}')
+        char_name = p.online_name
+        log.debug(f'Logout detected: {char_id}: {char_name}')
         p.online_id = None
         if p.match:
-            await p.match.update_match()
+            await p.match.update_match(user=p, char_name=char_name)
 
 
 async def online_status_updater(chars_players_map_func):

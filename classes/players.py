@@ -19,15 +19,18 @@ log = getLogger("fs_Bot")
 WORLD_ID = 19  # Jaeger ID
 
 
-class SkillLevel(Enum):
-    # skill levels to be self perscribed
-    BEGINNER = (0, "Still learning how to handle an ESF, much less duel one")
-    NOVICE = (1, "Has the basics down, but still working on tuning skills")
-    PROFICIENT = (2, "Capable of taking on all but the most skilled pilots")
-    EXPERT = (3, "Peak skill, effortlessly lead targets while dodging")
+class SkillLevel(tools.AutoNumber):
+    # skill levels to be self proscribed
+    HARMLESS = "Still learning how to handle an ESF, much less duel one"
+    BEGINNER = "Making progress, knows up from down"
+    NOVICE = "Has the basics down, but still working on tuning skills"
+    COMPETENT = "Average ESF pilot, doesn't run from a fight, even though they might not win"
+    PROFICIENT = "Capable of taking on most ESF pilots, but needs refinement on aiming"
+    DANGEROUS = "Excellent aim or movement, but not both at the same time"
+    EXPERT = "Capable of taking on all but the most skilled pilots"
+    MASTER = "Top tier pilot, both aiming and movement mastered"
 
-    def __int__(self, rank, description):
-        self.rank = rank
+    def __init__(self, description=' '):
         self.description = description
 
     def __str__(self):
@@ -37,14 +40,14 @@ class SkillLevel(Enum):
 
     @property
     def rank(self):
-        return self.value[0]
+        return self._rank
 
     @property
-    def description(self):
-        return self.value[1]
+    def value(self):
+        return self.description
 
     def sort(self):
-        return self.value[0]
+        return self._rank
 
 
 class CharInvalidWorld(Exception):
@@ -134,7 +137,8 @@ class Player:
         self.__first_lobbied_timestamp = 0
         self.__active = None
         self.__match = None
-        self.skill_level: SkillLevel = SkillLevel.BEGINNER
+        self.__lobby = None
+        self.skill_level: SkillLevel = SkillLevel.HARMLESS
         self.pref_factions: list[str] = []
         self.req_skill_levels = None
         Player._all_players[p_id] = self  # adding to all players dictionary
@@ -199,7 +203,8 @@ class Player:
             case 'skill_level':
                 await db.async_db_call(db.set_field, 'users', self.id, {'skill_level': self.skill_level.name})
             case 'req_skill_levels':
-                await db.async_db_call(db.set_field, 'users', self.id, {'req_skill_levels': [level.name for level in self.req_skill_levels]})
+                await db.async_db_call(db.set_field, 'users', self.id,
+                                       {'req_skill_levels': [level.name for level in self.req_skill_levels]})
             case 'pref_factions':
                 await db.async_db_call(db.set_field, 'users', self.id, {'pref_factions': self.pref_factions})
             case 'hidden':
@@ -298,12 +303,13 @@ class Player:
         return self.__first_lobbied_timestamp
 
     @property
-    def is_lobbied(self):
-        return self.__lobbied_timestamp != 0
+    def lobby(self):
+        return self.__lobby
 
-    def on_lobby_add(self):
+    def on_lobby_add(self, lobby):
         self.__lobbied_timestamp = tools.timestamp_now()
         self.__first_lobbied_timestamp = tools.timestamp_now()
+        self.__lobby = lobby
 
     def reset_lobby_timestamp(self):
         self.__lobbied_timestamp = tools.timestamp_now()
@@ -311,10 +317,10 @@ class Player:
     def on_lobby_leave(self):
         self.__lobbied_timestamp = 0
         self.__first_lobbied_timestamp = 0
+        self.__lobby = None
 
     def set_account(self, account: Account | None):
         self.__account = account
-
 
     def on_playing(self, match):
         self.__match = match
@@ -325,8 +331,6 @@ class Player:
         self.__match = None
         self.__active = None
         return self
-
-
 
     async def register(self, char_list: list | None) -> bool:
         """
@@ -425,6 +429,7 @@ class ActivePlayer:
     ActivePlayer class has added attributes and methods relevant to their current match.
     Called after a player starts a match
     """
+
     def __init__(self, player: Player):
         self.__player = player
         self.__match = player.match
@@ -483,7 +488,6 @@ class ActivePlayer:
     @property
     def current_ig_id(self):
         return self.player.current_ig_id
-
 
     @property
     def current_faction(self):
