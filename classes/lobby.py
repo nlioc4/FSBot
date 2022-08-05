@@ -40,6 +40,7 @@ class DashboardView(views.FSBotView):
             return self
         self.enable_all_items()
         if self.lobby.lobbied:
+
             self.add_item(self.ChallengeDropdown(self.lobby))
         else:
             self.leave_lobby_button.disabled = True
@@ -54,11 +55,13 @@ class DashboardView(views.FSBotView):
                 option = discord.SelectOption(label=player.name, value=str(player.id))
                 options.append(option)
 
-            super().__init__(placeholder="Pick Player(s) in the lobby to challenge...",
-                             custom_id='dashboard-challenge',
+            plural = self.lobby.max_match_players > 2
+
+            super().__init__(placeholder=f"Pick{' a' if not plural else ''} Player{'(s)' if plural else ''}"
+                                         f" in the lobby to challenge...",
                              options=options,
                              min_values=1,
-                             max_values=len(options),
+                             max_values=min(self.lobby.max_match_players - 1, len(options)),
                              )
 
         async def callback(self, inter: discord.Interaction, owner=None):
@@ -125,9 +128,9 @@ class DashboardView(views.FSBotView):
             return
         elif player in self.lobby.lobbied:
             self.lobby.lobby_timeout_reset(player)
-            await disp.LOBBY_TIMEOUT_RESET.send_temp(inter, player.mention)
+            await disp.LOBBY_TIMEOUT_RESET.send_priv(inter, player.mention)
         else:
-            await disp.LOBBY_NOT_IN.send_temp(inter, player.mention)
+            await disp.LOBBY_NOT_IN.send_priv(inter, player.mention)
 
     @discord.ui.button(label="Extended History", style=discord.ButtonStyle.blurple)
     async def history_lobby_button(self, button: discord.Button, inter: discord.Interaction):
@@ -181,9 +184,9 @@ class Lobby:
         #  Display
         self.dashboard_msg: discord.Message | None = None
         self.dashboard_embed: discord.Embed | None = None
+        self.__embed_func = embeds.duel_dashboard
         self.__view: DashboardView | None = None
-        self.embed_func = embeds.duel_dashboard
-        self.view_func = DashboardView
+        self.__view_func = DashboardView
 
         #  Containers
         self.__lobbied_players: list[Player] = []  # List of players currently in lobby
@@ -222,6 +225,10 @@ class Lobby:
     def warned(self):
         return self.__warned_players
 
+    @property
+    def max_match_players(self) -> int:
+        return self.__match_type.MAX_PLAYERS
+
     def dashboard_purge_check(self, message: discord.Message):
         """Checks if messages are either the dashboard message, or an admin message before purging them"""
         if message != self.dashboard_msg and not d_obj.is_admin(message.author):
@@ -230,12 +237,12 @@ class Lobby:
             return False
 
     def _new_embed(self):
-        return self.embed_func(self)
+        return self.__embed_func(self)
 
     def view(self, new=False):
         if not new and self.__view:
             return self.__view.update()
-        return self.view_func(self)
+        return self.__view_func(self)
 
     async def _dashboard_message(self, action="send", force=False):
         """Either sends a new dashboard message, or edits the existing message if required."""
@@ -300,25 +307,33 @@ class Lobby:
                 self.lobby_log(f'{p.name} will soon be timed out of the lobby')
                 await disp.LOBBY_TIMEOUT_SOON.send(self.channel, p.mention, delete_after=30)
 
+    def update_matches(self):
+        for match in self.__matches:
+            if match.is_ended:
+                self.__matches.remove(match)
+
     async def update(self):
         """Runs all update methods"""
+        self.update_matches()
         await self.update_timeouts()
         await self.update_dashboard()
 
-    def disable(self):
+    async def disable(self):
         if self.__disabled:
             return False
         self.__disabled = True
         for p in self.lobbied:
             self.lobby_leave(p)
         self.lobby_log("Lobby Disabled")
+        await self.update()
         return True
 
-    def enable(self):
+    async def enable(self):
         if not self.__disabled:
             return False
         self.__disabled = False
         self.lobby_log("Lobby Enabled")
+        await self.update()
         return True
 
     @property
@@ -336,7 +351,6 @@ class Lobby:
         else:
             return False
 
-
     def lobby_timeout_reset(self, player):
         """Resets player lobbied timestamp, returns True if player was in lobby"""
         if player in self.__lobbied_players:
@@ -351,6 +365,8 @@ class Lobby:
         if player in self.__lobbied_players:
             player.on_lobby_leave()
             self.__lobbied_players.remove(player)
+            if player in self.__warned_players:
+                self.__warned_players.remove(player)
             if match:
                 self.lobby_log(f'{player.name} joined Match: {match.id_str}')
             else:

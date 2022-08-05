@@ -34,16 +34,6 @@ class AdminCog(commands.Cog):
         guild_ids=[cfg.general['guild_id']]
     )
 
-    # @discord.slash_command(name='admin',
-    #                            description='Admin Only Commands',
-    #                            guild_ids=[cfg.general['guild_id']]
-    #                            )
-    # async def admin(self, ctx: discord.ApplicationContext):
-    #     if ctx.user == d_obj.colin:
-    #         await disp.HELLO.send(ctx, f'glorious creator {d_obj.colin.mention}')
-    #     else:
-    #         await disp.HELLO.send(ctx, ctx.user.mention)
-
     @admin.command()
     async def loader(self, ctx: discord.ApplicationContext,
                      action: discord.Option(str, "Lock or Unlock FSBot", choices=("Unlock", "Lock", "Reload"),
@@ -64,7 +54,7 @@ class AdminCog(commands.Cog):
 
     @admin.command()
     async def contentplug(self, ctx: discord.ApplicationContext,
-                          action: discord.Option(str, "Enable, Disable or check statusof the #contentplug filter",
+                          action: discord.Option(str, "Enable, Disable or check status of the #contentplug filter",
                                                  choices=("Enable", "Disable", "Status"),
                                                  required=True)):
         """Enable or disable the #contentplug filter"""
@@ -76,6 +66,12 @@ class AdminCog(commands.Cog):
             cog.enabled = False
         await d_obj.d_log(f"{action}ed {channel.mention}'s content filter")
         await ctx.respond(f"{action}ed {channel.mention}'s content filter", ephemeral=True)
+
+    @admin.command(name="censusonlinecheck")
+    async def manual_census(self, ctx: discord.ApplicationContext):
+        """Runs a REST census online check, to catch any login/logouts that the websocket may have missed"""
+        ran = await self.census_rest()
+        await disp.MANUAL_CENSUS.send_priv(ctx, "successful." if ran else "failed.")
 
     @admin.command(name="rulesinit", )
     async def rulesinit(self, ctx: discord.ApplicationContext,
@@ -157,6 +153,7 @@ class AdminCog(commands.Cog):
                         match_id: discord.Option(int, "Match ID to end",
                                                  required=True)):
         """End a given match forcibly."""
+        await ctx.defer()
         try:
             match = BaseMatch.active_matches_dict()[match_id]
         except KeyError:
@@ -196,8 +193,8 @@ class AdminCog(commands.Cog):
         await accounts.send_account(acc, p)
         await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
 
-    @accounts.command(nane='info')
-    async def info(self, ctx: discord.ApplicationContext):
+    @accounts.command(name='info')
+    async def account_info(self, ctx: discord.ApplicationContext):
         """Provide info on FSBot's connected Jaeger Accounts"""
         num_available = len(accounts._available_accounts)
         assigned = accounts._busy_accounts.values()
@@ -205,6 +202,26 @@ class AdminCog(commands.Cog):
         online = [acc for acc in accounts.all_accounts.values() if acc.online_id]
         await disp.ACCOUNT_INFO.send_priv(ctx, num_available=num_available, num_used=num_used, assigned=assigned,
                                           online=online)
+
+    @accounts.command(name='watchtower')
+    async def watchtower_toggle(self, ctx: discord.ApplicationContext,
+                                action: discord.Option(str,
+                                                       "Enable, Disable or check status of the accounts watchtower",
+                                                       choices=("Enable", "Disable", "Status"), required=True)
+                                ):
+        """Accounts Watchtower Control"""
+
+        running = self.account_watchtower.is_running()
+
+        if action == "Enable" and not running:
+            self.account_watchtower.start()
+        elif action == "Disable" and running:
+            self.account_watchtower.cancel()
+        string = f"Accounts watchtower was {'running' if running else 'stopped'}."
+        if running != self.account_watchtower.is_running() or self.account_watchtower.is_being_cancelled():
+            string += f" It is now {'started' if not running else 'stopping'}."
+        await d_obj.d_log(string)
+        await ctx.respond(string, ephemeral=True)
 
     @commands.message_command(name="Assign Account")
     @commands.max_concurrency(number=1, wait=True)
@@ -236,6 +253,24 @@ class AdminCog(commands.Cog):
         await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
         await message.add_reaction("\u2705")
 
+    ##########################################################
+
+    player_admin = admin.create_subgroup(
+        name="player", description="Admin Player Commands"
+    )
+
+    @player_admin.command(name='info')
+    async def player_info(self, ctx: discord.ApplicationContext,
+                          member: discord.Option(discord.Member, "@mention to get info on", required=True)):
+        """Provide info on a given player"""
+        p = Player.get(member.id)
+        if not p:
+            await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+            return
+
+        await disp.REG_INFO.send_priv(ctx, player=p)
+
+
     @msg_assign_account.error
     async def msg_assign_account_concurrency_error(self, ctx, error):
         if isinstance(error, commands.MaxConcurrencyReached):
@@ -245,25 +280,31 @@ class AdminCog(commands.Cog):
     async def on_ready(self):
         #  Wait until the bot is ready before starting loops, ensure account_handler has finished init
         await asyncio.sleep(5)
-        self.census_watchtower.start()
         self.account_sheet_reload.start()
+        self.census_watchtower.start()
         self.account_watchtower.start()
         self.census_rest.start()
-
-    @tasks.loop(minutes=10, count=2)
-    async def census_rest(self):
-        for _ in range(5):
-            if await census.online_status_rest(Player.map_chars_to_players()):
-                return
-        log.warning("Could not reach REST api during census rest after 5 tries...")
-
-    census_rest.add_exception_type(auraxium.errors.ResponseError)
 
     @tasks.loop(count=1)
     async def census_watchtower(self):
         await census.online_status_updater(Player.map_chars_to_players)
 
-    census_rest.add_exception_type(auraxium.errors.ResponseError)
+    @tasks.loop(seconds=15)
+    async def census_rest(self):
+        """Built to detect already online accounts on bot startup"""
+        for _ in range(5):
+            if await census.online_status_rest(Player.map_chars_to_players()):
+                return True
+        log.warning("Could not reach REST api during census rest after 5 tries...")
+        return False
+
+    @census_watchtower.after_loop
+    async def after_census_watchtower(self):
+        if self.census_watchtower.failed():
+            await d_obj.log(f"{d_obj.colin.mention} Census Watchtower has failed")
+
+    census_watchtower.add_exception_type(auraxium.errors.ResponseError)
+
 
     @tasks.loop(time=time(hour=11, minute=0, second=0))
     async def account_sheet_reload(self):

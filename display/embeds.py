@@ -272,7 +272,7 @@ def match_info(match) -> Embed:
     match match.status.name:
         case 'INVITING':
             colour = Colour.orange()
-        case 'GETTING_READY':
+        case 'LOGGING_IN':
             colour = Colour.yellow()
         case 'PLAYING':
             colour = Colour.green()
@@ -293,7 +293,7 @@ def match_info(match) -> Embed:
                       f"Match Start Time: {format_stamp(match.start_stamp)}\n"
                       )
 
-    if match.timeout_at:
+    if match.should_warn:
         match_info_str += f"Match will timeout in {format_stamp(match.timeout_at, 'R')}"
 
     if match.end_stamp:

@@ -82,10 +82,9 @@ roles = {
     "mod": "",
     "app_admin": "",
     "bot": "",
-    "registered": "",
-    "view_channels": ""
-
-
+    "view_channels": "",
+    "notify": "",
+    "timeout": ""
 }
 
 # Database Collections

@@ -56,6 +56,11 @@ class Account:
             return self.ig_names[self.__ig_ids.index(self.__online_id)]
         return None
 
+    def online_name_by_id(self, char_id):
+        if char_id in self.ig_ids:
+            return self.ig_names[self.__ig_ids.index(char_id)]
+        return False
+
     @property
     def online_id(self):
         return self.__online_id

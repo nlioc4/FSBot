@@ -44,7 +44,7 @@ class FSBotView(discord.ui.View):
         except discord.errors.InteractionResponded or discord.errors.NotFound:
             pass
         finally:
-            await d_obj.d_log(source=interaction.user, message="Error on component interaction", error=error)
+            await d_obj.d_log(source=interaction.user.name, message="Error on component interaction", error=error)
             # log.error("Error on component interaction", exc_info=error)
         # traceback.print_exception(error.__class__, error, error.__traceback__, file=sys.stderr)
 
@@ -104,6 +104,21 @@ class MatchInfoView(FSBotView):
         if not self.match.should_warn:
             self.reset_timeout_button.style = discord.ButtonStyle.grey
             self.reset_timeout_button.disabled = True
+
+    def update(self):
+        self._update()
+        if not self.match.should_warn:
+            if self.match.should_warn:
+                self.reset_timeout_button.style = discord.ButtonStyle.green
+                self.reset_timeout_button.disabled = False
+            else:
+                self.reset_timeout_button.style = discord.ButtonStyle.grey
+                self.reset_timeout_button.disabled = True
+            return True
+
+    def _update(self):
+        """For Inheritance"""
+        pass
 
     async def in_match_check(self, inter, p) -> bool:
         if p in self.match.players:

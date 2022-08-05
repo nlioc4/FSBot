@@ -29,6 +29,8 @@ import display
 import modules.spam_detector as spam
 
 # parse commandline args
+
+
 ap = argparse.ArgumentParser()
 ap.add_argument('--test', default=False, type=bool)
 ap.add_argument('-l', '--loglevel', default='INFO', type=str)
@@ -166,7 +168,7 @@ async def on_application_command_error(context, exception):
         except discord.errors.InteractionResponded or discord.errors.NotFound:
             pass
         finally:
-            await d_obj.d_log(source=context.user, message=f"Ignoring exception in command {context.command}",
+            await d_obj.d_log(source=context.user.name, message=f"Ignoring exception in command {context.command}",
                               error=exception)
 
     # traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)

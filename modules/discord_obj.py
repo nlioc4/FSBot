@@ -36,10 +36,14 @@ def init(client):
 
     for role in cfg.roles:
         roles[role] = guild.get_role(cfg.roles[role])
-    log.info("Initialized Roles: %s", [role.name for role in roles.values()])
+        if not roles[role]:
+            raise KeyError(f'Missing Discord Role for {role}')
+    log.info("Initialized Roles: %s", {role_name: role.name for role_name, role in roles.items()})
     for channel in cfg.channels:
         channels[channel] = guild.get_channel(cfg.channels[channel])
-    log.info("Initialized Channels: %s", [channel.name for channel in channels.values()])
+        if not channels[channel]:
+            raise KeyError(f'Missing Discord Channel for {channel}')
+    log.info("Initialized Channels: %s", {channel_name: channel.name for channel_name, channel in channels.items()})
 
     categories['user'] = channels['dashboard'].category
     categories['admin'] = channels['staff'].category
@@ -57,10 +61,11 @@ def is_admin(member: discord.Member) -> bool:
         return False
 
 
-def is_player(user: discord.Member | discord.User) -> bool:
-    """Simple check if a user is a player, returns True if passed"""
-    if classes.Player.get(user.id):
-        return True
+def is_player(user: discord.Member | discord.User) -> classes.Player | bool:
+    """Simple check if a user is a player, returns Player if passed"""
+    p = classes.Player.get(user.id)
+    if p:
+        return p
     else:
         return False
 
@@ -75,7 +80,7 @@ async def is_registered(ctx, user: discord.Member | discord.User | classes.Playe
         return False
 
 
-async def d_log(message=None, source=None, error=None) -> bool:
+async def d_log(message: str = '', source: str = '', error=None) -> bool:
     """Utility function to send logs to #logs channel"""
     if error:
         log.error(f"{source + ': ' if source else ''}{message}", exc_info=error)
@@ -83,3 +88,29 @@ async def d_log(message=None, source=None, error=None) -> bool:
     log.warning(f"{source + ': ' if source else ''}{message}")
     return await disp.LOG_GENERAL.send(channels['logs'], message, error)
 
+
+async def role_update(member: discord.Member = None, player: classes.Player = None, reason="FSBot Role Update"):
+    """Takes either a member or a player checks what roles they should have"""
+    member = member or await guild.get_member(player.id)
+    p = player or is_player(member)
+    if not p and not member:
+        raise ValueError("No args in role_update")
+    current_roles = member.roles
+    roles_to_add = []
+    roles_to_remove = []
+
+    if p and roles['view_channels'] not in current_roles:
+        roles_to_add.append(roles['view_channels'])
+    elif not p and roles['view_channels'] in current_roles:
+        roles_to_remove.append(roles['view_channels'])
+
+    if p:
+        if p.is_timeout and roles['timeout'] not in current_roles:
+            roles_to_add.append(roles['timeout'])
+        elif not p.is_timeout and roles['timeout'] in current_roles:
+            roles_to_remove.append(roles['view_channels'])
+
+    if roles_to_add:
+        await member.add_roles(*roles_to_add, reason=reason)
+    if roles_to_remove:
+        await member.remove_roles(*roles_to_remove, reason=reason)

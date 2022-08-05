@@ -29,6 +29,7 @@ class AllStrings(Enum):
     UNASSIGNED_ONLINE = "{} Unassigned Login", account_online_check
     LOADER_TOGGLE = "FSBot {}ed"
     HELLO = "Hello there {}"
+    MANUAL_CENSUS = "Manual Census Check {}"
 
     LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], name: [{}]"
 
@@ -99,6 +100,10 @@ class AllStrings(Enum):
     MATCH_NOT_IN = "You are not in match {}."
     MATCH_NOT_IN_2 = "Player {} is not in match {}."
     MATCH_ALREADY = "{} is already in match {}."
+
+    RM_SCORES_EQUAL = "Submitted scores are equal!"
+    RM_SCORES_WRONG = "Submitted scores don't match, both players should submit again!"
+    RM_SCORES_WRONG_2 = "Couldn't resolve scores, ending match and reporting..."
 
     SKILL_LEVEL_REQ_ONE = "Your requested skill level has been set to: {}."
     SKILL_LEVEL_REQ_MORE = "Your requested skill levels have been set to: {}."

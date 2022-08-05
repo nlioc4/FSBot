@@ -30,7 +30,6 @@ class RulesView(views.FSBotView):
                                                     ephemeral=True, delete_after=15)
             p.hidden = False
             await p.db_update('hidden')
-            await interaction.user.add_roles(d_obj.roles['view_channels'], reason="Rules Accepted")
         elif p and not p.hidden:
             await interaction.response.send_message(content=f"You've already accepted the rules "
                                                             f"{interaction.user.mention}!",
@@ -38,10 +37,10 @@ class RulesView(views.FSBotView):
         else:
             p = classes.Player(interaction.user.id, interaction.user.name)
             await db.async_db_call(db.set_element, 'users', p.id, p.get_data())
-            await interaction.user.add_roles(d_obj.roles['view_channels'], reason="Rules Accepted")
             await interaction.response.send_message(content=f"You have accepted the rules "
                                                             f"{interaction.user.mention}, have fun!",
                                                     ephemeral=True, delete_after=15)
+        await d_obj.role_update(interaction.user)
 
     @discord.ui.button(label="Hide Category", custom_id="rules-hide", style=discord.ButtonStyle.red)
     async def hide_button(self, button: discord.ui.Button, interaction: discord.Interaction):
@@ -55,8 +54,8 @@ class RulesView(views.FSBotView):
             await interaction.response.send_message(content=f"See you soon {interaction.user.mention}, "
                                                             f"you're always welcome back!",
                                                     ephemeral=True, delete_after=15)
-            await interaction.user.remove_roles(d_obj.roles['view_channels'], reason="Chose Hidden")
             p.hidden = True
+            await d_obj.role_update(interaction.user)
             await p.db_update('hidden')
         else:
             await interaction.response.send_message(content=f"You can't hide something you have never seen!",
