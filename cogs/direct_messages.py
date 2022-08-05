@@ -60,7 +60,7 @@ class DMCog(commands.Cog):
                       files=None):
         """Send a message to the staff of FS bot"""
         if ctx.author.id in DM_THREADS:
-            await disp.DM_ALREADY.send_temp(ctx)
+            await disp.DM_ALREADY.send_priv(ctx)
             return
 
         msg = await disp.DM_TO_STAFF.send(d_obj.channels['staff'], d_obj.roles['app_admin'].mention, author=ctx.author,
@@ -69,7 +69,7 @@ class DMCog(commands.Cog):
         user = ctx
         if ctx.guild:
             user = ctx.user
-            await disp.DM_RECEIVED_GUILD.send_temp(ctx, init_msg)
+            await disp.DM_RECEIVED_GUILD.send_priv(ctx, init_msg)
         await disp.DM_RECEIVED.send(user, init_msg)
         DM_THREADS[ctx.author.id] = thread.id
         await db.async_db_call(db.set_element, 'restart_data', 0, {'dm_threads': dm_threads_to_str()})
