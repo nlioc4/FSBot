@@ -166,10 +166,10 @@ async def on_application_command_error(context, exception):
         except discord.errors.InteractionResponded or discord.errors.NotFound:
             pass
         finally:
-            await d_obj.d_log(exception, context.user)
+            await d_obj.d_log(source=context.user, message=f"Ignoring exception in command {context.command}",
+                              error=exception)
 
-    log.exception(f"Ignoring exception in command {context.command}", exc_info=exception)
-    traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
+    # traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
 
 
 # database init

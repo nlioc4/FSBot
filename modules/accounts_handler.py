@@ -184,9 +184,9 @@ class ValidateView(views.FSBotView):
         await inter.response.defer()
         try:
             validated = validate_account(acc=self.acc)
-        except gspread.exceptions.APIError:
+        except gspread.exceptions.APIError as e:
             await d_obj.d_log(f"Error logging usage to GSheet for Account: {self.acc.id},"
-                              f" user: {inter.user.name}, ID: {inter.user.id}")
+                              f" user: {inter.user.name}, ID: {inter.user.id}", error=e)
             await disp.ACCOUNT_VALIDATE_ERROR.send_priv(inter)
             return
         button.disabled = True

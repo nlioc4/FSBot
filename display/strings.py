@@ -23,7 +23,7 @@ class AllStrings(Enum):
     ALL_LOCKED = "FSBot is currently disabled, please try again later!"
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
     GENERAL_ERROR = "An error has occurred, {}"
-    LOG_ERROR = "User: {} has run into an error, {}."
+    LOG_ERROR = "{} has run into an error, {} {}."
     LOG_GENERAL = "Log: {}"
     CHECK_FAILURE = "You have failed a check to run this command!"
     UNASSIGNED_ONLINE = "{} Unassigned Login", account_online_check

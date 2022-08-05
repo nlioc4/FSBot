@@ -5,6 +5,7 @@ import discord
 import asyncio
 import sys
 import traceback
+from logging import getLogger
 
 # Interal Imports
 import modules.discord_obj as d_obj
@@ -14,6 +15,8 @@ from classes import Player
 from display import AllStrings as disp
 import modules.accounts_handler as accounts
 from modules.loader import is_all_locked
+
+log = getLogger('fs_bot')
 
 
 class FSBotView(discord.ui.View):
@@ -41,8 +44,9 @@ class FSBotView(discord.ui.View):
         except discord.errors.InteractionResponded or discord.errors.NotFound:
             pass
         finally:
-            await d_obj.d_log(error, interaction.user)
-        traceback.print_exception(error.__class__, error, error.__traceback__, file=sys.stderr)
+            await d_obj.d_log(source=interaction.user, message="Error on component interaction", error=error)
+            # log.error("Error on component interaction", exc_info=error)
+        # traceback.print_exception(error.__class__, error, error.__traceback__, file=sys.stderr)
 
 
 class InviteView(FSBotView):
@@ -71,7 +75,6 @@ class InviteView(FSBotView):
             await inter.response.edit_message(view=self)
             return
         await disp.DM_INVITE_INVALID.edit(inter.message, view=self)
-
 
     @discord.ui.button(label="Decline Invite", style=discord.ButtonStyle.red)
     async def decline_button(self, button: discord.Button, inter: discord.Interaction):

@@ -1,6 +1,7 @@
 """Admin cog, handles admin functions of FSBot"""
 
 # External Imports
+import auraxium
 import discord
 from discord.ext import commands, tasks
 from logging import getLogger
@@ -255,9 +256,13 @@ class AdminCog(commands.Cog):
                 return
         log.warning("Could not reach REST api during census rest after 5 tries...")
 
+    census_rest.add_exception_type(auraxium.errors.ResponseError)
+
     @tasks.loop(count=1)
     async def census_watchtower(self):
         await census.online_status_updater(Player.map_chars_to_players)
+
+    census_rest.add_exception_type(auraxium.errors.ResponseError)
 
     @tasks.loop(time=time(hour=11, minute=0, second=0))
     async def account_sheet_reload(self):

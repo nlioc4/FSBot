@@ -196,7 +196,7 @@ class Lobby:
 
     def lobby_log(self, message):
         self.__logs.append((tools.timestamp_now(), message))
-        log.info(f'{self.name} Lobby Log: {message}')
+        log.info(f'[{self.name}]Lobby Log: {message}')
 
     @property
     def logs(self):
@@ -284,8 +284,7 @@ class Lobby:
         try:
             await self._dashboard_message('edit')
         except discord.NotFound as e:
-            log.error(f'Unable to edit {self.name} dashboard message, resending...', e)
-            await d_obj.d_log(f'Unable to edit {self.name} dashboard message, resending...')
+            await d_obj.d_log(f'Unable to edit {self.name} dashboard message, resending...', error=e)
             await self._dashboard_message()
 
     async def update_timeouts(self):
