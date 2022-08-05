@@ -61,7 +61,7 @@ class DashboardView(views.FSBotView):
                                          f" in the lobby to challenge...",
                              options=options,
                              min_values=1,
-                             max_values=self.lobby.max_match_players - 1,
+                             max_values=min(self.lobby.max_match_players - 1, len(options)),
                              )
 
         async def callback(self, inter: discord.Interaction, owner=None):
@@ -226,8 +226,8 @@ class Lobby:
         return self.__warned_players
 
     @property
-    def max_match_players(self):
-        return self.__match_type.max_players
+    def max_match_players(self) -> int:
+        return self.__match_type.MAX_PLAYERS
 
     def dashboard_purge_check(self, message: discord.Message):
         """Checks if messages are either the dashboard message, or an admin message before purging them"""
@@ -351,7 +351,6 @@ class Lobby:
         else:
             return False
 
-
     def lobby_timeout_reset(self, player):
         """Resets player lobbied timestamp, returns True if player was in lobby"""
         if player in self.__lobbied_players:
@@ -366,6 +365,8 @@ class Lobby:
         if player in self.__lobbied_players:
             player.on_lobby_leave()
             self.__lobbied_players.remove(player)
+            if player in self.__warned_players:
+                self.__warned_players.remove(player)
             if match:
                 self.lobby_log(f'{player.name} joined Match: {match.id_str}')
             else:

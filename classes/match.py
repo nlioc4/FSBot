@@ -32,13 +32,14 @@ class MatchState(Enum):
 class BaseMatch:
     _active_matches = dict()
     _recent_matches = dict()
+    MAX_PLAYERS = 10
 
     def __init__(self, owner: Player, player: Player):
         # Vars
         global _match_id_counter
         _match_id_counter += 1
         self.__id = _match_id_counter
-        self.__max_players = 10
+        self.__max_players = BaseMatch.MAX_PLAYERS
         self.owner = owner
         self.start_stamp = tools.timestamp_now()
         self.end_stamp = None
@@ -253,9 +254,9 @@ class BaseMatch:
     def id_str(self):
         return str(self.__id).zfill(4)
 
-    @property
-    def max_players(self):
-        return self.__max_players
+    @staticmethod
+    def max_players():
+        return BaseMatch.max_players
 
     @property
     def players(self):
