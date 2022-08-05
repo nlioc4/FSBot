@@ -272,7 +272,7 @@ def match_info(match) -> Embed:
     match match.status.name:
         case 'INVITING':
             colour = Colour.orange()
-        case 'GETTING_READY':
+        case 'LOGGING_IN':
             colour = Colour.yellow()
         case 'PLAYING':
             colour = Colour.green()

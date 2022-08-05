@@ -80,7 +80,7 @@ async def is_registered(ctx, user: discord.Member | discord.User | classes.Playe
         return False
 
 
-async def d_log(message=None, source=None, error=None) -> bool:
+async def d_log(message: str = '', source: str = '', error=None) -> bool:
     """Utility function to send logs to #logs channel"""
     if error:
         log.error(f"{source + ': ' if source else ''}{message}", exc_info=error)

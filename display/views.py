@@ -44,7 +44,7 @@ class FSBotView(discord.ui.View):
         except discord.errors.InteractionResponded or discord.errors.NotFound:
             pass
         finally:
-            await d_obj.d_log(source=interaction.user, message="Error on component interaction", error=error)
+            await d_obj.d_log(source=interaction.user.name, message="Error on component interaction", error=error)
             # log.error("Error on component interaction", exc_info=error)
         # traceback.print_exception(error.__class__, error, error.__traceback__, file=sys.stderr)
 

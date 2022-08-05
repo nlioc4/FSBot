@@ -22,8 +22,10 @@ _match_id_counter = 0
 
 class MatchState(Enum):
     INVITING = "Waiting for players to join the match..."
-    GETTING_READY = "Waiting for players to log in..."
+    LOGGING_IN = "Waiting for players to log in..."
+    GETTING_READY = "Waiting for players to be ready..."
     PLAYING = "Currently playing..."
+    SUBMITTING = "Submitting scores..."
     ENDED = "Match ended..."
 
 
@@ -41,7 +43,7 @@ class BaseMatch:
         self.start_stamp = tools.timestamp_now()
         self.end_stamp = None
         self.timeout_stamp = None
-        self.status = MatchState.GETTING_READY
+        self.status = MatchState.LOGGING_IN
 
         # Display
         self.text_channel: discord.TextChannel | None = None
@@ -187,7 +189,7 @@ class BaseMatch:
         if len(self.players) < 2:
             self.status = MatchState.INVITING
         elif len(self.online_players) < 2:
-            self.status = MatchState.GETTING_READY
+            self.status = MatchState.LOGGING_IN
         elif self.online_players:
             self.status = MatchState.PLAYING
 
