@@ -17,7 +17,7 @@ async def create_card(card_name, card_description):
         url = f"https://api.trello.com/1/cards"
         async with aiohttp.ClientSession() as session:
             async with session.post(url, params=querystring):
-                log.info("Created Card.")
+                log.info("Created Trello Suggestion Card")
         await asyncio.sleep(4)
     except HTTPException as ex:
         log.error(f"Error creating Trello suggestion card with trace {ex}")
