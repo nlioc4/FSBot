@@ -160,8 +160,9 @@ class AdminCog(commands.Cog):
             await disp.MATCH_NOT_FOUND.send_priv(ctx, match_id)
             return
 
-        await match.end_match()
         await disp.MATCH_END.send_priv(ctx, match.id_str)
+        await match.end_match()
+
 
     #########################################################
 

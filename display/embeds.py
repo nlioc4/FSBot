@@ -251,7 +251,7 @@ def longer_lobby_logs(logs: list[(int, str)]) -> Embed:
 
     if logs:
         log_str = ''
-        for log in logs[::-1]:
+        for log in logs:
             time_formatted = format_stamp(log[0], 'T')
             next_str = f'[{time_formatted}]{log[1]}\n'
             if len(log_str) + len(next_str) > 1024:
@@ -259,7 +259,7 @@ def longer_lobby_logs(logs: list[(int, str)]) -> Embed:
                                 value=log_str,
                                 inline=False)
                 log_str = ''
-            log_str = next_str + log_str
+            log_str = log_str + next_str
         if log_str:
             embed.add_field(name="\u200b",
                             value=log_str,
