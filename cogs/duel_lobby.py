@@ -3,6 +3,7 @@ Cog built to handle interaction with the duel lobby.
 
 """
 # External Imports
+import asyncio
 import discord
 from discord.ext import commands, tasks
 from logging import getLogger
@@ -36,8 +37,10 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
     @tasks.loop(seconds=10)
     async def dashboard_loop(self):
         """Loop to check lobby timeouts, also updates dashboard in-case preference changes are made"""
+        lobby_updates = []
         for lobby in Lobby.all_lobbies.values():
-            await lobby.update()
+            lobby_updates.append(lobby.update())
+        await asyncio.gather(*lobby_updates)
 
     @dashboard_loop.before_loop
     async def before_lobby_loop(self):

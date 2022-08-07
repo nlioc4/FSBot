@@ -48,6 +48,7 @@ async def _stop_dm_thread(user_id, user_side):
         await db.async_db_call(db.set_field, 'restart_data', 0, {'dm_threads': DM_THREADS})
         await disp.DM_THREAD_CLOSE.send(user)
 
+
 class DMCog(commands.Cog):
 
     def __init__(self, client):
@@ -101,7 +102,6 @@ class DMCog(commands.Cog):
             msg = msg[i + 1:]
             await self.modmail.callback(self, ctx=message, init_msg=msg, files=files)
             return
-
 
         #  If player side request to stop DM thread
         if not message.guild and message.author.id in DM_THREADS and \
