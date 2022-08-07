@@ -1,10 +1,14 @@
 """Handles loading and unloading of bot, as well as locking the bots functionality"""
+
+from logging import getLogger
 from discord import ExtensionAlreadyLoaded, ExtensionNotLoaded
 
 main_cogs = ["cogs.admin"]
-standard_cogs = ['cogs.contentplug', 'cogs.duel_lobby', 'cogs.matches', 'cogs.register', 'cogs.direct_messages']
+standard_cogs = ['cogs.contentplug', 'cogs.duel_lobby', 'cogs.matches',
+                 'cogs.register', 'cogs.direct_messages', 'cogs.general']
 __is_global_locked = True
 
+log = getLogger('fs_bot')
 
 
 def init(client):

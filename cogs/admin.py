@@ -15,6 +15,7 @@ import modules.discord_obj as d_obj
 import modules.census as census
 import modules.loader as loader
 import modules.tools as tools
+from modules import trello
 from classes import Player, ActivePlayer
 from classes.match import BaseMatch
 from display import AllStrings as disp, views, embeds
