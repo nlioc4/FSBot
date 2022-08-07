@@ -12,10 +12,9 @@ from datetime import datetime as dt, time, timezone
 import modules.config as cfg
 import modules.accounts_handler as accounts
 import modules.discord_obj as d_obj
-import modules.census as census
-import modules.loader as loader
-import modules.tools as tools
-from modules import trello
+from modules import census
+from modules import tools
+from modules import loader
 from classes import Player, ActivePlayer
 from classes.match import BaseMatch
 from display import AllStrings as disp, views, embeds
@@ -163,7 +162,6 @@ class AdminCog(commands.Cog):
 
         await disp.MATCH_END.send_priv(ctx, match.id_str)
         await match.end_match()
-
 
     #########################################################
 
