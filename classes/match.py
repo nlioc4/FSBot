@@ -136,7 +136,7 @@ class BaseMatch:
         return True
 
     async def leave_match(self, player: ActivePlayer):
-        if player == self.owner:
+        if player.player == self.owner:
             await self.end_match()
             return
         self.__players.remove(player)
