@@ -6,6 +6,7 @@ standard_cogs = ['cogs.contentplug', 'cogs.duel_lobby', 'cogs.matches', 'cogs.re
 __is_global_locked = True
 
 
+
 def init(client):
     for cog in main_cogs:
         client.load_extension(cog)
@@ -24,12 +25,16 @@ def lock_all(client):
 async def unlock_all(client):
     for cog in standard_cogs:
         try:
-            client.load_extension(cog)
-        except ExtensionAlreadyLoaded:
-            pass
+            if client.load_extension(cog):
+                log.info(f"Loaded {cog} successfully")
+        except ExtensionAlreadyLoaded as ex:
+            log.info(f"Error Loading {cog} because {ex}")
     global __is_global_locked
     __is_global_locked = False
+
     await client.register_commands()
+
+    log.info('Loaded Cogs: %s', list(client.cogs.keys()))
 
 
 def is_all_locked():

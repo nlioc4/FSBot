@@ -29,6 +29,7 @@ class AllStrings(Enum):
     LOADER_TOGGLE = "FSBot {}ed"
     HELLO = "Hello there {}"
     MANUAL_CENSUS = "Manual Census Check {}"
+    SUGGESTION_ACCEPTED = "{} your suggestion has been submitted to the administration team. Thanks!"
 
     LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], name: [{}]"
     LOG_ERROR = "{} has run into an error, {} {}."
