@@ -18,6 +18,7 @@ import modules.tools as tools
 log = getLogger('fs_bot')
 
 RECENT_LOG_LENGTH: int = 8
+RECENT_LOG_TIMEOUT: int = 3600  # one hour
 LONGER_LOG_LENGTH: int = 30
 
 
@@ -207,7 +208,7 @@ class Lobby:
 
     @property
     def logs_recent(self):
-        return self.__logs[-RECENT_LOG_LENGTH:]
+        return [item for item in self.__logs if log[0] > tools.timestamp_now() - RECENT_LOG_TIMEOUT][-RECENT_LOG_LENGTH:]
 
     @property
     def logs_longer(self):
