@@ -16,8 +16,6 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
 
     def __init__(self, client):
         self.bot: discord.Bot = client
-        print("nerd" + cfg.general['guild_id'])
-        print(self.suggestion.guild_id)
 
     @commands.slash_command(name="suggestion", guild_ids=[cfg.general['guild_id']])
     async def suggestion(self, ctx: discord.ApplicationContext,

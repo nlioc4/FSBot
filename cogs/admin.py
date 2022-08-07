@@ -307,7 +307,6 @@ class AdminCog(commands.Cog):
 
     census_watchtower.add_exception_type(auraxium.errors.ResponseError)
 
-
     @tasks.loop(time=time(hour=11, minute=0, second=0))
     async def account_sheet_reload(self):
         log.info("Reinitialized Account Sheet and Account Characters")

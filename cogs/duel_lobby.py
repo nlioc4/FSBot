@@ -44,7 +44,8 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
 
     @dashboard_loop.before_loop
     async def before_lobby_loop(self):
-
+        if Lobby.all_lobbies.get("casual"):
+            return
         casual_lobby = await Lobby.create_lobby("casual", d_obj.channels['dashboard'])
 
     @commands.user_command(name="Invite To Match")

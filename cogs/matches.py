@@ -3,6 +3,7 @@
 # External Imports
 import discord
 from logging import getLogger
+import asyncio
 
 from discord.ext import commands, tasks
 
@@ -36,17 +37,15 @@ class MatchesCog(commands.Cog, name="MatchesCog",
             if channel.name.startswith('casual'):
                 await channel.delete()
 
-    @tasks.loop(seconds=30)
+    @tasks.loop(seconds=15)
     async def matches_loop(self):
         # update match info embeds
-        try:
-            for match in BaseMatch.active_matches_list():
-                # only iterate on matches that have started > 5 seconds ago, and are not stopped
-                if match.start_stamp > tools.timestamp_now() - 5 or match.end_stamp:
-                    continue
-                await match.update_match()
-        except Exception as e:  # TODO this is far too broad.
-            await d_obj.d_log(source="match_loop", error=e)
+        match_update_coros = []
+        for match in BaseMatch.active_matches_list():
+            if not match.is_ended:
+                match_update_coros.append(match.update())
+        await asyncio.gather(*match_update_coros)
+
 
     @commands.Cog.listener('on_message')
     async def matches_message_listener(self, message: discord.Message):
