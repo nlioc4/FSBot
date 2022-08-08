@@ -212,7 +212,8 @@ async def online_status_rest(chars_players_map):
     for char_id in online_ids:
         login_coros.append(_login(char_id, acc_char_ids, chars_players_map))
     no_logout = await asyncio.gather(*login_coros)
-    offline_ids = set(offline_ids) - set(no_logout)
+
+    offline_ids = set(offline_ids) - set(*no_logout)
 
     logout_coros = []
     for char_id in offline_ids:
