@@ -83,6 +83,8 @@ class AllStrings(Enum):
     LOBBY_DASHBOARD = ''
     LOBBY_LONGER_HISTORY = '{}', longer_lobby_logs
     LOBBY_NO_HISTORY = '{} there is no extended activity to display!'
+    LOBBY_PING = "A player who matches one of your requested skill levels has joined the {} lobby!\n" \
+                 "You will not be pinged again for {} minutes if another matching player joins the lobby."
 
     INVITE_WRONG_USER = "This invite isn\'t for you!"
 

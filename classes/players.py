@@ -114,6 +114,20 @@ class Player:
         return [p.active for p in cls.get_all_players().values() if p.active]
 
     @classmethod
+    def get_players_to_ping(cls, levels) -> set:
+        could_ping = set()
+        for p in cls.get_all_players().values():
+            if p.lobby_ping_pref == 0:
+                continue
+            matches = [level for level in levels if level in p.req_skill_levels]
+            # check if requested levels in matches
+            if matches:
+                # add to list if not pinged, or last ping > ping freq ago
+                if not p.lobby_last_ping or p.lobby_last_ping + p.lobby_ping_freq * 60 < tools.timestamp_now():
+                    could_ping.add(p)
+        return could_ping
+
+    @classmethod
     def map_chars_to_players(cls):
         dct = {}
         for i in cls._name_checking:
@@ -141,6 +155,12 @@ class Player:
         self.skill_level: SkillLevel = SkillLevel.HARMLESS
         self.pref_factions: list[str] = []
         self.req_skill_levels = None
+
+        # Integers to represent ping preferences. {0: No Ping, 1: Ping if Online, 2: Ping Always}
+        self.lobby_ping_pref = 0
+        self.lobby_ping_freq = 30  # Minutes to wait in between pings
+        self.lobby_last_ping = 0  # Timestamp of last time the player was pinged
+
         Player._all_players[p_id] = self  # adding to all players dictionary
 
     @classmethod
@@ -166,6 +186,10 @@ class Player:
             obj.pref_factions = data['pref_factions']
         if 'req_skill_levels' in data:
             obj.req_skill_levels = [SkillLevel[level] for level in data['req_skill_levels']]
+        if 'lobby_ping_pref' in data:
+            obj.lobby_ping_pref = data['lobby_ping_pref']
+        if 'lobby_ping_freq' in data:
+            obj.lobby_ping_freq = data['lobby_ping_freq']
 
     def get_data(self):  # get data for database push
         data = {'_id': self.id, 'name': self.__name,
@@ -182,10 +206,15 @@ class Player:
             data['pref_factions'] = self.pref_factions
         if self.req_skill_levels:
             data['req_skill_levels'] = self.req_skill_levels
+        if self.lobby_ping_pref:
+            data['lobby_ping_pref'] = self.lobby_ping_pref
+        if self.lobby_ping_freq:
+            data['lobby_ping_freq'] = self.lobby_ping_freq
+
         return data
 
     async def db_update(self, arg):
-        '''Update a specific uers database element.  Options are name, register, account, timeout,
+        '''Update a specific users database element.  Options are name, register, account, timeout,
          skill_level, req_skill_levels, pref_factions, pref_factions, hidden: '''
         match arg:
             case 'name':
@@ -209,6 +238,10 @@ class Player:
                 await db.async_db_call(db.set_field, 'users', self.id, {'pref_factions': self.pref_factions})
             case 'hidden':
                 await db.async_db_call(db.set_field, 'users', self.id, {'hidden': self.__hidden})
+            case 'lobby_ping_pref':
+                await db.async_db_call(db.set_field, 'users', self.id, {'lobby_ping_pref': self.lobby_ping_pref})
+            case 'lobby_ping_freq':
+                await db.async_db_call(db.set_field, 'users', self.id, {'lobby_ping_freq': self.lobby_ping_freq})
             case _:
                 raise KeyError(f"No field {arg} found")
 
