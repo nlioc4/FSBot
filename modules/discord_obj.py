@@ -99,9 +99,9 @@ async def role_update(member: discord.Member = None, player: classes.Player = No
     roles_to_add = []
     roles_to_remove = []
 
-    if p and roles['view_channels'] not in current_roles:
+    if p and not p.hidden and roles['view_channels'] not in current_roles:
         roles_to_add.append(roles['view_channels'])
-    elif not p and roles['view_channels'] in current_roles:
+    elif not p or p.hidden and roles['view_channels'] in current_roles:
         roles_to_remove.append(roles['view_channels'])
 
     if p:
