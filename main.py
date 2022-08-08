@@ -46,7 +46,7 @@ log = logging.getLogger('fs_bot')
 log.setLevel(numeric_level)
 log_formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s')
 # Log to file
-log_path = f'{pathlib.Path(__file__).parent.absolute()}/../FSBotData/FSBotlogs/fs_bot.log'
+log_path = f'{pathlib.Path(__file__).parent.absolute()}/../FSBotData/Logs/fs_bot.log'
 if not os.path.exists(log_path.rstrip('fs_bot.log')):
     os.makedirs(log_path.rstrip('fs_bot.log'))
 
@@ -164,7 +164,7 @@ async def on_application_command_error(context, exception):
         await display.AllStrings.CHECK_FAILURE.send_priv(context)
     else:
         try:
-            await display.AllStrings.GENERAL_ERROR.send_priv(context, exception)
+            await display.AllStrings.LOG_GENERAL_ERROR.send_priv(context, exception)
         except discord.errors.InteractionResponded or discord.errors.NotFound:
             pass
         finally:

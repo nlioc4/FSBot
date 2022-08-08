@@ -12,9 +12,9 @@ from datetime import datetime as dt, time, timezone
 import modules.config as cfg
 import modules.accounts_handler as accounts
 import modules.discord_obj as d_obj
-import modules.census as census
-import modules.loader as loader
-import modules.tools as tools
+from modules import census
+from modules import tools
+from modules import loader
 from classes import Player, ActivePlayer
 from classes.match import BaseMatch
 from display import AllStrings as disp, views, embeds
@@ -160,8 +160,8 @@ class AdminCog(commands.Cog):
             await disp.MATCH_NOT_FOUND.send_priv(ctx, match_id)
             return
 
-        await match.end_match()
         await disp.MATCH_END.send_priv(ctx, match.id_str)
+        await match.end_match()
 
     #########################################################
 
@@ -304,7 +304,6 @@ class AdminCog(commands.Cog):
             await d_obj.log(f"{d_obj.colin.mention} Census Watchtower has failed")
 
     census_watchtower.add_exception_type(auraxium.errors.ResponseError)
-
 
     @tasks.loop(time=time(hour=11, minute=0, second=0))
     async def account_sheet_reload(self):

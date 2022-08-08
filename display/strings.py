@@ -22,16 +22,19 @@ class AllStrings(Enum):
     STOP_SPAM = "{}: Please stop spamming!"
     ALL_LOCKED = "FSBot is currently disabled, please try again later!"
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
-    GENERAL_ERROR = "An error has occurred, {}"
-    LOG_ERROR = "{} has run into an error, {} {}."
-    LOG_GENERAL = "Log: {}"
+
+
     CHECK_FAILURE = "You have failed a check to run this command!"
     UNASSIGNED_ONLINE = "{} Unassigned Login", account_online_check
     LOADER_TOGGLE = "FSBot {}ed"
     HELLO = "Hello there {}"
     MANUAL_CENSUS = "Manual Census Check {}"
+    SUGGESTION_ACCEPTED = "{} your suggestion has been submitted to the administration team. Thanks!"
 
     LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], name: [{}]"
+    LOG_ERROR = "{} has run into an error, {} {}."
+    LOG_GENERAL = "Log: {}"
+    LOG_GENERAL_ERROR = "An error has occurred, {}"
 
     DM_ONLY = "This command can only be used in DM's!   "
     DM_INVITED = "{} you have been invited to a match by {}! Accept or decline below!"

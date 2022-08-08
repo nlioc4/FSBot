@@ -40,7 +40,7 @@ class FSBotView(discord.ui.View):
     async def on_error(self, error: Exception, item: discord.ui.Item, interaction: discord.Interaction) -> None:
 
         try:
-            await disp.GENERAL_ERROR.send_priv(interaction, error)
+            await disp.LOG_GENERAL_ERROR.send_priv(interaction, error)
         except discord.errors.InteractionResponded or discord.errors.NotFound:
             pass
         finally:
@@ -120,10 +120,11 @@ class MatchInfoView(FSBotView):
         """For Inheritance"""
         pass
 
-    async def in_match_check(self, inter, p) -> bool:
-        if p in self.match.players:
+    async def in_match_check(self, inter, p: Player) -> bool:
+        if p.active in self.match.players:
             return True
         await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
+        return False
 
     @discord.ui.button(label="Leave Match", style=discord.ButtonStyle.red)
     async def leave_button(self, button: discord.Button, inter: discord.Interaction):
