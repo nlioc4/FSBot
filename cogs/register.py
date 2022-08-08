@@ -68,7 +68,7 @@ class SkillLevelDropdown(discord.ui.Select):
     def __init__(self):
         options = []
         for level in list(SkillLevel):
-            options.append(discord.SelectOption(label=str(level), value=level.name, description=level.description))
+            options.append(discord.SelectOption(label=f'{level.rank}:{str(level)}', value=level.name, description=level.description))
 
         super().__init__(placeholder="Choose your own skill level...",
                          min_values=1,
@@ -90,7 +90,7 @@ class RequestedSkillLevelDropdown(discord.ui.Select):
     def __init__(self):
         options = [discord.SelectOption(label='Any', description='No preference on opponent skill level')]
         for level in list(SkillLevel):
-            options.append(discord.SelectOption(label=str(level), value=level.name, description=level.description))
+            options.append(discord.SelectOption(label=f'{level.rank}:{str(level)}', value=level.name, description=level.description))
 
         super().__init__(placeholder="Choose the level(s) you'd like to duel...",
                          min_values=1,
