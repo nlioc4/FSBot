@@ -325,9 +325,9 @@ class AdminCog(commands.Cog):
 
             #  account terminated but user still online 10 minutes later
             elif acc.online_id and acc.is_terminated:
-                if acc.last_usage['end_time'] < tools.timestamp_now() - 10 * 60:
+                if acc.last_usage['end_time'] < tools.timestamp_now() - 5 * 60:
                     await d_obj.d_log(f'User: {acc.a_player.mention} has not logged out of their Jaeger account'
-                                      f' 10 minutes after their session ended')
+                                      f' 5 minutes after their session ended')
 
         # compare to cache to see if login is new. Ping only if login is new.
         new_online = unassigned_online - self.online_cache

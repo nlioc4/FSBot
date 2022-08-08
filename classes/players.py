@@ -133,8 +133,8 @@ class Player:
         self.__is_registered = False
         self.__hidden = False
         self.__timeout = 0
-        self.__lobbied_timestamp = 0
-        self.__first_lobbied_timestamp = 0
+        self.__lobby_timeout_stamp = 0
+        self.__lobbied_stamp = 0
         self.__active = None
         self.__match = None
         self.__lobby = None
@@ -299,28 +299,28 @@ class Player:
             return False
 
     @property
-    def lobbied_timestamp(self):
-        return self.__lobbied_timestamp
+    def lobby_timeout_stamp(self):
+        return self.__lobby_timeout_stamp
 
     @property
-    def first_lobbied_timestamp(self):
-        return self.__first_lobbied_timestamp
+    def lobbied_stamp(self):
+        return self.__lobbied_stamp
 
     @property
     def lobby(self):
         return self.__lobby
 
-    def on_lobby_add(self, lobby):
-        self.__lobbied_timestamp = tools.timestamp_now()
-        self.__first_lobbied_timestamp = tools.timestamp_now()
+    def on_lobby_add(self, lobby, timeout_at):
+        self.__lobby_timeout_stamp = timeout_at
+        self.__lobbied_stamp = tools.timestamp_now()
         self.__lobby = lobby
 
-    def reset_lobby_timestamp(self):
-        self.__lobbied_timestamp = tools.timestamp_now()
+    def set_lobby_timeout(self, timeout_at):
+        self.__lobby_timeout_stamp = timeout_at
 
     def on_lobby_leave(self):
-        self.__lobbied_timestamp = 0
-        self.__first_lobbied_timestamp = 0
+        self.__lobby_timeout_stamp = 0
+        self.__lobbied_stamp = 0
         self.__lobby = None
 
     def set_account(self, account: Account | None):

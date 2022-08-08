@@ -5,6 +5,7 @@ Cog built to handle interaction with the duel lobby.
 # External Imports
 import asyncio
 import discord
+from discord import Status
 from discord.ext import commands, tasks
 from logging import getLogger
 
@@ -14,6 +15,7 @@ import modules.discord_obj as d_obj
 from classes.lobby import Lobby
 from classes.players import Player
 from display import AllStrings as disp
+from modules import tools
 
 log = getLogger('fs_bot')
 
@@ -47,6 +49,17 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
         if Lobby.all_lobbies.get("casual"):
             return
         casual_lobby = await Lobby.create_lobby("casual", d_obj.channels['dashboard'])
+
+    @commands.Cog.listener('on_presence_update')
+    async def lobby_timeout_updater(self, before, after):
+        #  Return if not player
+        p = Player.get(p_id=after.id)
+        if not p:
+            return
+        #  Return if status hasn't changed, or p not in lobby
+        if before.status == after.status or not p.lobby:
+            return
+        p.lobby.lobby_timeout_reset(p)
 
     @commands.user_command(name="Invite To Match")
     async def user_match_invite(self, ctx: discord.ApplicationContext, user: discord.User):

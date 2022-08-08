@@ -64,7 +64,6 @@ async def init(service_account_path: str):
         elif a_id in _busy_accounts:
             _busy_accounts[a_id].update(a_username, a_password)
 
-
         else:
             # account has yet to be initialised
             unique_usages_raw = sheet_imported[i * Y_SKIP + Y_OFFSET:i * Y_SKIP + Y_OFFSET + 3, USAGE_OFFSET:]
@@ -74,7 +73,6 @@ async def init(service_account_path: str):
                     pass
                 else:
                     a_unique_usages_id.append(int(unique_usages_raw[2][use]))
-                # check if account is marked "used"
             a_acc = classes.Account(a_id, a_username, a_password, a_in_game, a_unique_usages_id)
             _available_accounts[a_id] = a_acc
 

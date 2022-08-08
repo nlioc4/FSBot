@@ -211,7 +211,7 @@ def duel_dashboard(lobby) -> Embed:
             preferred_facs = ''.join([cfg.emojis[fac] for fac in p.pref_factions]) if p.pref_factions else 'Any'
             req_skill_levels = ' '.join([str(level.rank) for level in p.req_skill_levels]) \
                 if p.req_skill_levels else 'Any'
-            f_lobbied_stamp = format_stamp(p.first_lobbied_timestamp)
+            f_lobbied_stamp = format_stamp(p.lobbied_stamp)
             string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}][{req_skill_levels}][{f_lobbied_stamp}]\n '
             players_string += timeout_warn + string
 
