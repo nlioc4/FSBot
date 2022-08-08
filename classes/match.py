@@ -34,7 +34,7 @@ class BaseMatch:
     _active_matches = dict()
     _recent_matches = dict()
     MAX_PLAYERS = 10
-    TYPE = "casual"
+    TYPE = "Casual"
 
     def __init__(self, owner: Player, player: Player):
         # Vars
@@ -58,10 +58,10 @@ class BaseMatch:
 
         #  Containers
         self.__players: list[ActivePlayer] = [owner.on_playing(self),
-                                              player.on_playing(self)]  # player list, add owners active_player
-        self.__previous_players: list[Player] = list()
+                                              player.on_playing(self)]  # active player list, add owners active_player
+        self.__previous_players: list[Player] = list()  # list of Player objects, who have left the match
         self.__invited = list()
-        self.match_log = list()  # logs recorded as list of tuples, (timestamp, message)
+        self.match_log = list()  # logs recorded as list of tuples, (timestamp, message, Public)
 
         BaseMatch._active_matches[self.id] = self
 
@@ -98,7 +98,7 @@ class BaseMatch:
             self.text_channel = await d_obj.categories['user'].create_text_channel(
                 name=f'{self.TYPE}┊{self.id_str}┊',
                 overwrites=self._get_overwrites(),
-                topic=f'Match channel for {self.TYPE} Match [{self.id_str}], created by {self.owner.name}'
+                topic=f'Match channel for {self.TYPE.lower()} Match [{self.id_str}], created by {self.owner.name}'
             )
         except (discord.HTTPException, discord.Forbidden) as e:
             await d_obj.d_log(source=self.owner.name,
@@ -129,7 +129,7 @@ class BaseMatch:
         if player in self.__invited:
             self.__invited.remove(player)
         self.__players.append(player.on_playing(self))
-        await self.channel_update(player, True)
+        await self._channel_update(player, True)
         await disp.MATCH_JOIN.send(self.text_channel, player.mention)
         self.log(f'{player.name} joined the match')
         await self.update()
@@ -141,15 +141,15 @@ class BaseMatch:
             return
         self.__players.remove(player)
         self.__previous_players.append(player.on_quit())
-        await self.channel_update(player, False)
+        await self._channel_update(player, None)
         self.log(f'{player.name} left the match')
         await disp.MATCH_LEAVE.send(self.text_channel, player.mention)
         if player.account:
             await accounts.terminate(player=player.player)
             player.player.set_account(None)
             await self.update()
-        if not self.__players and not self.is_ended:  # if no players left, and match not already ended
-            await self.end_match()
+        if not self.__players and not self.is_ended:  # if no players left, and match not already ended.
+            await self.end_match()                    # Should only be called if match didn't end when owner left
 
     async def end_match(self):
         self.end_stamp = tools.timestamp_now()
@@ -169,6 +169,7 @@ class BaseMatch:
             keys = list(BaseMatch._recent_matches.keys())
             for i in range(20):
                 del BaseMatch._recent_matches[keys[i]]
+        #  Delete text_channel if it is not already deleted
         try:
             await self.text_channel.delete(reason='Match Ended')
         except discord.NotFound:
@@ -182,7 +183,7 @@ class BaseMatch:
                 'match_log': self.match_log}
         return data
 
-    async def channel_update(self, player, action: bool):
+    async def _channel_update(self, player, action: bool | None):
         player_member = d_obj.guild.get_member(player.id)
         await self.text_channel.set_permissions(player_member, view_channel=action)
 

@@ -190,6 +190,8 @@ def duel_dashboard(lobby) -> Embed:
     string = ''
     for i in skill_level_shorthands:
         string += f'[{i}] '
+        if i == 4:
+            string += '\n'
     embed.add_field(
         name='Skill Level Ranks',
         value=string,
