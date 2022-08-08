@@ -190,6 +190,8 @@ def duel_dashboard(lobby) -> Embed:
     string = ''
     for i in skill_level_shorthands:
         string += f'[{i}] '
+        if i == 4:
+            string += '\n'
     embed.add_field(
         name='Skill Level Ranks',
         value=string,
@@ -228,14 +230,13 @@ def duel_dashboard(lobby) -> Embed:
             inline=False
         )
 
-    if lobby.logs_recent:
-        log_str = ''
-        for log in lobby.logs_recent:
-            time_formatted = format_stamp(log[0], 'T')
-            log_str += f'[{time_formatted}]{log[1]}\n'
-        embed.add_field(name="Recent Activity",
-                        value=log_str,
-                        inline=False)
+    log_str = '' if lobby.logs_recent else 'None in the last hour...'
+    for log in lobby.logs_recent:
+        time_formatted = format_stamp(log[0], 'T')
+        log_str += f'[{time_formatted}]{log[1]}\n'
+    embed.add_field(name="Recent Activity",
+                    value=log_str,
+                    inline=False)
     return fs_author(embed)
 
 
@@ -293,8 +294,8 @@ def match_info(match) -> Embed:
                       f"Match Start Time: {format_stamp(match.start_stamp)}\n"
                       )
 
-    if match.should_warn:
-        match_info_str += f"Match will timeout in {format_stamp(match.timeout_at, 'R')}"
+    match_info_str += f"Match will timeout in {format_stamp(match.timeout_at, 'R')}\n"
+    match_info_str += f"Match timeout will be reset on login to Jaeger\n"
 
     if match.end_stamp:
         match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}'

@@ -34,7 +34,7 @@ class BaseMatch:
     _active_matches = dict()
     _recent_matches = dict()
     MAX_PLAYERS = 10
-    TYPE = "casual"
+    TYPE = "Casual"
 
     def __init__(self, owner: Player, player: Player):
         # Vars
@@ -45,6 +45,8 @@ class BaseMatch:
         self.start_stamp = tools.timestamp_now()
         self.end_stamp = None
         self.timeout_stamp = None
+        self.timeout_warned = False
+        self.was_timeout = False
         self.status = MatchState.LOGGING_IN
         self.__ended = False
 
@@ -58,10 +60,10 @@ class BaseMatch:
 
         #  Containers
         self.__players: list[ActivePlayer] = [owner.on_playing(self),
-                                              player.on_playing(self)]  # player list, add owners active_player
-        self.__previous_players: list[Player] = list()
+                                              player.on_playing(self)]  # active player list, add owners active_player
+        self.__previous_players: list[Player] = list()  # list of Player objects, who have left the match
         self.__invited = list()
-        self.match_log = list()  # logs recorded as list of tuples, (timestamp, message)
+        self.match_log = list()  # logs recorded as list of tuples, (timestamp, message, Public)
 
         BaseMatch._active_matches[self.id] = self
 
@@ -98,7 +100,7 @@ class BaseMatch:
             self.text_channel = await d_obj.categories['user'].create_text_channel(
                 name=f'{self.TYPE}┊{self.id_str}┊',
                 overwrites=self._get_overwrites(),
-                topic=f'Match channel for {self.TYPE} Match [{self.id_str}], created by {self.owner.name}'
+                topic=f'Match channel for {self.TYPE.lower()} Match [{self.id_str}], created by {self.owner.name}'
             )
         except (discord.HTTPException, discord.Forbidden) as e:
             await d_obj.d_log(source=self.owner.name,
@@ -114,7 +116,7 @@ class BaseMatch:
             d_obj.roles['admin']: discord.PermissionOverwrite(view_channel=True),
             d_obj.roles['mod']: discord.PermissionOverwrite(view_channel=True),
             d_obj.roles['bot']: discord.PermissionOverwrite(view_channel=True),
-                    }
+        }
         overwrites.update({d_obj.guild.get_member(p.id): discord.PermissionOverwrite(view_channel=True)
                            for p in self.__players})
         return overwrites
@@ -129,7 +131,7 @@ class BaseMatch:
         if player in self.__invited:
             self.__invited.remove(player)
         self.__players.append(player.on_playing(self))
-        await self.channel_update(player, True)
+        await self._channel_update(player, True)
         await disp.MATCH_JOIN.send(self.text_channel, player.mention)
         self.log(f'{player.name} joined the match')
         await self.update()
@@ -141,17 +143,19 @@ class BaseMatch:
             return
         self.__players.remove(player)
         self.__previous_players.append(player.on_quit())
-        await self.channel_update(player, False)
+        await self.update()
+        await self._channel_update(player, None)
         self.log(f'{player.name} left the match')
         await disp.MATCH_LEAVE.send(self.text_channel, player.mention)
         if player.account:
             await accounts.terminate(player=player.player)
             player.player.set_account(None)
-            await self.update()
-        if not self.__players and not self.is_ended:  # if no players left, and match not already ended
-            await self.end_match()
+        if not self.__players and not self.is_ended:  # if no players left, and match not already ended.
+            await self.end_match()  # Should only be called if match didn't end when owner left
 
     async def end_match(self):
+        if self.is_ended:
+            return
         self.end_stamp = tools.timestamp_now()
         self.status = MatchState.ENDED
         self.log('Match Ended')
@@ -160,7 +164,7 @@ class BaseMatch:
         self.__ended = True
         await db.async_db_call(db.set_element, 'matches', self.id, self.get_data())
         with self.text_channel.typing():
-            await asyncio.sleep(2)
+            await asyncio.sleep(5)
             for player in self.__players:
                 await self.leave_match(player)
         del BaseMatch._active_matches[self.id]
@@ -169,6 +173,7 @@ class BaseMatch:
             keys = list(BaseMatch._recent_matches.keys())
             for i in range(20):
                 del BaseMatch._recent_matches[keys[i]]
+        #  Delete text_channel if it is not already deleted
         try:
             await self.text_channel.delete(reason='Match Ended')
         except discord.NotFound:
@@ -182,7 +187,7 @@ class BaseMatch:
                 'match_log': self.match_log}
         return data
 
-    async def channel_update(self, player, action: bool):
+    async def _channel_update(self, player, action: bool | None):
         player_member = d_obj.guild.get_member(player.id)
         await self.text_channel.set_permissions(player_member, view_channel=action)
 
@@ -221,24 +226,35 @@ class BaseMatch:
         await self.end_match()
 
     async def update_timeout(self):
-        # check timeout, reset if new match or at least 2 players and online_players
-        if len(self.players) >= 2 and self.online_players or self.start_stamp < tools.timestamp_now() - MATCH_WARN_TIME:
+        # check timeout, reset if least 2 players and online_players
+        if self.online_players and len(self.players) >= 2:
+            print(self.online_players)
+            print("reset timeout stamp")
             self.timeout_stamp = None
         else:
             if not self.timeout_stamp:  # set timeout stamp
+                print("Set timeout Stamp")
                 self.timeout_stamp = tools.timestamp_now()
-            elif self.should_timeout:  # Timeout Match
+                self.timeout_warned = False
+            elif self.should_timeout and not self.was_timeout:  # Timeout Match
+                self.was_timeout = True
                 self.log("Match timed out for inactivity...")
                 await disp.MATCH_TIMEOUT.send(self.text_channel, self.all_mentions)
                 await self._on_timeout()
-            elif self.should_warn:  # Warn of timeout
-                self.log("Match will timeout in " + tools.format_time_from_stamp(self.timeout_at, 'R'))
-                await disp.MATCH_TIMEOUT_WARN.send(self.text_channel, self.all_mentions, delete_after=30)
+            elif self.should_warn and not self.timeout_warned:  # Warn of timeout
+                self.timeout_warned = True
+                await disp.MATCH_TIMEOUT_WARN.send(self.text_channel, self.all_mentions,
+                                                   tools.format_time_from_stamp(self.timeout_at, 'R'),
+                                                   delete_after=30)
 
     async def update(self, check_timeout=True, user=None, char_name=None):
         """Update the match object.  Check_timeout is used to specify whether the timeout should be checked, default True.
         Login can be used to log a login action, pass a player.
         Otherwise, updates timeout, match status, and the embed if required"""
+
+        # Do nothing if match is ended
+        if self.is_ended:
+            return
 
         if check_timeout:
             await self.update_timeout()
@@ -300,7 +316,7 @@ class BaseMatch:
 
     @property
     def all_mentions(self):
-        return [p.mention for p in self.__players if p.online_id]
+        return ''.join([p.mention for p in self.__players])
 
     @property
     def timeout_at(self):
@@ -329,12 +345,10 @@ class BaseMatch:
             self.__invited.remove(player)
 
 
-
 class RankedMatch(BaseMatch):
-
     MATCH_LENGTH = 7
     MAX_PLAYERS = 2
-    TYPE = 'ranked'
+    TYPE = 'Ranked'
 
     class RankedMatchView(views.MatchInfoView):
 
@@ -407,30 +421,14 @@ class RankedMatch(BaseMatch):
 
     async def _progress_round(self):
 
-
         self._check_round_winner()
         self.__round_counter += 1
         if self.__round_counter >= self.MATCH_LENGTH:
             await self.end_match()  ## todo, subclass end_match or add more functionality to successful match end
             return
 
-
         #  Reset score variables
         self.__round_wrong_scores_counter = 0
         self.__round_winner = None
         self.__p1_submitted_score = None
         self.__p2_submitted_score = None
-
-
-
-
-
-
-
-
-
-
-
-
-
-

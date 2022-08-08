@@ -208,12 +208,18 @@ async def online_status_rest(chars_players_map):
         else:
             online_ids.append(int(a_return['character_id']))
 
+    #  Gather login coroutines for online chars
     login_coros = []
     for char_id in online_ids:
         login_coros.append(_login(char_id, acc_char_ids, chars_players_map))
+    #  no_logout marks other chars of currently logged in accounts/users, so they are not logged out
     no_logout = await asyncio.gather(*login_coros)
-    offline_ids = set(offline_ids) - set(no_logout)
 
+    #  convert list of lists to list of all items
+    no_logout = [item for sublist in no_logout for item in sublist]
+
+    # gather offline chars, except those owned by accs/players with another char online
+    offline_ids = set(offline_ids) - set(no_logout)
     logout_coros = []
     for char_id in offline_ids:
         logout_coros.append(_logout(char_id, acc_char_ids, chars_players_map))

@@ -85,6 +85,9 @@ class InviteView(FSBotView):
         self.disable_all_items()
         self.stop()
 
+        owner_mem = d_obj.guild.get_member(self.owner.id)
+        await disp.MATCH_DECLINE_INFO.send(owner_mem, p.mention)
+
         await inter.response.edit_message(view=self)
         await disp.MATCH_DECLINE.send(inter.message)
 
@@ -92,6 +95,8 @@ class InviteView(FSBotView):
         self.disable_all_items()
         await self.msg.edit(view=self)
         await disp.DM_INVITE_EXPIRED.send(self.msg)
+        owner_mem = d_obj.guild.get_member(self.owner.id)
+        await disp.DM_INVITE_EXPIRED_INFO.send(owner_mem, self.player.mention)
         self.lobby.decline_invite(self.owner, self.player)
 
 
@@ -138,8 +143,9 @@ class MatchInfoView(FSBotView):
     @discord.ui.button(label="Reset Timeout", style=discord.ButtonStyle.green)
     async def reset_timeout_button(self, button: discord.Button, inter: discord.Interaction):
         """Resets the match from timeout"""
-        self.match.timeout_at = tools.timestamp_now()
+        self.match.timeout_stamp = None
         await disp.MATCH_TIMEOUT_RESET.send_temp(self.match.text_channel, inter.user.mention)
+        self.match.log("Match Timeout Reset")
         await self.match.update_embed()
 
     @discord.ui.button(label="Request Account", style=discord.ButtonStyle.blurple)
