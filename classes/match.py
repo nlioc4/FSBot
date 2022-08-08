@@ -306,7 +306,7 @@ class BaseMatch:
     def timeout_at(self):
         if not self.timeout_stamp:
             return False
-        return self.timeout_stamp + MATCH_TIMEOUT_TIME if self.timeout_stamp else False
+        return self.timeout_stamp + MATCH_TIMEOUT_TIME
 
     @property
     def should_warn(self):
@@ -347,7 +347,7 @@ class RankedMatch(BaseMatch):
             p = Player.get(inter.user.id)
             self.match.submit_score(p, 1)
 
-            if self.match._check_scores:
+            if self.match._check_scores_submitted:
                 if self.match._check_scores_equal():
                     button.disabled = True
 
@@ -358,7 +358,7 @@ class RankedMatch(BaseMatch):
             pass
 
         @discord.ui.button(label="Dispute", style=discord.ButtonStyle.red)
-        async def round_lost_button(self, button: discord.Button, inter: discord.Interaction):
+        async def dispute_round_button(self, button: discord.Button, inter: discord.Interaction):
             pass
 
     def __init__(self, owner: Player, invited: Player):
@@ -366,8 +366,8 @@ class RankedMatch(BaseMatch):
         self.__round_counter = 0
         self.__round_wrong_scores_counter = 0
         self.__round_winner = None
-        self.__player1 = owner
-        self.__player2 = invited
+        self.__player1 = owner.on_playing(self)
+        self.__player2 = invited.on_playing(self)
         self.__player1_stats = PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
         self.__player2_stats = PlayerStats.get_from_db(p_id=invited.id, p_name=invited.name)
         self.__p1_submitted_score = None
@@ -377,12 +377,12 @@ class RankedMatch(BaseMatch):
     def setup(self):
         pass
 
-    def _check_scores(self):
+    def _check_scores_submitted(self):
         if self.__p1_submitted_score and self.__p2_submitted_score:
             return True
 
     def _check_scores_equal(self):
-        if not self._check_scores():
+        if not self._check_scores_submitted():
             raise tools.UnexpectedError("Both scores haven't been submitted yet!")
         if self.__p1_submitted_score == -self.__p2_submitted_score:
             return True
@@ -406,13 +406,20 @@ class RankedMatch(BaseMatch):
             self.__p2_submitted_score = score
 
     async def _progress_round(self):
-        if self.__round_counter >= self.MATCH_LENGTH:
-            await self.end_match()  ## todo, subclass end_match or add more functionality to successful match end
+
 
         self._check_round_winner()
         self.__round_counter += 1
+        if self.__round_counter >= self.MATCH_LENGTH:
+            await self.end_match()  ## todo, subclass end_match or add more functionality to successful match end
+            return
 
+
+        #  Reset score variables
         self.__round_wrong_scores_counter = 0
+        self.__round_winner = None
+        self.__p1_submitted_score = None
+        self.__p2_submitted_score = None
 
 
 
