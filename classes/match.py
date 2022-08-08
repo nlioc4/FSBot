@@ -240,6 +240,7 @@ class BaseMatch:
                 await self._on_timeout()
             elif self.should_warn and not self.timeout_warned:  # Warn of timeout
                 self.timeout_warned = True
+                self.log("Unless the timeout is reset, the match will timeout soon...")
                 await disp.MATCH_TIMEOUT_WARN.send(self.text_channel, self.all_mentions,
                                                    tools.format_time_from_stamp(self.timeout_at, 'R'),
                                                    delete_after=30)
