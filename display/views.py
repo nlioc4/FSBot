@@ -173,3 +173,51 @@ class MatchInfoView(FSBotView):
 
             else:  # if no account found
                 await disp.ACCOUNT_NO_ACCOUNT.send_priv(inter)
+
+class RegisterPingsView(FSBotView):
+
+    def __init__(self):
+        super().__init__()
+
+    @discord.ui.button(label="Never Ping", style=discord.ButtonStyle.red)
+    async def pings_never_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        p = Player.get(inter.user.id)
+        p.ping_pref = 0
+        await p.db_update('lobby_ping_pref')
+        await disp.PREF_PINGS_NEVER.send_priv(inter)
+
+    @discord.ui.button(label="Ping if Online", style=discord.ButtonStyle.green)
+    async def pings_online_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        p = Player.get(inter.user.id)
+        p.ping_pref = 1
+        p.db_update('lobby_ping_pref')
+        await disp.PREF_PINGS_ONLINE.send_priv(inter)
+
+    @discord.ui.button(label="Always Ping", style=discord.ButtonStyle.blurple)
+    async def pings_always_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        p = Player.get(inter.user.id)
+        p.ping_pref = 2
+        await p.db_update('lobby_ping_pref')
+        await disp.PREF_PINGS_ALWAYS.send_priv(inter)
+
+    options = [
+        discord.SelectOption(label="Always", value='0', description="Always get pinged when the lobby is joined"),
+        discord.SelectOption(label="5 Minutes", value='5'),
+        discord.SelectOption(label="10 Minutes", value='10'),
+        discord.SelectOption(label="15 Minutes", value='15'),
+        discord.SelectOption(label="30 Minutes", value='30'),
+        discord.SelectOption(label="1 Hour", value='60'),
+        discord.SelectOption(label="2 Hours", value='120'),
+        discord.SelectOption(label="4 Hours", value='240')
+
+    ]
+
+    @discord.ui.select(placeholder="Input minimum ping frequency...", min_values=1, max_values=1, options=options)
+    async def ping_freq_select(self, select: discord.ui.Select, inter: discord.Interaction):
+        p = Player.get(inter.user.id)
+        p.lobby_ping_freq = int(select.values[0])
+        await p.db_update('lobby_ping_freq')
+        if p.lobby_ping_freq == 0:
+            await disp.PREF_PINGS_ALWAYS.send_priv(inter)
+        else:
+            await disp.PREF_PINGS_FREQ.send_priv(inter, p.lobby_ping_freq)

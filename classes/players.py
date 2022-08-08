@@ -115,10 +115,14 @@ class Player:
 
     @classmethod
     def get_players_to_ping(cls, levels) -> set:
+        # TODO remove prints
+        print("getplayerstoping")
         could_ping = set()
-        for p in cls.get_all_players().values():
+        for p in list(cls.get_all_players().values()):
             if p.lobby_ping_pref == 0:
+                print('ping_pref_o')
                 continue
+            print(f"after pingpref=0, {p}")
             matches = [level for level in levels if level in p.req_skill_levels]
             # check if requested levels in matches
             if matches:
@@ -289,8 +293,13 @@ class Player:
     def is_timeout(self):
         return self.__timeout > datetime.now().timestamp()
 
+    @property
     def hidden(self):
         return self.__hidden
+
+    @hidden.setter
+    def hidden(self, value):
+        self.__hidden = value
 
     @property
     def match(self):

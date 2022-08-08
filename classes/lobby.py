@@ -312,7 +312,7 @@ class Lobby:
         if player_memb.status in [discord.Status.online, discord.Status.do_not_disturb, discord.Status.streaming]:
             return 0
         else:
-            return tools.timestamp_now() + self.timeout_minutes * 60
+            return tools.timestamp_now() + (self.timeout_minutes * 60)
 
     async def update_timeouts(self):
         """Check all lobbied players for timeouts, send timeout messages"""
@@ -340,23 +340,29 @@ class Lobby:
                 self.__matches.remove(match)
 
     async def _update_pings(self):
+        ## TODO remove prints
         #  Make list of levels in the lobby
         levels_in_lobby = [p.skill_level for p in self.__lobbied_players]
+        print('levels', levels_in_lobby)
 
         # Collect set of all players requesting these skill levels, if they haven't already been pinged
         players_to_ping = Player.get_players_to_ping(levels_in_lobby)
+        print('init to ping', players_to_ping)
 
         # Check ping preferences and online status
         player_membs_dict = {d_obj.guild.get_member(to_ping.id): to_ping for to_ping in players_to_ping}
         to_remove = []
         for p_m in player_membs_dict:
-            if player_membs_dict[p_m].lobby_ping_pref == 1 and p_m.status != discord.Status.online:
+            if player_membs_dict[p_m].lobby:
+                to_remove.append(p_m)
+            elif player_membs_dict[p_m].lobby_ping_pref == 1 and p_m.status != discord.Status.online:
                 to_remove.append(p_m)
         for p_m in to_remove:
             player_membs_dict.pop(p_m)
-
+        print('after to ping', player_membs_dict)
         # build list of ping coroutines to execute
         ping_coros = []
+        print(ping_coros)
         for p_m in player_membs_dict:
             ping_coros.append(disp.LOBBY_PING.send(p_m, self.mention, player_membs_dict[p_m].lobby_ping_freq))
         await asyncio.gather(*ping_coros)
@@ -411,9 +417,9 @@ class Lobby:
          Returns True if player was in lobby"""
         if player in self.__lobbied_players:
             player.set_lobby_timeout(self._player_timeout_at(player))
-            self.lobby_log(f"{player.name} reset their lobby timeout.")
             if player in self.__warned_players:
                 self.__warned_players.remove(player)
+                self.lobby_log(f"{player.name} reset their lobby timeout.")
             return True
         return False
 
