@@ -221,7 +221,7 @@ def duel_dashboard(lobby) -> Embed:
         matches_str = ''
         for match in lobby.matches:
             matches_str += f"Match: {match.id_str} [Owner: {match.owner.mention}, " \
-                           f"Players: {', '.join([p.mention for p in match.players if p is not match.owner])}]\n"
+                           f"Players: {', '.join([p.mention for p in match.players if p is not match.owner.active])}]\n"
         embed.add_field(
             name='Active Matches',
             value=matches_str,
