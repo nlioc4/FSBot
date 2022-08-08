@@ -208,7 +208,7 @@ class Lobby:
 
     @property
     def logs_recent(self):
-        return [item for item in self.__logs if log[0] > tools.timestamp_now() - RECENT_LOG_TIMEOUT][-RECENT_LOG_LENGTH:]
+        return [item for item in self.__logs if item[0] > tools.timestamp_now() - RECENT_LOG_TIMEOUT][-RECENT_LOG_LENGTH:]
 
     @property
     def logs_longer(self):
