@@ -294,8 +294,8 @@ def match_info(match) -> Embed:
                       f"Match Start Time: {format_stamp(match.start_stamp)}\n"
                       )
 
-    if match.should_warn:
-        match_info_str += f"Match will timeout in {format_stamp(match.timeout_at, 'R')}"
+    match_info_str += f"Match will timeout in {format_stamp(match.timeout_at, 'R')}\n"
+    match_info_str += f"Match timeout will be reset on login to Jaeger\n"
 
     if match.end_stamp:
         match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}'

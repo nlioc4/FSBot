@@ -164,7 +164,7 @@ class BaseMatch:
         self.__ended = True
         await db.async_db_call(db.set_element, 'matches', self.id, self.get_data())
         with self.text_channel.typing():
-            await asyncio.sleep(2)
+            await asyncio.sleep(5)
             for player in self.__players:
                 await self.leave_match(player)
         del BaseMatch._active_matches[self.id]
