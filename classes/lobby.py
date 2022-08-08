@@ -111,11 +111,18 @@ class DashboardView(views.FSBotView):
     @discord.ui.button(label="Join Lobby", style=discord.ButtonStyle.green)
     async def join_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         player: Player = Player.get(inter.user.id)
+
+        #  Determine potential timeout
+        if inter.user.status in [discord.Status.online, discord.Status.do_not_disturb, discord.Status.streaming]:
+            timeout_at = 0
+        else:
+            timeout_at = tools.timestamp_now() + self.lobby.timeout_minutes * 60
+
         if not await d_obj.is_registered(inter, player):
             return
         elif player.match:
             await disp.LOBBY_ALREADY_MATCH.send_priv(inter, player.mention, player.match.text_channel.mention)
-        elif self.lobby.lobby_join(player):
+        elif self.lobby.lobby_join(player, timeout_at):
             self.enable_all_items()
             await self.lobby.update_dashboard()
             await disp.LOBBY_JOIN.send_temp(inter, player.mention)
@@ -208,7 +215,8 @@ class Lobby:
 
     @property
     def logs_recent(self):
-        return [item for item in self.__logs if item[0] > tools.timestamp_now() - RECENT_LOG_TIMEOUT][-RECENT_LOG_LENGTH:]
+        return [item for item in self.__logs if item[0] > tools.timestamp_now() - RECENT_LOG_TIMEOUT][
+               -RECENT_LOG_LENGTH:]
 
     @property
     def logs_longer(self):
@@ -238,9 +246,12 @@ class Lobby:
             return False
 
     def _new_embed(self):
+        """Create a new embed for the lobby"""
         return self.__embed_func(self)
 
     def view(self, new=False):
+        """Either return the current view, or create a new view from the set view_function
+        New param will force a new view, otherwise one will only be created if required"""
         if not new and self.__view:
             return self.__view.update()
         return self.__view_func(self)
@@ -298,17 +309,20 @@ class Lobby:
     async def update_timeouts(self):
         """Check all lobbied players for timeouts, send timeout messages"""
         for p in self.lobbied:
-            stamp_dt = dt.fromtimestamp(p.lobbied_timestamp)
-            if stamp_dt < (dt.now() - timedelta(minutes=self.timeout_minutes)):
+
+            # Timeout if current time greater than timeout stamp
+            if p.lobby_timeout_stamp < tools.timestamp_now():
                 self.lobby_timeout(p)
                 await disp.LOBBY_TIMEOUT.send(self.channel, p.mention, delete_after=30)
-            elif stamp_dt < (
-                    dt.now() - timedelta(minutes=self.timeout_minutes - 5)) and p not in self.__warned_players:
+
+            # Warn if current time greater than 5 minutes (300 s) before timeout stamp
+            elif p.lobby_timeout_stamp - 300 < tools.timestamp_now() and p not in self.__warned_players:
                 self.__warned_players.append(p)
                 self.lobby_log(f'{p.name} will soon be timed out of the lobby')
                 await disp.LOBBY_TIMEOUT_SOON.send(self.channel, p.mention, delete_after=30)
 
     def update_matches(self):
+        """Remvoe matches from match list if ended"""
         for match in self.__matches:
             if match.is_ended:
                 self.__matches.remove(match)
@@ -320,6 +334,7 @@ class Lobby:
         await self.update_dashboard()
 
     async def disable(self):
+        """Disable the Lobby"""
         if self.__disabled:
             return False
         self.__disabled = True
@@ -330,6 +345,7 @@ class Lobby:
         return True
 
     async def enable(self):
+        """Enable the lobby"""
         if not self.__disabled:
             return False
         self.__disabled = False
@@ -376,10 +392,12 @@ class Lobby:
         else:
             return False
 
-    def lobby_join(self, player):
-        """Adds to lobby list, executes player lobby join method, returns True if added"""
+    def lobby_join(self, player, timeout_at):
+        """Adds to lobby list, executes player lobby join method, returns True if added.
+        param timeout_at, timestamp to timeout player at
+        """
         if player not in self.__lobbied_players:
-            player.on_lobby_add(self)
+            player.on_lobby_add(self, timeout_at)
             self.__lobbied_players.append(player)
             self.lobby_log(f'{player.name} joined the lobby.')
             return True
@@ -434,8 +452,8 @@ class Lobby:
             await disp.MATCH_JOIN.send_temp(match.text_channel, f'{owner.mention}{player.mention}')
             if owner.id in self.__invites:
                 self.__invites[owner.id].remove(player)
-                for player in self.__invites[owner.id]:
-                    match.invite(player)
+                for other_player in self.__invites[owner.id]:
+                    match.invite(other_player)
                     del self.__invites[owner.id]
             self.lobby_leave(player, match)
             self.lobby_leave(owner, match)

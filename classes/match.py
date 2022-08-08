@@ -228,12 +228,9 @@ class BaseMatch:
     async def update_timeout(self):
         # check timeout, reset if least 2 players and online_players
         if self.online_players and len(self.players) >= 2:
-            print(self.online_players)
-            print("reset timeout stamp")
             self.timeout_stamp = None
         else:
             if not self.timeout_stamp:  # set timeout stamp
-                print("Set timeout Stamp")
                 self.timeout_stamp = tools.timestamp_now()
                 self.timeout_warned = False
             elif self.should_timeout and not self.was_timeout:  # Timeout Match
