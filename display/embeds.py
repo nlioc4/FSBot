@@ -228,14 +228,13 @@ def duel_dashboard(lobby) -> Embed:
             inline=False
         )
 
-    if lobby.logs_recent:
-        log_str = ''
-        for log in lobby.logs_recent:
-            time_formatted = format_stamp(log[0], 'T')
-            log_str += f'[{time_formatted}]{log[1]}\n'
-        embed.add_field(name="Recent Activity",
-                        value=log_str,
-                        inline=False)
+    log_str = '' if lobby.logs_recent else 'None in the last hour...'
+    for log in lobby.logs_recent:
+        time_formatted = format_stamp(log[0], 'T')
+        log_str += f'[{time_formatted}]{log[1]}\n'
+    embed.add_field(name="Recent Activity",
+                    value=log_str,
+                    inline=False)
     return fs_author(embed)
 
 
