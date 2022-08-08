@@ -23,7 +23,6 @@ class AllStrings(Enum):
     ALL_LOCKED = "FSBot is currently disabled, please try again later!"
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
 
-
     CHECK_FAILURE = "You have failed a check to run this command!"
     UNASSIGNED_ONLINE = "{} Unassigned Login", account_online_check
     LOADER_TOGGLE = "FSBot {}ed"
@@ -39,6 +38,7 @@ class AllStrings(Enum):
     DM_ONLY = "This command can only be used in DM's!   "
     DM_INVITED = "{} you have been invited to a match by {}! Accept or decline below!"
     DM_INVITE_EXPIRED = "This invite has expired!"
+    DM_INVITE_EXPIRED_INFO = "Your invite to {} has expired!"
     DM_INVITE_INVALID = "This invite is invalid!"
     DM_ALREADY = "You already have a Modmail thread started! Simple send a message to the bot to respond!"
     DM_RECEIVED = "Opened modmail thread, the mod team will get back to you as soon as possible!\n" \
@@ -91,6 +91,7 @@ class AllStrings(Enum):
     MATCH_INVITED = "{} You've been invited to a match by {}, accept or decline below", None
     MATCH_ACCEPT = "You have accepted the invite, join {}."
     MATCH_DECLINE = "You have decline the invite."
+    MATCH_DECLINE_INFO = "{} has declined your match invitation."
     MATCH_JOIN = "{} has joined the match"
     MATCH_JOIN_2 = "{} has joined match {}."
     MATCH_LEAVE = "{} has left the match."
@@ -127,7 +128,6 @@ class AllStrings(Enum):
     ACCOUNT_INFO = "", accountcheck
     ACCOUNT_VALIDATE_ERROR = "There was an error logging this usage.  Please try again, and if the " \
                              "issue persists please ask for help!"
-
 
     def __init__(self, string, embed=None):
         self.__string = string
