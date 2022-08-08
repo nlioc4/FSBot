@@ -495,8 +495,6 @@ class ActivePlayer:
     def online_name(self):
         return self.player.online_name
 
-
-
     @property
     def current_ig_id(self):
         return self.player.current_ig_id
