@@ -190,7 +190,7 @@ class RegisterPingsView(FSBotView):
     async def pings_online_button(self, button: discord.ui.Button, inter: discord.Interaction):
         p = Player.get(inter.user.id)
         p.ping_pref = 1
-        p.db_update('lobby_ping_pref')
+        await p.db_update('lobby_ping_pref')
         await disp.PREF_PINGS_ONLINE.send_priv(inter)
 
     @discord.ui.button(label="Always Ping", style=discord.ButtonStyle.blurple)
