@@ -318,6 +318,9 @@ class Lobby:
         """Check all lobbied players for timeouts, send timeout messages"""
         for p in self.lobbied:
 
+            # Update timeout stamps
+            self.player_timeout_update(p)
+
             # Timeout stamp not set
             if p.lobby_timeout_stamp == 0:
                 return
@@ -422,6 +425,19 @@ class Lobby:
                 self.lobby_log(f"{player.name} reset their lobby timeout.")
             return True
         return False
+
+    def player_timeout_update(self, p):
+        # If Player not in lobby, or new lobby stamp == old lobby stamp, do nothing
+        if p not in self.__lobbied_players or p.lobby_timeout_stamp == self._player_timeout_at(p):
+            return
+        # If old lobby stamp not 0 and new lobby stamp not 0, keep old lobby stamp.
+        # This covers cases where player is still offline during multiple resets.
+        if p.lobby_timeout_stamp != 0 and self._player_timeout_at(p) != 0:
+            return
+        # If all the above fails, reset timeout.  Will set to 0 if online, will set to new timeout if newly offline.
+        self.lobby_timeout_reset(p)
+
+
 
     def lobby_leave(self, player, match=None):
         """Removes from lobby list, executes player lobby leave method, returns True if removed"""
