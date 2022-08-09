@@ -114,20 +114,16 @@ class Player:
         return [p.active for p in cls.get_all_players().values() if p.active]
 
     @classmethod
-    def get_players_to_ping(cls, levels) -> set:
-        # TODO remove prints
-        print("getplayerstoping")
+    def get_players_to_ping(cls, lobby_levels) -> set:
         could_ping = set()
         for p in list(cls.get_all_players().values()):
+            #  if pref == never ping
             if p.lobby_ping_pref == 0:
-                print('ping_pref_o')
                 continue
-            print(f"after pingpref=0, {p}")
-            matches = [level for level in levels if level in p.req_skill_levels]
-            # check if requested levels in matches
-            if matches:
-                # add to list if not pinged, or last ping > ping freq ago
-                if not p.lobby_last_ping or p.lobby_last_ping + p.lobby_ping_freq * 60 < tools.timestamp_now():
+            # Continue check if not pinged, or last ping > ping freq ago
+            if not p.lobby_last_ping or p.lobby_last_ping + p.lobby_ping_freq * 60 < tools.timestamp_now():
+                # if no req skill levels or a matching level in the lobby levels
+                if not p.req_skill_levels or [level for level in lobby_levels if level in p.req_skill_levels]:
                     could_ping.add(p)
         return could_ping
 

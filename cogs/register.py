@@ -229,7 +229,13 @@ class RegisterView(views.FSBotView):
     @discord.ui.button(label="Lobby Pings", custom_id='register-pings',
                        style=discord.ButtonStyle.blurple)
     async def register_pings_button(self, button: discord.ui.Button, inter: discord.Interaction):
-        await disp.REG_LOBBY_PINGS.send_priv(inter, view=views.RegisterPingsView())
+        current_pref_str = "You have chosen to never receive a ping when someone joins the lobby!"
+        p = classes.Player.get(inter.user.id)
+        if pref := p.lobby_ping_pref != 0:
+            current_pref_str = f"Receive a ping when a matching player joins the lobby:" \
+                               f" **{'Always' if pref == 2 else 'Only if Online'}**, with at least " \
+                               f"**{p.lobby_ping_freq}** minutes between pings"
+        await disp.PREF_PINGS_CURRENT.send_priv(inter, current_pref_str, view=views.RegisterPingsView())
 
 
 class RegisterCog(discord.Cog, name='RegisterCog'):

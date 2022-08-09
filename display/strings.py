@@ -62,16 +62,12 @@ class AllStrings(Enum):
     REG_WRONG_FORMAT = "Incorrect Character Entry Format! Enter either 1 character for each faction separated by ',' " \
                        "or a space, or one character without a faction suffix and suffixes will be added for you."
     REG_INFO = "", register_info
-    REG_LOBBY_PINGS = "Choose your lobby ping preferences below...\n" \
-                      "You will only ever be pinged if the player joining the lobby matches your requested skill levels"
 
+    PREF_PINGS_CURRENT = "Your current ping Preferences are:\n{}\nYou will only ever be pinged if the player joining "\
+                         "the lobby matches your requested skill levels\nChoose your lobby ping preferences below..."
     PREF_PINGS_NEVER = "You have chosen to never receive a ping when someone joins the lobby!"
-    PREF_PINGS_ONLINE = "You have chosen to only receive a ping when someone joins the lobby if you have " \
-                        "your Discord status set to 🟢Online!"
-    PREF_PINGS_ALWAYS = "You have chosen to always receive a ping when someone joins the lobby!"
-    PREF_PINGS_FREQ = "You have chosen to only receive a ping at minimum every {} minutes!"
-
-
+    PREF_PINGS_UPDATE = "Your ping preferences are now:\nReceive a ping when a matching player joins the lobby:" \
+                        " **{}**, with at least **{}** minutes between pings"
 
     LOBBY_INVITED_SELF = "{} you can't invite yourself to a match!"
     LOBBY_INVITED = "{} invited {} to a match."
@@ -93,8 +89,7 @@ class AllStrings(Enum):
     LOBBY_DASHBOARD = ''
     LOBBY_LONGER_HISTORY = '{}', longer_lobby_logs
     LOBBY_NO_HISTORY = '{} there is no extended activity to display!'
-    LOBBY_PING = "A player who matches one of your requested skill levels has joined the {} lobby!\n" \
-                 "You will not be pinged again for {} minutes if another matching player joins the lobby."
+    LOBBY_PING = "A player who matches one of your requested skill levels [{}] has joined the {} lobby!"
 
     INVITE_WRONG_USER = "This invite isn\'t for you!"
 

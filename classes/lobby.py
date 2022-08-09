@@ -337,20 +337,19 @@ class Lobby:
                 await disp.LOBBY_TIMEOUT_SOON.send(self.channel, p.mention, delete_after=30)
 
     def update_matches(self):
-        """Remvoe matches from match list if ended"""
+        """Remove matches from match list if ended"""
         for match in self.__matches:
             if match.is_ended:
                 self.__matches.remove(match)
 
-    async def _update_pings(self):
-        ## TODO remove prints
+    async def _update_pings(self, player):
         #  Make list of levels in the lobby
         levels_in_lobby = [p.skill_level for p in self.__lobbied_players]
-        print('levels', levels_in_lobby)
 
         # Collect set of all players requesting these skill levels, if they haven't already been pinged
         players_to_ping = Player.get_players_to_ping(levels_in_lobby)
-        print('init to ping', players_to_ping)
+        if not players_to_ping:
+            return
 
         # Check ping preferences and online status
         player_membs_dict = {d_obj.guild.get_member(to_ping.id): to_ping for to_ping in players_to_ping}
@@ -362,12 +361,11 @@ class Lobby:
                 to_remove.append(p_m)
         for p_m in to_remove:
             player_membs_dict.pop(p_m)
-        print('after to ping', player_membs_dict)
         # build list of ping coroutines to execute
         ping_coros = []
-        print(ping_coros)
         for p_m in player_membs_dict:
-            ping_coros.append(disp.LOBBY_PING.send(p_m, self.mention, player_membs_dict[p_m].lobby_ping_freq))
+            ping_coros.append(disp.LOBBY_PING.send(p_m, player.mention, self.mention,
+                                                   player_membs_dict[p_m].lobby_ping_freq))
         await asyncio.gather(*ping_coros)
 
         # Mark Players as pinged
@@ -463,7 +461,7 @@ class Lobby:
             player.on_lobby_add(self, self._player_timeout_at(player))
             self.__lobbied_players.append(player)
             self.lobby_log(f'{player.name} joined the lobby.')
-            await self._update_pings()
+            await self._update_pings(player)
             return True
         else:
             return False

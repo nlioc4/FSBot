@@ -174,31 +174,43 @@ class MatchInfoView(FSBotView):
             else:  # if no account found
                 await disp.ACCOUNT_NO_ACCOUNT.send_priv(inter)
 
-class RegisterPingsView(FSBotView):
 
+class RegisterPingsView(FSBotView):
     def __init__(self):
         super().__init__()
+
+    @staticmethod
+    async def send_prefs(inter, p):
+        pref_str = ''
+        if p.lobby_ping_pref == 0:
+            await disp.PREF_PINGS_NEVER.edit(inter)
+            return
+        if p.lobby_ping_pref == 1:
+            pref_str = 'Only if Online'
+        if p.lobby_ping_pref == 2:
+            pref_str = 'Always'
+        await disp.PREF_PINGS_UPDATE.edit(inter, pref_str, p.lobby_ping_freq)
 
     @discord.ui.button(label="Never Ping", style=discord.ButtonStyle.red)
     async def pings_never_button(self, button: discord.ui.Button, inter: discord.Interaction):
         p = Player.get(inter.user.id)
-        p.ping_pref = 0
+        p.lobby_ping_pref = 0
         await p.db_update('lobby_ping_pref')
-        await disp.PREF_PINGS_NEVER.send_priv(inter)
+        await self.send_prefs(inter, p)
 
     @discord.ui.button(label="Ping if Online", style=discord.ButtonStyle.green)
     async def pings_online_button(self, button: discord.ui.Button, inter: discord.Interaction):
         p = Player.get(inter.user.id)
-        p.ping_pref = 1
+        p.lobby_ping_pref = 1
         await p.db_update('lobby_ping_pref')
-        await disp.PREF_PINGS_ONLINE.send_priv(inter)
+        await self.send_prefs(inter, p)
 
     @discord.ui.button(label="Always Ping", style=discord.ButtonStyle.blurple)
     async def pings_always_button(self, button: discord.ui.Button, inter: discord.Interaction):
         p = Player.get(inter.user.id)
-        p.ping_pref = 2
+        p.lobby_ping_pref = 2
         await p.db_update('lobby_ping_pref')
-        await disp.PREF_PINGS_ALWAYS.send_priv(inter)
+        await self.send_prefs(inter, p)
 
     options = [
         discord.SelectOption(label="Always", value='0', description="Always get pinged when the lobby is joined"),
@@ -217,7 +229,4 @@ class RegisterPingsView(FSBotView):
         p = Player.get(inter.user.id)
         p.lobby_ping_freq = int(select.values[0])
         await p.db_update('lobby_ping_freq')
-        if p.lobby_ping_freq == 0:
-            await disp.PREF_PINGS_ALWAYS.send_priv(inter)
-        else:
-            await disp.PREF_PINGS_FREQ.send_priv(inter, p.lobby_ping_freq)
+        await self.send_prefs(inter, p)
