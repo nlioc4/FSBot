@@ -154,7 +154,7 @@ async def _logout(char_id, acc_char_ids, player_char_ids):
 
 
 async def online_status_updater(chars_players_map_func):
-    """Responsible for updating active player and account objects with their currently
+    """Responsible for updating player and account objects with their currently
     online characters"""
     acc_char_ids = accounts.account_char_ids
 

@@ -1,8 +1,8 @@
 """Class to handle lobby and invites """
 
 # External Imports
+import asyncio
 import discord
-from discord.ext import commands, tasks
 from datetime import datetime as dt, timedelta
 from logging import getLogger
 
@@ -116,7 +116,7 @@ class DashboardView(views.FSBotView):
             return
         elif player.match:
             await disp.LOBBY_ALREADY_MATCH.send_priv(inter, player.mention, player.match.text_channel.mention)
-        elif self.lobby.lobby_join(player):
+        elif await self.lobby.lobby_join(player):
             self.enable_all_items()
             await self.lobby.update_dashboard()
             await disp.LOBBY_JOIN.send_temp(inter, player.mention)
@@ -232,6 +232,10 @@ class Lobby:
     def max_match_players(self) -> int:
         return self.__match_type.MAX_PLAYERS
 
+    @property
+    def mention(self):
+        return self.channel.mention
+
     def dashboard_purge_check(self, message: discord.Message):
         """Checks if messages are either the dashboard message, or an admin message before purging them"""
         if message != self.dashboard_msg and not d_obj.is_admin(message.author):
@@ -308,7 +312,7 @@ class Lobby:
         if player_memb.status in [discord.Status.online, discord.Status.do_not_disturb, discord.Status.streaming]:
             return 0
         else:
-            return tools.timestamp_now() + self.timeout_minutes * 60
+            return tools.timestamp_now() + (self.timeout_minutes * 60)
 
     async def update_timeouts(self):
         """Check all lobbied players for timeouts, send timeout messages"""
@@ -334,6 +338,38 @@ class Lobby:
         for match in self.__matches:
             if match.is_ended:
                 self.__matches.remove(match)
+
+    async def _update_pings(self):
+        ## TODO remove prints
+        #  Make list of levels in the lobby
+        levels_in_lobby = [p.skill_level for p in self.__lobbied_players]
+        print('levels', levels_in_lobby)
+
+        # Collect set of all players requesting these skill levels, if they haven't already been pinged
+        players_to_ping = Player.get_players_to_ping(levels_in_lobby)
+        print('init to ping', players_to_ping)
+
+        # Check ping preferences and online status
+        player_membs_dict = {d_obj.guild.get_member(to_ping.id): to_ping for to_ping in players_to_ping}
+        to_remove = []
+        for p_m in player_membs_dict:
+            if player_membs_dict[p_m].lobby:
+                to_remove.append(p_m)
+            elif player_membs_dict[p_m].lobby_ping_pref == 1 and p_m.status != discord.Status.online:
+                to_remove.append(p_m)
+        for p_m in to_remove:
+            player_membs_dict.pop(p_m)
+        print('after to ping', player_membs_dict)
+        # build list of ping coroutines to execute
+        ping_coros = []
+        print(ping_coros)
+        for p_m in player_membs_dict:
+            ping_coros.append(disp.LOBBY_PING.send(p_m, self.mention, player_membs_dict[p_m].lobby_ping_freq))
+        await asyncio.gather(*ping_coros)
+
+        # Mark Players as pinged
+        for p in player_membs_dict.values():
+            p.lobby_last_ping = tools.timestamp_now()
 
     async def update(self):
         """Runs all update methods"""
@@ -381,9 +417,9 @@ class Lobby:
          Returns True if player was in lobby"""
         if player in self.__lobbied_players:
             player.set_lobby_timeout(self._player_timeout_at(player))
-            self.lobby_log(f"{player.name} reset their lobby timeout.")
             if player in self.__warned_players:
                 self.__warned_players.remove(player)
+                self.lobby_log(f"{player.name} reset their lobby timeout.")
             return True
         return False
 
@@ -402,7 +438,7 @@ class Lobby:
         else:
             return False
 
-    def lobby_join(self, player):
+    async def lobby_join(self, player):
         """Adds to lobby list, executes player lobby join method, returns True if added.
         param timeout_at, timestamp to timeout player at
         """
@@ -411,6 +447,7 @@ class Lobby:
             player.on_lobby_add(self, self._player_timeout_at(player))
             self.__lobbied_players.append(player)
             self.lobby_log(f'{player.name} joined the lobby.')
+            await self._update_pings()
             return True
         else:
             return False

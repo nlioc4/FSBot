@@ -111,6 +111,8 @@ async def role_update(member: discord.Member = None, player: classes.Player = No
             roles_to_add.append(roles['timeout'])
         elif not p.is_timeout and roles['timeout'] in current_roles:
             roles_to_remove.append(roles['view_channels'])
+    print("adding roles:", roles_to_add)
+    print("removing roles:", roles_to_remove)
 
     if roles_to_add:
         await member.add_roles(*roles_to_add, reason=reason)

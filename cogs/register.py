@@ -5,8 +5,8 @@ Cog to handle registration, de-registration and parameter modification,
 import discord
 from discord.ext import commands
 
-
 # Internal Imports
+import display.views
 import modules.config as cfg
 import classes
 from classes.players import Player, SkillLevel
@@ -35,7 +35,7 @@ class RulesView(views.FSBotView):
                                                             f"{interaction.user.mention}!",
                                                     ephemeral=True, delete_after=15)
         else:
-            p = classes.Player(interaction.user.id, interaction.user.name)
+            p = classes.Player(interaction.user.id, discord.utils.escape_markdown(interaction.user.name))
             await db.async_db_call(db.set_element, 'users', p.id, p.get_data())
             await interaction.response.send_message(content=f"You have accepted the rules "
                                                             f"{interaction.user.mention}, have fun!",
@@ -68,7 +68,8 @@ class SkillLevelDropdown(discord.ui.Select):
     def __init__(self):
         options = []
         for level in list(SkillLevel):
-            options.append(discord.SelectOption(label=f'{level.rank}:{str(level)}', value=level.name, description=level.description))
+            options.append(discord.SelectOption(label=f'{level.rank}:{str(level)}', value=level.name,
+                                                description=level.description))
 
         super().__init__(placeholder="Choose your own skill level...",
                          min_values=1,
@@ -90,7 +91,8 @@ class RequestedSkillLevelDropdown(discord.ui.Select):
     def __init__(self):
         options = [discord.SelectOption(label='Any', description='No preference on opponent skill level')]
         for level in list(SkillLevel):
-            options.append(discord.SelectOption(label=f'{level.rank}:{str(level)}', value=level.name, description=level.description))
+            options.append(discord.SelectOption(label=f'{level.rank}:{str(level)}', value=level.name,
+                                                description=level.description))
 
         super().__init__(placeholder="Choose the level(s) you'd like to duel...",
                          min_values=1,
@@ -223,6 +225,11 @@ class RegisterView(views.FSBotView):
     async def register_info_button(self, button: discord.ui.Button, inter: discord.Interaction):
         p = classes.Player.get(inter.user.id)
         await disp.REG_INFO.send_priv(inter, player=p)
+
+    @discord.ui.button(label="Lobby Pings", custom_id='register-pings',
+                       style=discord.ButtonStyle.blurple)
+    async def register_pings_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        await disp.REG_LOBBY_PINGS.send_priv(inter, view=views.RegisterPingsView())
 
 
 class RegisterCog(discord.Cog, name='RegisterCog'):

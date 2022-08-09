@@ -23,7 +23,7 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
                          description: discord.Option(str, "Describe your suggestion here", required=True)):
         """Send a suggestion for FSBot to the administration team!"""
 
-        await trello.create_card(title, description)
+        await trello.create_card(title, f"Suggested by [{ctx.user.name}] : " + description)
         await disp.SUGGESTION_ACCEPTED.send_priv(ctx, ctx.user.mention)
 
 

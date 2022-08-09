@@ -138,15 +138,14 @@ class BaseMatch:
         return True
 
     async def leave_match(self, player: ActivePlayer):
-        if player.player == self.owner:
-            await self.end_match()
-            return
         self.__players.remove(player)
         self.__previous_players.append(player.on_quit())
         await self.update()
         await self._channel_update(player, None)
         self.log(f'{player.name} left the match')
         await disp.MATCH_LEAVE.send(self.text_channel, player.mention)
+        if player.player == self.owner:
+            await self.end_match()
         if player.account:
             await accounts.terminate(player=player.player)
             player.player.set_account(None)
