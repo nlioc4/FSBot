@@ -2,8 +2,10 @@
 Cog to handle registration, de-registration and parameter modification,
  mostly through message components."""
 # External Imports
+import auraxium.errors
 import discord
 from discord.ext import commands
+from logging import getLogger
 
 # Internal Imports
 import display.views
@@ -14,6 +16,7 @@ import modules.database as db
 from display import AllStrings as disp, views, embeds
 import modules.discord_obj as d_obj
 
+log = getLogger('fs_bot')
 
 # Views
 class RulesView(views.FSBotView):
@@ -190,6 +193,9 @@ class RegisterCharacterModal(discord.ui.Modal):
                 await disp.REG_NOT_JAEGER.send_priv(inter, e.char)
             except classes.players.CharNotFound as e:
                 await disp.REG_CHAR_NOT_FOUND.send_priv(inter, e.char)
+            except (auraxium.errors.MaintenanceError, auraxium.errors.ServiceUnavailableError):
+                log.info("Auraxium Error when trying to register characters for %s", inter.name)
+                await disp.REG_NO_CENSUS.send_priv(inter)
         else:  # if any other format provided
             await disp.REG_WRONG_FORMAT.send_priv(inter)
 

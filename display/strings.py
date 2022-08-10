@@ -61,6 +61,7 @@ class AllStrings(Enum):
     REG_NOT_JAEGER = "Registration Failed: Character: {} is not from Jaeger!"
     REG_WRONG_FORMAT = "Incorrect Character Entry Format! Enter either 1 character for each faction separated by ',' " \
                        "or a space, or one character without a faction suffix and suffixes will be added for you."
+    REG_NO_CENSUS = "DBG's Census API is currently unavailable, cannot register characters.  Please try again soon!"
     REG_INFO = "", register_info
 
     PREF_PINGS_CURRENT = "Your current ping Preferences are:\n{}\nYou will only ever be pinged if the player joining "\

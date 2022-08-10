@@ -357,7 +357,8 @@ class Lobby:
             return
 
         # Check ping preferences and online status
-        player_membs_dict = {d_obj.guild.get_member(to_ping.id): to_ping for to_ping in players_to_ping}
+        player_membs_dict = {d_obj.guild.get_member(to_ping.id): to_ping for to_ping in players_to_ping
+                             if d_obj.guild.get_member(to_ping.id) is not None}
         to_remove = []
         for p_m in player_membs_dict:
             if player_membs_dict[p_m].lobby:
@@ -439,8 +440,6 @@ class Lobby:
             return
         # If all the above fails, reset timeout.  Will set to 0 if online, will set to new timeout if newly offline.
         self.lobby_timeout_reset(p)
-
-
 
     def lobby_leave(self, player, match=None):
         """Removes from lobby list, executes player lobby leave method, returns True if removed"""
