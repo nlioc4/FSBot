@@ -121,7 +121,8 @@ class Player:
             if p.lobby_ping_pref == 0:
                 continue
             # Continue check if not pinged, or last ping > ping freq ago
-            if not p.lobby_last_ping or p.lobby_last_ping + p.lobby_ping_freq * 60 < tools.timestamp_now():
+            if not p.lobby_last_ping or (p.lobby_last_ping and
+                                         p.lobby_last_ping + p.lobby_ping_freq * 60 < tools.timestamp_now()):
                 # if no req skill levels or a matching level in the lobby levels
                 if not p.req_skill_levels or level in p.req_skill_levels:
                     could_ping.add(p)
