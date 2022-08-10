@@ -368,13 +368,10 @@ class Lobby:
         # build list of ping coroutines to execute
         ping_coros = []
         for p_m in player_membs_dict:
+            player_membs_dict[p_m].lobby_last_ping = tools.timestamp_now()  # mark players as pinged
             ping_coros.append(disp.LOBBY_PING.send(p_m, player.mention, self.mention,
                                                    player_membs_dict[p_m].lobby_ping_freq))
-        await asyncio.gather(*ping_coros)
-
-        # Mark Players as pinged
-        for p in player_membs_dict.values():
-            p.lobby_last_ping = tools.timestamp_now()
+        await asyncio.gather(*ping_coros, return_exceptions=True)
 
     async def update(self):
         """Runs all update methods"""
