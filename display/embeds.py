@@ -296,8 +296,7 @@ def match_info(match) -> Embed:
 
     if match.timeout_at:
         match_info_str += f"Match will timeout in {format_stamp(match.timeout_at, 'R')}\n"
-
-    match_info_str += f"Match timeout will be reset on login to Jaeger\n"
+        match_info_str += f"Match timeout will be reset on login to Jaeger\n"
 
     if match.end_stamp:
         match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}'

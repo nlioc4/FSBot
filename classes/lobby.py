@@ -319,15 +319,20 @@ class Lobby:
         for p in self.lobbied:
 
             # Update timeout stamps
-            self.player_timeout_update(p)
 
-            # Timeout stamp not set
+            # Timeout stamp not set, and player lobbied 2x normal timeout ensure that player is indeed online
             if p.lobby_timeout_stamp == 0:
+                if p.lobbied_stamp + self.timeout_minutes * 60 * 2 < tools.timestamp_now():
+                    self.player_timeout_update(p)
                 return
 
             # Timeout if current time greater than timeout stamp
             elif p.lobby_timeout_stamp < tools.timestamp_now():
-                self.lobby_timeout(p)
+                try:
+                    self.lobby_timeout(p)
+                except KeyError as e:
+                    log.error(f"Error on timeout for {p.name}, running lobby_leave...", exc_info=e)
+                    self.lobby_leave(p)
                 await disp.LOBBY_TIMEOUT.send(self.channel, p.mention, delete_after=30)
 
             # Warn if current time less than 5 minutes (300 s) before timeout stamp

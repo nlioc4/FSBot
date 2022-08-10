@@ -105,6 +105,7 @@ class AllStrings(Enum):
     MATCH_LEAVE_2 = "{} has left match {}."
     MATCH_TIMEOUT_WARN = "{} No online players detected, match will timeout in {}! Login or reset above!"
     MATCH_TIMEOUT_RESET = "{} timeout reset!"
+    MATCH_TIMEOUT_NO_RESET = "{} timeout can't be reset without 2 or more players!"
     MATCH_TIMEOUT = "{} Match is being closed due to inactivity"
     MATCH_END = "Match ID: {} Ended, closing match channel..."
     MATCH_NOT_FOUND = "Match for channel {} not found!"

@@ -179,7 +179,10 @@ class ValidateView(views.FSBotView):
 
     @discord.ui.button(label="Confirm Rules", style=discord.ButtonStyle.green)
     async def validate_button(self, button: discord.Button, inter: discord.Interaction):
-        await inter.response.defer()
+        try:
+            await inter.response.defer()
+        except discord.NotFound:
+            log.info("Interaction Not found on Validation Defer")
         try:
             validated = validate_account(acc=self.acc)
         except gspread.exceptions.APIError as e:
@@ -195,7 +198,7 @@ class ValidateView(views.FSBotView):
         if validated:
             log.info(f'Account [{self.acc.id}] sent to player: ID: [{inter.user.id}], name: [{inter.user.name}]')
             await disp.LOG_ACCOUNT.send(d_obj.channels['logs'], self.acc.id, inter.user.id, inter.user.mention,
-                                        allowed_mentions=False)
+                                        inter.user.name, allowed_mentions=False)
 
     @discord.ui.button(label="End Session", style=discord.ButtonStyle.red)
     async def end_session_button(self, button: discord.Button, inter: discord.Interaction):

@@ -142,7 +142,10 @@ class MatchInfoView(FSBotView):
 
     @discord.ui.button(label="Reset Timeout", style=discord.ButtonStyle.green)
     async def reset_timeout_button(self, button: discord.Button, inter: discord.Interaction):
-        """Resets the match from timeout"""
+        """Resets the match from timeout, if there are more than two players"""
+        if len(self.match.players) < 2:
+            await disp.MATCH_TIMEOUT_NO_RESET.send_temp(self.match.text_channel, inter.user.mention)
+            return
         self.match.timeout_stamp = None
         await disp.MATCH_TIMEOUT_RESET.send_temp(self.match.text_channel, inter.user.mention)
         self.match.log("Match Timeout Reset")
