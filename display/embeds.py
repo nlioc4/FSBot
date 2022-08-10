@@ -170,6 +170,18 @@ def register_info(player) -> Embed:
         inline=False
     )
 
+    if player.lobby_ping_pref == 0:
+        ping_pref = 'Never Ping.'
+    else:
+        ping_pref = f'**{"Always" if player.lobby_ping_pref == 2 else "Only if Online"}**, with at least ' \
+                    f'**{player.lobby_ping_freq}** minutes between pings.'
+
+    embed.add_field(
+        name="Ping Preferences",
+        value=f"Current ping Preferences are:\n{ping_pref}\n",
+        inline=False
+    )
+
     return fs_author(embed)
 
 
@@ -495,6 +507,15 @@ def fsbot_info_embed() -> Embed:
               "for those who might wish to duel those outside their own skill range.  Users preferred faction can help"
               "match them up with an opponent using the specific ESF they want to practice against.",
         inline=False
+    )
+
+    embed.add_field(
+        name="Notifications",
+        value="By default you will receive a notification if a player who matches your requested skill levels joins"
+              " the lobby, at maximum one per half hour, and only if you are marked 'online' on discord.  When you are "
+              "pinged, and how frequently, can be adjusted below this message in the 'Lobby Pings' menu.  Setting your "
+              "requested skill level to 'any' means you will receive a ping when a player of any skill level joins"
+              "the lobby."
     )
 
     embed.add_field(

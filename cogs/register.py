@@ -220,12 +220,6 @@ class RegisterView(views.FSBotView):
         else:
             await disp.REG_ALREADY_NO_CHARS.send_priv(inter)
 
-    @discord.ui.button(label="View Registration Info", custom_id='register-info',
-                       style=discord.ButtonStyle.blurple)
-    async def register_info_button(self, button: discord.ui.Button, inter: discord.Interaction):
-        p = classes.Player.get(inter.user.id)
-        await disp.REG_INFO.send_priv(inter, player=p)
-
     @discord.ui.button(label="Lobby Pings", custom_id='register-pings',
                        style=discord.ButtonStyle.blurple)
     async def register_pings_button(self, button: discord.ui.Button, inter: discord.Interaction):
@@ -236,6 +230,12 @@ class RegisterView(views.FSBotView):
                                f" **{'Always' if pref == 2 else 'Only if Online'}**, with at least " \
                                f"**{p.lobby_ping_freq}** minutes between pings"
         await disp.PREF_PINGS_CURRENT.send_priv(inter, current_pref_str, view=views.RegisterPingsView())
+
+    @discord.ui.button(label="View Registration Info", custom_id='register-info',
+                       style=discord.ButtonStyle.grey)
+    async def register_info_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        p = classes.Player.get(inter.user.id)
+        await disp.REG_INFO.send_priv(inter, player=p)
 
 
 class RegisterCog(discord.Cog, name='RegisterCog'):

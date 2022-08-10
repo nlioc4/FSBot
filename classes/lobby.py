@@ -320,9 +320,9 @@ class Lobby:
 
             # Update timeout stamps
 
-            # Timeout stamp not set, and player lobbied 2x normal timeout ensure that player is indeed online
+            # Timeout stamp not set, and player lobbied 4x normal timeout ensure that player is indeed online
             if p.lobby_timeout_stamp == 0:
-                if p.lobbied_stamp + self.timeout_minutes * 60 * 2 < tools.timestamp_now():
+                if p.lobbied_stamp + self.timeout_minutes * 60 * 4 < tools.timestamp_now():
                     self.player_timeout_update(p)
                 return
 
