@@ -114,7 +114,7 @@ class Player:
         return [p.active for p in cls.get_all_players().values() if p.active]
 
     @classmethod
-    def get_players_to_ping(cls, lobby_levels) -> set:
+    def get_players_to_ping(cls, level) -> set:
         could_ping = set()
         for p in list(cls.get_all_players().values()):
             #  if pref == never ping
@@ -123,7 +123,7 @@ class Player:
             # Continue check if not pinged, or last ping > ping freq ago
             if not p.lobby_last_ping or p.lobby_last_ping + p.lobby_ping_freq * 60 < tools.timestamp_now():
                 # if no req skill levels or a matching level in the lobby levels
-                if not p.req_skill_levels or [level for level in lobby_levels if level in p.req_skill_levels]:
+                if not p.req_skill_levels or level in p.req_skill_levels:
                     could_ping.add(p)
         return could_ping
 

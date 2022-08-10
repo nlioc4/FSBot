@@ -348,11 +348,9 @@ class Lobby:
                 self.__matches.remove(match)
 
     async def _update_pings(self, player):
-        #  Make list of levels in the lobby
-        levels_in_lobby = [p.skill_level for p in self.__lobbied_players]
 
         # Collect set of all players requesting these skill levels, if they haven't already been pinged
-        players_to_ping = Player.get_players_to_ping(levels_in_lobby)
+        players_to_ping = Player.get_players_to_ping(player.skill_level)
         if not players_to_ping:
             return
 
