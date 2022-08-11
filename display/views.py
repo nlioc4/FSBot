@@ -141,7 +141,7 @@ class MatchInfoView(FSBotView):
     @discord.ui.button(label="Leave Match", style=discord.ButtonStyle.red)
     async def leave_button(self, button: discord.Button, inter: discord.Interaction):
         p: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, p) or not self.in_match_check(inter, p):
+        if not await d_obj.is_registered(inter, p) or not await self.in_match_check(inter, p):
             return
 
         await disp.MATCH_LEAVE.send_priv(inter, p.mention)
@@ -163,7 +163,7 @@ class MatchInfoView(FSBotView):
         """Requests an account for the player"""
         await inter.response.defer()
         p: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, p) or not self.in_match_check(inter, p):
+        if not await d_obj.is_registered(inter, p) or not await self.in_match_check(inter, p):
             return
         elif p.has_own_account:
             await disp.ACCOUNT_HAS_OWN.send_priv(inter)
