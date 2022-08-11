@@ -63,27 +63,27 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
 
     @commands.user_command(name="Invite To Match")
     async def user_match_invite(self, ctx: discord.ApplicationContext, user: discord.User):
-        p = Player.get(user.id)
+        invited = Player.get(user.id)
         owner = Player.get(ctx.user.id)
-        lobby = p.lobby or Lobby.channel_to_lobby(ctx.channel)
+        lobby = owner.lobby or Lobby.channel_to_lobby(ctx.channel) or invited.lobby
         if not lobby:
             await disp.LOBBY_CANT_INVITE.send_priv(ctx)
             return
-        if p.lobby is not lobby:
-            await disp.LOBBY_NOT_IN_2.send_priv(ctx, p.mention)
+        if invited.lobby is not lobby:
+            await disp.LOBBY_NOT_IN_2.send_priv(ctx, invited.mention)
             return
         if owner.match and owner.match.owner != owner:
             await disp.LOBBY_NOT_OWNER.send_priv(ctx)
             return
-        sent = await lobby.send_invite(owner, p)
+        sent = await lobby.send_invite(owner, invited)
         if sent and owner.match:
-            await disp.LOBBY_INVITED_MATCH.send_priv(ctx, owner.mention, p.mention, owner.match.id_str)
-            lobby.lobby_log(lobby.lobby_log(f'{owner.name} invited {p.name} to Match: {owner.match.id_str}'))
+            await disp.LOBBY_INVITED_MATCH.send_priv(ctx, owner.mention, invited.mention, owner.match.id_str)
+            lobby.lobby_log(lobby.lobby_log(f'{owner.name} invited {invited.name} to Match: {owner.match.id_str}'))
         elif sent:
-            await disp.LOBBY_INVITED.send_priv(ctx, owner.mention, p.mention)
-            lobby.lobby_log(lobby.lobby_log(f'{owner.name} invited {p.name} to a match.'))
+            await disp.LOBBY_INVITED.send_priv(ctx, owner.mention, invited.mention)
+            lobby.lobby_log(lobby.lobby_log(f'{owner.name} invited {invited.name} to a match.'))
         else:
-            await disp.LOBBY_NO_DM.send_priv(ctx, p.mention)
+            await disp.LOBBY_NO_DM.send_priv(ctx, invited.mention)
 
 
 def setup(client: discord.Bot):

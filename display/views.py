@@ -119,7 +119,14 @@ class MatchInfoView(FSBotView):
             else:
                 self.reset_timeout_button.style = discord.ButtonStyle.grey
                 self.reset_timeout_button.disabled = True
-            return True
+        if self.match.public_voice:
+            self.voice_button.label = "Voice: Public"
+            self.voice_button.style = discord.ButtonStyle.green
+        else:
+            self.voice_button.label = "Voice: Private"
+            self.voice_button.style = discord.ButtonStyle.red
+
+        return self
 
     def _update(self):
         """For Inheritance"""
@@ -134,7 +141,7 @@ class MatchInfoView(FSBotView):
     @discord.ui.button(label="Leave Match", style=discord.ButtonStyle.red)
     async def leave_button(self, button: discord.Button, inter: discord.Interaction):
         p: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, p) and not self.in_match_check(inter, p):
+        if not await d_obj.is_registered(inter, p) or not self.in_match_check(inter, p):
             return
 
         await disp.MATCH_LEAVE.send_priv(inter, p.mention)
@@ -156,7 +163,7 @@ class MatchInfoView(FSBotView):
         """Requests an account for the player"""
         await inter.response.defer()
         p: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, p) and not self.in_match_check(inter, p):
+        if not await d_obj.is_registered(inter, p) or not self.in_match_check(inter, p):
             return
         elif p.has_own_account:
             await disp.ACCOUNT_HAS_OWN.send_priv(inter)
@@ -169,13 +176,42 @@ class MatchInfoView(FSBotView):
             if acc:  # if account found
                 msg = await accounts.send_account(acc)
                 if msg:  # if allowed to dm user
-                    await disp.ACCOUNT_SENT.send_priv(inter)
+                    await disp.ACCOUNT_SENT.send_priv(inter, msg.channel.jump_url)
                 else:  # if couldn't dm
                     await disp.ACCOUNT_NO_DMS.send_priv(inter)
                     acc.clean()
 
             else:  # if no account found
                 await disp.ACCOUNT_NO_ACCOUNT.send_priv(inter)
+
+    @discord.ui.button(label="Voice: Private", style=discord.ButtonStyle.red)
+    async def voice_button(self, button: discord.Button, inter: discord.Interaction):
+        """Toggles whether the match voice channel is public or private.  Only usable by the match Owner"""
+        p = Player.get(inter.user.id)
+        if p != self.match.owner and not d_obj.is_admin(inter.user):
+            await disp.MATCH_NOT_OWNER.send_priv(inter)
+            return
+        if self.match.public_voice:
+            # Set channel to private, disconnect all unauthorized users
+            await self.match.voice_channel.set_permissions(d_obj.roles['view_channels'],
+                                                           connect=False, view_channel=False)
+            to_disconnect = []
+            for memb in self.match.voice_channel.members:
+                if d_obj.is_admin(memb):
+                    continue
+                if memb.id not in [p.id for p in self.match.players]:
+                    to_disconnect.append(memb.move_to(None))
+            await asyncio.gather(*to_disconnect)
+            await disp.MATCH_VOICE_PRIV.send_priv(inter, self.match.voice_channel.mention)
+            self.match.public_voice = False
+            await self.match.update()
+        elif not self.match.public_voice:
+            # Set channel to public
+            await self.match.voice_channel.set_permissions(d_obj.roles['view_channels'],
+                                                           connect=True, view_channel=True)
+            await disp.MATCH_VOICE_PUB.send_priv(inter, self.match.voice_channel.mention)
+            self.match.public_voice = True
+            await self.match.update()
 
 
 class RegisterPingsView(FSBotView):

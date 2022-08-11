@@ -180,7 +180,7 @@ class ValidateView(views.FSBotView):
     @discord.ui.button(label="Confirm Rules", style=discord.ButtonStyle.green)
     async def validate_button(self, button: discord.Button, inter: discord.Interaction):
         try:
-            await inter.response.defer()
+            await disp.ACCOUNT_EMBED_FETCH.edit(inter, acc=self.acc, view=self)
         except discord.NotFound:
             log.info("Interaction Not found on Validation Defer")
         try:
@@ -194,7 +194,7 @@ class ValidateView(views.FSBotView):
         button.style = discord.ButtonStyle.grey
         self.end_session_button.disabled = False
         self.timeout = None
-        await disp.ACCOUNT_EMBED.edit(inter, acc=self.acc, view=self)
+        await disp.ACCOUNT_EMBED.edit(inter, clear_content=True, acc=self.acc, view=self)
         if validated:
             log.info(f'Account [{self.acc.id}] sent to player: ID: [{inter.user.id}], name: [{inter.user.name}]')
             await disp.LOG_ACCOUNT.send(d_obj.channels['logs'], self.acc.id, inter.user.id, inter.user.mention,
@@ -282,7 +282,7 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
         if acc.message:
             for _ in range(3):
                 try:
-                    if await disp.ACCOUNT_LOG_OUT.send(user):
+                    if await disp.ACCOUNT_LOG_OUT.send(user, acc.ig_name):
                         break
                 except discord.Forbidden:
                     continue

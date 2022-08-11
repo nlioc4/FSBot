@@ -32,10 +32,18 @@ class MatchesCog(commands.Cog, name="MatchesCog",
     @tasks.loop(count=1)
     async def matches_init(self):
         # clear old match channels if any exist
-        channels = d_obj.categories['user'].text_channels
-        for channel in channels:
+        channels_to_delete = []
+        text_channels = d_obj.categories['user'].text_channels
+        voice_channels = d_obj.categories['user'].voice_channels
+        for channel in text_channels:
             if channel.name.startswith('casual'):
-                await channel.delete()
+                channels_to_delete.append(channel.delete())
+        for channel in voice_channels:
+            if channel.name.startswith('Casual'):
+                channels_to_delete.append(channel.delete())
+        await asyncio.gather(*channels_to_delete)
+
+
 
     @tasks.loop(seconds=15)
     async def matches_loop(self):

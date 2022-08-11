@@ -74,7 +74,7 @@ class AllStrings(Enum):
     LOBBY_INVITED = "{} invited {} to a match."
     LOBBY_INVITED_MATCH = "{} invited {} to match: {}."
     LOBBY_INVITED_ALREADY = "You've already sent an invite to {}."
-    LOBBY_CANT_INVITE = "You can't invite a player to a match when you're not in a lobby!"
+    LOBBY_CANT_INVITE = "You can't invite a player to a match when you're not in a lobby or a match!"
     LOBBY_JOIN = "{} you have joined the lobby!"
     LOBBY_LEAVE = "{} you have left the lobby!"
     LOBBY_NOT_IN = "{} you are not in this lobby!"
@@ -110,9 +110,12 @@ class AllStrings(Enum):
     MATCH_TIMEOUT = "{} Match is being closed due to inactivity"
     MATCH_END = "Match ID: {} Ended, closing match channel..."
     MATCH_NOT_FOUND = "Match for channel {} not found!"
+    MATCH_NOT_OWNER = "Only the match owner can do this!"
     MATCH_NOT_IN = "You are not in match {}."
     MATCH_NOT_IN_2 = "Player {} is not in match {}."
     MATCH_ALREADY = "{} is already in match {}."
+    MATCH_VOICE_PUB = "{} is now public!"
+    MATCH_VOICE_PRIV = "{} is now private!"
 
     RM_SCORES_EQUAL = "Submitted scores are equal!"
     RM_SCORES_WRONG = "Submitted scores don't match, both players should submit again!"
@@ -125,14 +128,15 @@ class AllStrings(Enum):
     ACCOUNT_HAS_OWN = "You have registered with your own Jaeger account, you can't request a temporary account."
     ACCOUNT_ALREADY = "You have already been assigned an account!"
     ACCOUNT_ALREADY_2 = "{} already has been assigned an account, ID: {}"
-    ACCOUNT_SENT = "You have been sent an account, check your DM's."
+    ACCOUNT_SENT = "You have been sent an account, check your DM's <{}>."
     ACCOUNT_SENT_2 = "{} has been sent account ID: {}."
-    ACCOUNT_LOG_OUT = "Your session has been ended, please log out!"
+    ACCOUNT_LOG_OUT = "Your session has been ended, please log out of {} if you haven't already!"
     ACCOUNT_TOKEN_EXPIRED = "After 5 minutes this account token has expired, please request another" \
                             " if you still need an account."
     ACCOUNT_NO_DMS = "You must allow the bot to send you DM's in order to receive an account!"
     ACCOUNT_NO_ACCOUNT = "Sorry, there are no accounts available at the moment.  Please ping Colin!"
-    ACCOUNT_EMBED = "", account
+    ACCOUNT_EMBED = None, account
+    ACCOUNT_EMBED_FETCH = "Fetching account...", account
     ACCOUNT_IN_USE = "Account ID: {} is already in use, please pick another account!"
     ACCOUNT_INFO = "", accountcheck
     ACCOUNT_VALIDATE_ERROR = "There was an error logging this usage.  Please try again, and if the " \
@@ -149,6 +153,8 @@ class AllStrings(Enum):
         args_dict = {}
         if self.__string:
             args_dict['content'] = self.__string.format(*args)
+        if kwargs.get('clear_content'):
+            args_dict['content'] = None
         if self.__embed and not kwargs.get('embed'):
             #  Checks if embed, then retrieves only the embed specific kwargs
             embed_sig = inspect.signature(self.__embed)
@@ -201,8 +207,9 @@ class AllStrings(Enum):
                     if action == 'send':
                         return await getattr(ctx.followup, 'send')(**args_dict)
                     if action == 'edit':
-                        return await getattr(ctx.message, 'edit')(**args_dict)
+                        return await getattr(ctx, 'edit_original_message')(**args_dict)
                 return await getattr(ctx.response, action + '_message')(**args_dict)
+
 
             case discord.ApplicationContext:
                 if action == "send":

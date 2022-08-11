@@ -297,7 +297,7 @@ def match_info(match) -> Embed:
     embed = Embed(
         colour=colour,
         title=f"Match Info for Match: {match.id_str}",
-        description="",
+        description="Match Owners can invite additional players by selecting them from the Lobby!",
         timestamp=dt.now()
     )
 
@@ -307,11 +307,15 @@ def match_info(match) -> Embed:
                       )
 
     if match.timeout_at:
-        match_info_str += f"Match will timeout in {format_stamp(match.timeout_at, 'R')}\n"
+        match_info_str += f"Match will timeout {format_stamp(match.timeout_at, 'R')}\n"
         match_info_str += f"Match timeout will be reset on login to Jaeger\n"
 
     if match.end_stamp:
-        match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}'
+        match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}\n'
+
+    if match.voice_channel:
+        match_info_str += f'Match Voice Channel: {match.voice_channel.mention} ' \
+                          f'{"🔓" if match.public_voice else "🔒"}\n' \
 
     embed.add_field(name="Match Info",
                     value=match_info_str,

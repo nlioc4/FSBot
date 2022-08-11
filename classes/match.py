@@ -48,10 +48,12 @@ class BaseMatch:
         self.timeout_warned = False
         self.was_timeout = False
         self.status = MatchState.LOGGING_IN
+        self.public_voice = False
         self.__ended = False
 
         # Display
         self.text_channel: discord.TextChannel | None = None
+        self.voice_channel: discord.VoiceChannel | None = None
         self.info_message: discord.Message | None = None
         self.embed_cache: discord.Embed | None = None
         self.__embed_func = embeds.match_info
@@ -96,11 +98,18 @@ class BaseMatch:
         return obj
 
     async def _make_channel(self):
+        overwrites = self._get_overwrites()
         try:
             self.text_channel = await d_obj.categories['user'].create_text_channel(
                 name=f'{self.TYPE}┊{self.id_str}┊',
-                overwrites=self._get_overwrites(),
+                overwrites=overwrites,
                 topic=f'Match channel for {self.TYPE.lower()} Match [{self.id_str}], created by {self.owner.name}'
+            )
+            overwrites[d_obj.guild.default_role].update(send_messages=False, connect=False)
+            self.voice_channel = await d_obj.categories['user'].create_voice_channel(
+                name=f'{self.TYPE}┊{self.id_str}┊Voice',
+                # Same overwrites, except disallow sending messages in text-in-voice
+                overwrites=overwrites
             )
         except (discord.HTTPException, discord.Forbidden) as e:
             await d_obj.d_log(source=self.owner.name,
@@ -111,13 +120,13 @@ class BaseMatch:
     def _get_overwrites(self):
         overwrites = {
             d_obj.guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            d_obj.roles['timeout']: discord.PermissionOverwrite(view_channel=False),
-            d_obj.roles['app_admin']: discord.PermissionOverwrite(view_channel=True),
-            d_obj.roles['admin']: discord.PermissionOverwrite(view_channel=True),
-            d_obj.roles['mod']: discord.PermissionOverwrite(view_channel=True),
-            d_obj.roles['bot']: discord.PermissionOverwrite(view_channel=True),
+            d_obj.roles['timeout']: discord.PermissionOverwrite(view_channel=False, connect=False),
+            d_obj.roles['app_admin']: discord.PermissionOverwrite(view_channel=True, connect=True),
+            d_obj.roles['admin']: discord.PermissionOverwrite(view_channel=True, connect=True),
+            d_obj.roles['mod']: discord.PermissionOverwrite(view_channel=True, connect=True),
+            d_obj.roles['bot']: discord.PermissionOverwrite(view_channel=True, connect=True),
         }
-        overwrites.update({d_obj.guild.get_member(p.id): discord.PermissionOverwrite(view_channel=True)
+        overwrites.update({d_obj.guild.get_member(p.id): discord.PermissionOverwrite(view_channel=True, connect=True)
                            for p in self.__players})
         return overwrites
 
@@ -140,15 +149,20 @@ class BaseMatch:
     async def leave_match(self, player: ActivePlayer):
         self.__players.remove(player)
         self.__previous_players.append(player.on_quit())
-        await self.update()
-        await self._channel_update(player, None)
         self.log(f'{player.name} left the match')
-        await disp.MATCH_LEAVE.send(self.text_channel, player.mention)
-        if player.player == self.owner:
-            await self.end_match()
+        #  If match still exists
+        if not self.is_ended:
+            await self.update()
+            await self._channel_update(player, None)
+            await disp.MATCH_LEAVE.send(self.text_channel, player.mention)
+
+        #  Object cleanup
         if player.account:
             await accounts.terminate(player=player.player)
             player.player.set_account(None)
+        if player.player == self.owner and not self.is_ended:
+            await self.end_match()
+            return
         if not self.__players and not self.is_ended:  # if no players left, and match not already ended.
             await self.end_match()  # Should only be called if match didn't end when owner left
 
@@ -174,7 +188,10 @@ class BaseMatch:
                 del BaseMatch._recent_matches[keys[i]]
         #  Delete text_channel if it is not already deleted
         try:
-            await self.text_channel.delete(reason='Match Ended')
+            await asyncio.gather(
+                self.text_channel.delete(reason='Match Ended'),
+                self.voice_channel.delete(reason='Match Ended')
+            )
         except discord.NotFound:
             pass
 
@@ -188,7 +205,10 @@ class BaseMatch:
 
     async def _channel_update(self, player, action: bool | None):
         player_member = d_obj.guild.get_member(player.id)
-        await self.text_channel.set_permissions(player_member, view_channel=action)
+        await asyncio.gather(
+            self.text_channel.set_permissions(player_member, view_channel=action),
+            self.voice_channel.set_permissions(player_member, view_channel=action)
+        )
 
     def _new_embed(self):
         return self.__embed_func(self)
@@ -196,7 +216,8 @@ class BaseMatch:
     def view(self, new=False):
         if not new and self.__view:
             return self.__view.update()
-        return self.view_func(self)
+        self.__view = self.view_func(self)
+        return self.__view
 
     async def send_embed(self):
         if not self.embed_cache:
