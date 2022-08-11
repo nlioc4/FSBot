@@ -50,6 +50,7 @@ class BaseMatch:
         self.status = MatchState.LOGGING_IN
         self.public_voice = False
         self.__ended = False
+        self.__update_locked = True
 
         # Display
         self.text_channel: discord.TextChannel | None = None
@@ -95,6 +96,7 @@ class BaseMatch:
 
         await obj.send_embed()
         obj.setup()
+        obj.__update_locked = False
         return obj
 
     async def _make_channel(self):
@@ -270,25 +272,33 @@ class BaseMatch:
         Login can be used to log a login action, pass a player.
         Otherwise, updates timeout, match status, and the embed if required"""
 
-        # Do nothing if match is ended
-        if self.is_ended:
+        # Do nothing if match is ended or update_locked
+        if self.is_ended or self.__update_locked:
             return
+
+        # Lock the match, so it can't be updated by any other methods if an update is in progress
+        self.__update_locked = True
 
         if check_timeout:
             await self.update_timeout()
 
-        if user and char_name:
-            self.log(f"{user.name} logged out from {char_name}")
-
-        if user and not char_name:
-            self.log(f"{user.name} logged in as {user.online_name}")
-
         self.update_status()
         await self.update_embed()
+
+        # Unlock the match
+        self.__update_locked = False
 
     def log(self, message, public=True):
         self.match_log.append((tools.timestamp_now(), message, public))
         log.info(f'Match ID [{self.id}]: {message}')
+
+    async def char_login(self, user):
+        self.log(f"{user.name} logged in as {user.online_name}")
+        await self.update()
+
+    async def char_logout(self, user, char_name):
+        self.log(f"{user.name} logged out from {char_name}")
+        await self.update()
 
     @property
     def recent_logs(self):
