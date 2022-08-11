@@ -216,6 +216,8 @@ def duel_dashboard(lobby) -> Embed:
         value='@Mention [Preferred Faction(s)][Skill Level][Wanted Level(s)][Time]\n',
         inline=False
     )
+
+    players_string = 'No players in Lobby'
     if lobby.lobbied:
         players_string = ''
         for p in lobby.lobbied:
@@ -227,9 +229,9 @@ def duel_dashboard(lobby) -> Embed:
             string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}][{req_skill_levels}][{f_lobbied_stamp}]\n '
             players_string += timeout_warn + string
 
-        embed.add_field(name="----------------------------------------------------------------",
-                        value=players_string,
-                        inline=False)
+    embed.add_field(name="----------------------------------------------------------------",
+                    value=players_string,
+                    inline=False)
 
     if lobby.matches:
         matches_str = ''
