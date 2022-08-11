@@ -51,6 +51,27 @@ class AllStrings(Enum):
     DM_THREAD_CLOSE = "This DM thread has been closed.  A new instance must be created" \
                       " for further messages to be conveyed."
 
+    EVENTS_PICKUPS = "@everyone\n" \
+                     "\n" \
+                     "Air pickups are coming back on {}.\n" \
+                     "If you are new to these, they are ESF only group fights on Jaeger with even numbers " \
+                     "(usually around 12 vs 12). All skill levels are welcome, we try to make both teams balanced " \
+                     "and will re-balance them after every round if needed.\n" \
+                     "\n" \
+                     "If you have any questions feel free to ask in {}.\n" \
+                     "Any info related to pickups can be found in {}.\n" \
+                     "\n" \
+                     "If you want to join you can react to the event (top left below the server banner) and show up " \
+                     "in the Pickups-General voice channel. If you can't make it in time for the first round you can " \
+                     "also join between rounds when we re-balance teams. Reacting to the event isn't required but it " \
+                     "gives us a rough idea of the amount of people showing up." \
+                     "\n" \
+                     "\n" \
+                     "{}"
+    EVENTS_PICKUPS_CREATED = "Your pickups event was created!"
+    EVENTS_PICKUPS_CREATION_ERROR = "Error: Please check if you have used the correct date (YYYY-MM-DD --> " \
+                                    "with hyphens) and time (HH:MM --> 24 hour clock) formats."
+
     REG_SUCCESSFUL_CHARS = "Successfully registered with characters: {}, {}, {}."
     REG_SUCCESFUL_NO_CHARS = 'Successfully registered with no Jaeger Account'
     REG_ALREADY_CHARS = "Already registered with characters: {}, {}, {}."
@@ -70,8 +91,6 @@ class AllStrings(Enum):
                         "your Discord status set to 🟢Online!"
     PREF_PINGS_ALWAYS = "You have chosen to always receive a ping when someone joins the lobby!"
     PREF_PINGS_FREQ = "You have chosen to only receive a ping at minimum every {} minutes!"
-
-
 
     LOBBY_INVITED_SELF = "{} you can't invite yourself to a match!"
     LOBBY_INVITED = "{} invited {} to a match."

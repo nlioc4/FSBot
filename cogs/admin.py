@@ -3,10 +3,11 @@
 # External Imports
 import auraxium
 import discord
+from discord import Forbidden, HTTPException
 from discord.ext import commands, tasks
 from logging import getLogger
 import asyncio
-from datetime import datetime as dt, time, timezone
+from datetime import datetime as dt, time, timezone, timedelta
 
 # Internal Imports
 import modules.config as cfg
@@ -270,7 +271,6 @@ class AdminCog(commands.Cog):
 
         await disp.REG_INFO.send_priv(ctx, player=p)
 
-
     @msg_assign_account.error
     async def msg_assign_account_concurrency_error(self, ctx, error):
         if isinstance(error, commands.MaxConcurrencyReached):
@@ -337,6 +337,46 @@ class AdminCog(commands.Cog):
                                               online=unassigned_online)
         # Cache Online Accounts
         self.online_cache = unassigned_online
+
+        #########################################################
+
+    events_admin = admin.create_subgroup(
+        name="events", description="Admin Event Commands"
+    )
+
+    @events_admin.command(name='pickups')
+    async def event_pickups(self, ctx: discord.ApplicationContext,
+                            date: discord.Option(str, "Date of pickups(YYYY-MM-DD - add hyphens as well)",
+                                                 required=True),
+                            time: discord.Option(str, "Time of pickups(UTC HH:MM - Use 24 hour clock)", required=True)):
+        """Creates a pickups event and posts the announcement"""
+        try:
+            converted_date = dt.strptime(date, '%Y-%m-%d')
+            converted_time = dt.strptime(time, '%H:%M').time()
+            combined_times = dt.combine(converted_date, converted_time)
+            timestamp = combined_times.replace(tzinfo=timezone.utc).timestamp()
+
+            discord_timestamp = tools.format_time_from_stamp(int(timestamp), "F")
+            allowed_mentions = discord.AllowedMentions(everyone=True)
+
+            await d_obj.guild.create_scheduled_event(name="Air Pickups",
+                                                     description="ESF group fights with balanced teams on Jaeger",
+                                                     start_time=combined_times,
+                                                     end_time=combined_times + timedelta(hours=2),
+                                                     location=d_obj.channels['Pickups-General'])
+
+            event_id = d_obj.guild.scheduled_events[0].id
+            event = d_obj.guild.get_scheduled_event(event_id)
+            await disp.EVENTS_PICKUPS.send(d_obj.channels['announcements'], discord_timestamp,
+                                           d_obj.channels['pickups-chat'].mention,
+                                           d_obj.channels['pickups-info'].mention,
+                                           event.url,
+                                           allowed_mentions=allowed_mentions)
+            await disp.EVENTS_PICKUPS_CREATED.send_priv(ctx)
+        except ValueError:
+            await disp.EVENTS_PICKUPS_CREATION_ERROR.send_priv(ctx)
+        except (Forbidden, HTTPException) as ex:
+            d_obj.log.error("Error creating pickups event because: ", ex)
 
 
 def setup(client):

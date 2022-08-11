@@ -73,7 +73,11 @@ channels = {
     "staff": "",
     "logs": "",
     "usage": "",
-    "content-plug": ""
+    "content-plug": "",
+    "announcements": "",
+    "pickups-chat": "",
+    "pickups-info": "",
+    "Pickups-General": ""
 }
 
 # Discord Role ID's
