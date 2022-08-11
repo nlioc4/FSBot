@@ -117,8 +117,8 @@ class Player:
     def get_players_to_ping(cls, level) -> set:
         could_ping = set()
         for p in list(cls.get_all_players().values()):
-            #  if pref == never ping
-            if p.lobby_ping_pref == 0:
+            #  if pref == 0 or player has category hidden never ping
+            if p.lobby_ping_pref == 0 or p.hidden:
                 continue
             # Continue check if not pinged, or last ping > ping freq ago
             if not p.lobby_last_ping or (p.lobby_last_ping and
