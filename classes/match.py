@@ -171,6 +171,7 @@ class BaseMatch:
     async def end_match(self):
         if self.is_ended:
             return
+        self.__update_locked = True
         self.end_stamp = tools.timestamp_now()
         self.status = MatchState.ENDED
         self.log('Match Ended')
@@ -182,8 +183,7 @@ class BaseMatch:
             await asyncio.sleep(5)
             for player in self.__players:
                 await self.leave_match(player)
-        del BaseMatch._active_matches[self.id]
-        BaseMatch._recent_matches[self.id] = self
+        BaseMatch._recent_matches[self.id] = BaseMatch._active_matches.pop(self.id)
         if len(BaseMatch._recent_matches) > 50:  # Trim _recent_matches if it reaches over 50
             keys = list(BaseMatch._recent_matches.keys())
             for i in range(20):
