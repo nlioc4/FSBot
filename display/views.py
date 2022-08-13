@@ -156,7 +156,7 @@ class MatchInfoView(FSBotView):
         self.match.timeout_stamp = None
         await disp.MATCH_TIMEOUT_RESET.send_temp(self.match.text_channel, inter.user.mention)
         self.match.log("Match Timeout Reset")
-        await self.match.update_embed()
+        await self.match.update()
 
     @discord.ui.button(label="Request Account", style=discord.ButtonStyle.blurple)
     async def account_button(self, button: discord.Button, inter: discord.Interaction):

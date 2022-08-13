@@ -176,7 +176,7 @@ class BaseMatch:
         self.status = MatchState.ENDED
         self.log('Match Ended')
         await disp.MATCH_END.send(self.text_channel, self.id)
-        await self.update(check_timeout=False)
+        await self.update_embed()
         self.__ended = True
         await db.async_db_call(db.set_element, 'matches', self.id, self.get_data())
         with self.text_channel.typing():
@@ -231,7 +231,10 @@ class BaseMatch:
         if self.info_message:
             self.embed_cache = self.embed_cache if tools.compare_embeds(self.embed_cache,
                                                                         self._new_embed()) else self._new_embed()
-            await disp.MATCH_INFO.edit(self.info_message, embed=self.embed_cache, view=self.view())
+            try:
+                await disp.MATCH_INFO.edit(self.info_message, embed=self.embed_cache, view=self.view())
+            except discord.NotFound as e:
+                log.error("Couldn't find self.info_message for Match %s", self.id_str, exc_info=e)
         else:
             await self.send_embed()
 

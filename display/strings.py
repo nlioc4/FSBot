@@ -210,7 +210,6 @@ class AllStrings(Enum):
                         return await getattr(ctx, 'edit_original_message')(**args_dict)
                 return await getattr(ctx.response, action + '_message')(**args_dict)
 
-
             case discord.ApplicationContext:
                 if action == "send":
                     return await getattr(ctx, "respond")(**args_dict)
