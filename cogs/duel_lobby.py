@@ -31,6 +31,7 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
         self.dashboard_embed = None
 
         self.dashboard_loop.start()
+        self.duel_lobby_waiting_loop.start()
 
     def cog_check(self, ctx):
         player = Player.get(ctx.user.id)
@@ -43,7 +44,11 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
         for lobby in Lobby.all_lobbies.values():
             lobby_updates.append(lobby.update())
         await asyncio.gather(*lobby_updates)
-        await d_obj.channels['Duel-Lobby'].edit(name=disp.LOBBY_INFO_CHANNEL(len(lobby.lobbied)))
+
+    @tasks.loop(seconds=300)
+    async def duel_lobby_waiting_loop(self):
+        for lobby in Lobby.all_lobbies.values():
+            await d_obj.channels['Duel-Lobby'].edit(name=disp.LOBBY_INFO_CHANNEL(len(lobby.lobbied)))
 
     @dashboard_loop.before_loop
     async def before_lobby_loop(self):
