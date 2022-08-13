@@ -334,7 +334,7 @@ class Lobby:
                 await disp.LOBBY_TIMEOUT_SOON.send(self.channel, p.mention, delete_after=30)
 
     def update_matches(self):
-        """Remvoe matches from match list if ended"""
+        """Remove matches from match list if ended"""
         for match in self.__matches:
             if match.is_ended:
                 self.__matches.remove(match)

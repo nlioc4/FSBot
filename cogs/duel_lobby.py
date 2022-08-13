@@ -43,6 +43,7 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
         for lobby in Lobby.all_lobbies.values():
             lobby_updates.append(lobby.update())
         await asyncio.gather(*lobby_updates)
+        await d_obj.channels['Duel-Lobby'].edit(name=disp.LOBBY_INFO_CHANNEL(len(lobby.lobbied)))
 
     @dashboard_loop.before_loop
     async def before_lobby_loop(self):

@@ -77,7 +77,8 @@ channels = {
     "announcements": "",
     "pickups-chat": "",
     "pickups-info": "",
-    "Pickups-General": ""
+    "Pickups-General": "",
+    "Duel-Lobby": ""
 }
 
 # Discord Role ID's

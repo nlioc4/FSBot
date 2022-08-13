@@ -115,6 +115,8 @@ class AllStrings(Enum):
     LOBBY_PING = "A player who matches one of your requested skill levels has joined the {} lobby!\n" \
                  "You will not be pinged again for {} minutes if another matching player joins the lobby."
 
+    LOBBY_INFO_CHANNEL = "Duel Lobby: {} waiting"
+
     INVITE_WRONG_USER = "This invite isn\'t for you!"
 
     MATCH_CREATE = "{} Match created ID: {}"
