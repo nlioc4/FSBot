@@ -107,10 +107,9 @@ class InviteView(FSBotView):
         self.disable_all_items()
         self.stop()
         owner_mem = d_obj.guild.get_member(self.owner.id)
-        p.decline_reason = int(select.values[0])
-        if p.decline_reason == 0:
+        if int(select.values[0]) == 0:
             await disp.MATCH_DECLINE_SKILLEVEL.send(owner_mem, p.mention)
-        elif p.decline_reason == 1:
+        elif int(select.values[0]) == 1:
             await disp.MATCH_DECLINE_NOTIME.send(owner_mem, p.mention)
 
         await inter.response.edit_message(view=self)
