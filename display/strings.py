@@ -51,6 +51,7 @@ class AllStrings(Enum):
     DM_THREAD_CLOSE = "This DM thread has been closed.  A new instance must be created" \
                       " for further messages to be conveyed."
 
+
     EVENTS_PICKUPS = "@everyone\n" \
                      "\n" \
                      "Air pickups are coming back on {}.\n" \
@@ -125,6 +126,10 @@ class AllStrings(Enum):
     MATCH_ACCEPT = "You have accepted the invite, join {}."
     MATCH_DECLINE = "You have decline the invite."
     MATCH_DECLINE_INFO = "{} has declined your match invitation."
+    MATCH_DECLINE_SKILLEVEL = "{} has declined your match invitation due to a skill level mismatch."
+    MATCH_DECLINE_NOTIME = "{} has declined your match invitation due to a lack of time."
+
+
     MATCH_JOIN = "{} has joined the match"
     MATCH_JOIN_2 = "{} has joined match {}."
     MATCH_LEAVE = "{} has left the match."

@@ -91,6 +91,31 @@ class InviteView(FSBotView):
         await inter.response.edit_message(view=self)
         await disp.MATCH_DECLINE.send(inter.message)
 
+    options = [
+        discord.SelectOption(label="Decline: Skill level", value='0',
+                             description="Decline due to a skill level difference"),
+        discord.SelectOption(label="Decline: No time anymore", value='1',
+                             description="Decline due to you not having time anymore."),
+    ]
+
+    @discord.ui.select(placeholder="Decline invitation with reason", min_values=1, max_values=1, options=options)
+    async def decline_select(self, select: discord.ui.Select, inter: discord.Interaction):
+        p: Player = Player.get(inter.user.id)
+        if not await d_obj.is_registered(inter, p):
+            return
+        self.lobby.decline_invite(self.owner, p)
+        self.disable_all_items()
+        self.stop()
+        owner_mem = d_obj.guild.get_member(self.owner.id)
+        p.decline_reason = int(select.values[0])
+        if p.decline_reason == 0:
+            await disp.MATCH_DECLINE_SKILLEVEL.send(owner_mem, p.mention)
+        elif p.decline_reason == 1:
+            await disp.MATCH_DECLINE_NOTIME.send(owner_mem, p.mention)
+
+        await inter.response.edit_message(view=self)
+        await disp.MATCH_DECLINE.send(inter.message)
+
     async def on_timeout(self) -> None:
         self.disable_all_items()
         await self.msg.edit(view=self)
@@ -173,6 +198,7 @@ class MatchInfoView(FSBotView):
 
             else:  # if no account found
                 await disp.ACCOUNT_NO_ACCOUNT.send_priv(inter)
+
 
 class RegisterPingsView(FSBotView):
 
