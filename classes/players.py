@@ -117,10 +117,13 @@ class Player:
     def get_players_to_ping(cls, level) -> set:
         could_ping = set()
         for p in list(cls.get_all_players().values()):
-            #  if pref == 0 or player has category hidden never ping
-            if p.lobby_ping_pref == 0 or p.hidden:
+
+            #  Cases where a player should never be pinged:
+            #  ping_pref == 0, category hidden, on timeout, or in lobby/match already.
+            if p.lobby_ping_pref == 0 or p.hidden or p.is_timeout or p.lobby or p.match:
                 continue
-            # Continue check if not pinged, or last ping > ping freq ago
+
+            # Check player hasn't been pinged within ping_freq
             if not p.lobby_last_ping or (p.lobby_last_ping and
                                          p.lobby_last_ping + p.lobby_ping_freq * 60 < tools.timestamp_now()):
                 # if no req skill levels or a matching level in the lobby levels

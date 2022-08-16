@@ -348,29 +348,32 @@ class Lobby:
                 self.__matches.remove(match)
 
     async def _update_pings(self, player):
+        """Gets list of players that could potentially be pinged, checks online status pursuant to preferences.
+        Pings passing players, and marks them as pinged."""
 
         # Collect set of all players requesting these skill levels, if they haven't already been pinged
         players_to_ping = Player.get_players_to_ping(player.skill_level)
         if not players_to_ping:
             return
 
-        # Check ping preferences and online status
+        # Map discord member objects to player objects, ensure Member object exists.
         player_membs_dict = {d_obj.guild.get_member(to_ping.id): to_ping for to_ping in players_to_ping
                              if d_obj.guild.get_member(to_ping.id) is not None}
+        # Actually check online Status if pref requires it
         to_remove = []
         for p_m in player_membs_dict:
-            if player_membs_dict[p_m].lobby:
-                to_remove.append(p_m)
-            elif player_membs_dict[p_m].lobby_ping_pref == 1 and p_m.status != discord.Status.online:
+            if player_membs_dict[p_m].lobby_ping_pref == 1 and p_m.status != discord.Status.online:
                 to_remove.append(p_m)
         for p_m in to_remove:
             player_membs_dict.pop(p_m)
+
         # build list of ping coroutines to execute
         ping_coros = []
         for p_m in player_membs_dict:
             player_membs_dict[p_m].lobby_last_ping = tools.timestamp_now()  # mark players as pinged
             ping_coros.append(disp.LOBBY_PING.send(p_m, player.mention, self.mention,
                                                    player_membs_dict[p_m].lobby_ping_freq))
+        # Actually send all pings
         await asyncio.gather(*ping_coros, return_exceptions=True)
 
     async def update(self):
