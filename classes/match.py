@@ -270,7 +270,7 @@ class BaseMatch:
                                                    tools.format_time_from_stamp(self.timeout_at, 'R'),
                                                    delete_after=30)
 
-    async def update(self, check_timeout=True, user=None, char_name=None):
+    async def update(self):
         """Update the match object.  Check_timeout is used to specify whether the timeout should be checked, default True.
         Login can be used to log a login action, pass a player.
         Otherwise, updates timeout, match status, and the embed if required"""
@@ -282,10 +282,13 @@ class BaseMatch:
         # Lock the match, so it can't be updated by any other methods if an update is in progress
         self.__update_locked = True
 
-        if check_timeout:
-            await self.update_timeout()
+        # Check if the match should be warned / timed out
+        await self.update_timeout()
 
+        # Updated Match Status
         self.update_status()
+
+        # Reflect match embed with updated match attributes, also updates match view
         await self.update_embed()
 
         # Unlock the match
