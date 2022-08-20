@@ -193,7 +193,7 @@ class MatchInfoView(FSBotView):
             return
         if self.match.public_voice:
             # Set channel to private, disconnect all unauthorized users
-            await self.match.voice_channel.set_permissions(d_obj.roles['view_channels'],
+            await self.match.voice_channel.set_permissions(d_obj.roles['view_channels'],  # TODO this should probably be moved to a BaseMatch method
                                                            connect=False, view_channel=False)
             to_disconnect = []
             for memb in self.match.voice_channel.members:

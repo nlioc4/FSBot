@@ -524,6 +524,7 @@ class Lobby:
             return match
 
     def decline_invite(self, owner, player):
+        """Decline an invite from owner to player"""
         if owner.match and owner.match.owner == owner:
             owner.match.decline_invite(player)
         if owner.id in self.__invites:
@@ -532,6 +533,7 @@ class Lobby:
                 del self.__invites[owner.id]
 
     def already_invited(self, owner, invited_players):
+        """Check which players in a given list the owner has already invited to a match"""
         already_invited_list = []
         for match in self.__matches:
             if match.owner.id == owner.id:

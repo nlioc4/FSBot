@@ -20,8 +20,7 @@ from modules import tools
 log = getLogger('fs_bot')
 
 
-class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_ids=[cfg.general['guild_id']],
-                                                                         default_permission=True)):
+class DuelLobbyCog(commands.Cog, name="DuelLobbyCog"):
     def __init__(self, bot):
         #  Statics
         self.bot = bot
@@ -31,6 +30,7 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
         self.dashboard_embed = None
 
         self.dashboard_loop.start()
+        self.guild_ids = [cfg.general["guild_id"]]
 
     def cog_check(self, ctx):
         player = Player.get(ctx.user.id)
@@ -62,27 +62,40 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog", command_attrs=dict(guild_i
         p.lobby.lobby_timeout_reset(p)
 
     @commands.user_command(name="Invite To Match")
-    async def user_match_invite(self, ctx: discord.ApplicationContext, user: discord.User):
+    async def user_match_invite(self, ctx: discord.ApplicationContext, user: discord.Member):
+        # if invited self, cancel
+        if ctx.user == user:
+            await disp.LOBBY_INVITED_SELF.send_priv(ctx, ctx.user.mention)
+            return
         invited = Player.get(user.id)
         owner = Player.get(ctx.user.id)
+        # lobby is the owners lobby -> current channel lobby -> invited players lobby, in that order
         lobby = owner.lobby or Lobby.channel_to_lobby(ctx.channel) or invited.lobby
+
+        # returnif no lobby found in any case above
         if not lobby:
             await disp.LOBBY_CANT_INVITE.send_priv(ctx)
             return
+
+        # return if the invited players lobby is not the found lobby
         if invited.lobby is not lobby:
             await disp.LOBBY_NOT_IN_2.send_priv(ctx, invited.mention)
             return
+
+        # return if trying to invite to a match the player doesn't own
         if owner.match and owner.match.owner != owner:
             await disp.LOBBY_NOT_OWNER.send_priv(ctx)
             return
+
+        # If all guards passed, send invite
         sent = await lobby.send_invite(owner, invited)
-        if sent and owner.match:
+        if sent and owner.match:  # if sent, and invited to an existing match
             await disp.LOBBY_INVITED_MATCH.send_priv(ctx, owner.mention, invited.mention, owner.match.id_str)
             lobby.lobby_log(lobby.lobby_log(f'{owner.name} invited {invited.name} to Match: {owner.match.id_str}'))
-        elif sent:
+        elif sent:  # if sent, and invited to a new match
             await disp.LOBBY_INVITED.send_priv(ctx, owner.mention, invited.mention)
             lobby.lobby_log(lobby.lobby_log(f'{owner.name} invited {invited.name} to a match.'))
-        else:
+        else:  # if couldn't send an invite to the player
             await disp.LOBBY_NO_DM.send_priv(ctx, invited.mention)
 
 

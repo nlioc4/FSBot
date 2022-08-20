@@ -102,11 +102,13 @@ class BaseMatch:
     async def _make_channel(self):
         overwrites = self._get_overwrites()
         try:
+            # Create text channel, with provided overwrites
             self.text_channel = await d_obj.categories['user'].create_text_channel(
                 name=f'{self.TYPE}┊{self.id_str}┊',
                 overwrites=overwrites,
                 topic=f'Match channel for {self.TYPE.lower()} Match [{self.id_str}], created by {self.owner.name}'
             )
+            # Create voice channel, with extended overwrites to set channel to private
             overwrites[d_obj.guild.default_role].update(send_messages=False, connect=False)
             self.voice_channel = await d_obj.categories['user'].create_voice_channel(
                 name=f'{self.TYPE}┊{self.id_str}┊Voice',
@@ -209,7 +211,7 @@ class BaseMatch:
         player_member = d_obj.guild.get_member(player.id)
         await asyncio.gather(
             self.text_channel.set_permissions(player_member, view_channel=action),
-            self.voice_channel.set_permissions(player_member, view_channel=action)
+            self.voice_channel.set_permissions(player_member, view_channel=action, connect=action)
         )
 
     def _new_embed(self):
