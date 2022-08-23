@@ -23,6 +23,29 @@ import cogs.register as register
 
 log = getLogger('fs_bot')
 
+class DeleteMessageReasonModal(discord.ui.Modal):
+    """Handle modal creation of message deletion"""
+    def __init__(self, ctx: discord.ApplicationContext):
+        self.ctx = ctx
+        super().__init__(
+            discord.ui.InputText(
+                label="Input deletion reason(s)",
+                placeholder="e.g: Your message was deleted due to rule 7.",
+                style=discord.InputTextStyle.long,
+                min_length=2,
+                max_length=200
+            ),
+            title="Message Deletion Reason",
+        )
+
+    async def callback(self, inter: discord.Interaction):
+        """Handles deletion and notification itself"""
+        await disp.MESSAGE_DELETED.send(self.ctx.author, self.ctx.content, self.children[0].value)
+        await disp.MESSAGE_DELETE_SUCCESSFUL.send_priv(inter, self.ctx.author.mention)
+        await self.ctx.delete()
+
+
+
 
 class AdminCog(commands.Cog):
     def __init__(self, bot):
@@ -106,6 +129,13 @@ class AdminCog(commands.Cog):
             await ctx.channel.send(content="", view=register.RegisterView(), embed=embeds.fsbot_info_embed())
         await ctx.respond(content="Register and Settings Message Posted", ephemeral=True)
 
+
+    @commands.message_command(name="Delete Message")
+    @commands.max_concurrency(number=1, wait=True)
+    async def msg_delete_msg(self, ctx: discord.ApplicationContext, message: discord.Message):
+        """Handles message deletions where moderators can provide a reason that gets sent to the user."""
+        await ctx.send_modal(DeleteMessageReasonModal(message))
+        
     ##########################################################
 
     match_admin = admin.create_subgroup(

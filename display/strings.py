@@ -16,6 +16,9 @@ log = getLogger('fs_bot')
 
 
 class AllStrings(Enum):
+    MESSAGE_DELETED = "Message \"{}\" has been deleted by the moderation team. Reason: {}"
+    MESSAGE_DELETE_SUCCESSFUL = "Deleted message from {} successfully."
+
     NOT_REGISTERED = "You are not registered {}, please go to {} first!"
     NOT_PLAYER = "You are not a player {}, please go to {} first!"
     NOT_PLAYER_2 = "{} is not a player"
