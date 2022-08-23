@@ -23,8 +23,10 @@ import cogs.register as register
 
 log = getLogger('fs_bot')
 
+
 class DeleteMessageReasonModal(discord.ui.Modal):
     """Handle modal creation of message deletion"""
+
     def __init__(self, ctx: discord.ApplicationContext):
         self.ctx = ctx
         super().__init__(
@@ -43,8 +45,6 @@ class DeleteMessageReasonModal(discord.ui.Modal):
         await disp.MESSAGE_DELETED.send(self.ctx.author, self.ctx.content, self.children[0].value)
         await disp.MESSAGE_DELETE_SUCCESSFUL.send_priv(inter, self.ctx.author.mention)
         await self.ctx.delete()
-
-
 
 
 class AdminCog(commands.Cog):
@@ -79,7 +79,8 @@ class AdminCog(commands.Cog):
     @admin.command()
     async def contentplug(self, ctx: discord.ApplicationContext,
                           action: discord.Option(str, "Enable, Disable or check status of the #contentplug filter",
-                                                 choices=("Enable", "Disable", "Status"),
+                                                 choices=(
+                                                     "Enable", "Disable", "Status"),
                                                  required=True)):
         """Enable or disable the #contentplug filter"""
         channel = d_obj.channels['content-plug']
@@ -129,13 +130,12 @@ class AdminCog(commands.Cog):
             await ctx.channel.send(content="", view=register.RegisterView(), embed=embeds.fsbot_info_embed())
         await ctx.respond(content="Register and Settings Message Posted", ephemeral=True)
 
-
     @commands.message_command(name="Delete Message")
     @commands.max_concurrency(number=1, wait=True)
     async def msg_delete_msg(self, ctx: discord.ApplicationContext, message: discord.Message):
         """Handles message deletions where moderators can provide a reason that gets sent to the user."""
         await ctx.send_modal(DeleteMessageReasonModal(message))
-        
+
     ##########################################################
 
     match_admin = admin.create_subgroup(
@@ -230,7 +230,8 @@ class AdminCog(commands.Cog):
         num_available = len(accounts._available_accounts)
         assigned = accounts._busy_accounts.values()
         num_used = len(assigned)
-        online = [acc for acc in accounts.all_accounts.values() if acc.online_id]
+        online = [acc for acc in accounts.all_accounts.values()
+                  if acc.online_id]
         await disp.ACCOUNT_INFO.send_priv(ctx, num_available=num_available, num_used=num_used, assigned=assigned,
                                           online=online)
 
@@ -325,7 +326,8 @@ class AdminCog(commands.Cog):
         for _ in range(5):
             if await census.online_status_rest(Player.map_chars_to_players()):
                 return True
-        log.warning("Could not reach REST api during census rest after 5 tries...")
+        log.warning(
+            "Could not reach REST api during census rest after 5 tries...")
         return False
 
     @census_watchtower.after_loop
@@ -386,13 +388,15 @@ class AdminCog(commands.Cog):
             combined_times = dt.combine(converted_date, converted_time)
             timestamp = combined_times.replace(tzinfo=timezone.utc).timestamp()
 
-            discord_timestamp = tools.format_time_from_stamp(int(timestamp), "F")
+            discord_timestamp = tools.format_time_from_stamp(
+                int(timestamp), "F")
             allowed_mentions = discord.AllowedMentions(everyone=True)
 
             await d_obj.guild.create_scheduled_event(name="Air Pickups",
                                                      description="ESF group fights with balanced teams on Jaeger",
                                                      start_time=combined_times,
-                                                     end_time=combined_times + timedelta(hours=2),
+                                                     end_time=combined_times +
+                                                     timedelta(hours=2),
                                                      location=d_obj.channels['Pickups-General'])
 
             event_id = d_obj.guild.scheduled_events[0].id
