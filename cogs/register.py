@@ -172,9 +172,13 @@ class RegisterCharacterModal(discord.ui.Modal):
 
     async def callback(self, inter: discord.Interaction):
         p: classes.Player = classes.Player.get(inter.user.id)
-        char_list = self.children[0].value.replace(' ', ',').split(',')
+        # remove leading/trailing whitespaces, replace " " with "," if user used spaces instead of
+        # commmas to seperate chars.
+        char_list = self.children[0].value.strip().replace(' ', ',').split(',')
         for char in char_list:
             char.strip()
+
+        # remove any blank entries in char_list, shouldn't be required
         char_list = list(filter(len, char_list))
         await inter.response.defer(ephemeral=True)
         inter = inter.followup

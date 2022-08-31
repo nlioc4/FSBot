@@ -45,14 +45,14 @@ class MatchesCog(commands.Cog, name="MatchesCog",
 
 
 
-    @tasks.loop(seconds=15)
-    async def matches_loop(self):
-        # update match info embeds
-        match_update_coros = []
-        for match in BaseMatch.active_matches_list():
-            if not match.is_ended:
-                match_update_coros.append(match.update())
-        await asyncio.gather(*match_update_coros)
+    # @tasks.loop(seconds=15)
+    # async def matches_loop(self):
+    #     # update match info embeds
+    #     match_update_coros = []
+    #     for match in BaseMatch.active_matches_list():
+    #         if not match.is_ended:
+    #             match_update_coros.append(match.update())
+    #     await asyncio.gather(*match_update_coros)
 
 
     @commands.Cog.listener('on_message')

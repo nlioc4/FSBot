@@ -34,6 +34,8 @@ class AdminCog(commands.Cog):
         guild_ids=[cfg.general['guild_id']]
     )
 
+
+    # TODO Fix, currently doesn't unload/reload lobbies correctly
     @admin.command()
     async def loader(self, ctx: discord.ApplicationContext,
                      action: discord.Option(str, "Lock or Unlock FSBot", choices=("Unlock", "Lock", "Reload"),

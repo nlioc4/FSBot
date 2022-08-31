@@ -317,7 +317,7 @@ def match_info(match) -> Embed:
 
     if match.voice_channel:
         match_info_str += f'Match Voice Channel: {match.voice_channel.mention} ' \
-                          f'{"🔓" if match.public_voice else "🔒"}\n' \
+                          f'{"🔓" if match.__public_voice else "🔒"}\n' \
 
     embed.add_field(name="Match Info",
                     value=match_info_str,

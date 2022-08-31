@@ -161,7 +161,7 @@ class Player:
         self.req_skill_levels = None
 
         # Integers to represent ping preferences. {0: No Ping, 1: Ping if Online, 2: Ping Always}
-        self.lobby_ping_pref = 1
+        self.lobby_ping_pref = 0
         self.lobby_ping_freq = 30  # Minutes to wait in between pings
         self.lobby_last_ping = 0  # Timestamp of last time the player was pinged
 

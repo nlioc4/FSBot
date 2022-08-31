@@ -111,7 +111,6 @@ class DashboardView(views.FSBotView):
     @discord.ui.button(label="Join Lobby", style=discord.ButtonStyle.green)
     async def join_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         player: Player = Player.get(inter.user.id)
-
         if not await d_obj.is_registered(inter, player):
             return
         elif player.match:
@@ -463,7 +462,10 @@ class Lobby:
             player.on_lobby_add(self, self._player_timeout_at(player))
             self.__lobbied_players.append(player)
             self.lobby_log(f'{player.name} joined the lobby.')
-            await self._update_pings(player)
+
+            # schedule update_pings call, so that lobby join doesn't have to wait for it to complete
+            d_obj.bot.loop.call_soon(self._update_pings(player))
+
             return True
         else:
             return False
@@ -502,8 +504,9 @@ class Lobby:
         If owner has since joined a different match, returns false."""
         if owner.match and owner.match.owner == owner:
             match = owner.match
-            await match.join_match(player)
-            await match.update_embed()
+            if not await match.join_match(player):
+                return False  # if match join failed (match full)
+            await match.update()
             self.lobby_leave(player, match)
             return match
         elif owner.active:

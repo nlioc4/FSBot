@@ -119,12 +119,15 @@ class MatchInfoView(FSBotView):
             else:
                 self.reset_timeout_button.style = discord.ButtonStyle.grey
                 self.reset_timeout_button.disabled = True
-        if self.match.public_voice:
+        if self.match.__public_voice:
             self.voice_button.label = "Voice: Public"
             self.voice_button.style = discord.ButtonStyle.green
         else:
             self.voice_button.label = "Voice: Private"
             self.voice_button.style = discord.ButtonStyle.red
+
+        if self.match.is_ended:
+            self.disable_all_items()
 
         return self
 
@@ -191,27 +194,15 @@ class MatchInfoView(FSBotView):
         if p != self.match.owner and not d_obj.is_admin(inter.user):
             await disp.MATCH_NOT_OWNER.send_priv(inter)
             return
-        if self.match.public_voice:
-            # Set channel to private, disconnect all unauthorized users
-            await self.match.voice_channel.set_permissions(d_obj.roles['view_channels'],  # TODO this should probably be moved to a BaseMatch method
-                                                           connect=False, view_channel=False)
-            to_disconnect = []
-            for memb in self.match.voice_channel.members:
-                if d_obj.is_admin(memb):
-                    continue
-                if memb.id not in [p.id for p in self.match.players]:
-                    to_disconnect.append(memb.move_to(None))
-            await asyncio.gather(*to_disconnect)
+
+        if self.match.__public_voice:  # if voice public, set to private
+            await self.match.private_voice()
             await disp.MATCH_VOICE_PRIV.send_priv(inter, self.match.voice_channel.mention)
-            self.match.public_voice = False
-            await self.match.update()
-        elif not self.match.public_voice:
-            # Set channel to public
-            await self.match.voice_channel.set_permissions(d_obj.roles['view_channels'],
-                                                           connect=True, view_channel=True)
+
+        elif not self.match.__public_voice:  # if voice private, set to public
+            await self.match.public_voice()
             await disp.MATCH_VOICE_PUB.send_priv(inter, self.match.voice_channel.mention)
-            self.match.public_voice = True
-            await self.match.update()
+
 
 
 class RegisterPingsView(FSBotView):

@@ -61,7 +61,8 @@ class AllStrings(Enum):
     REG_NOT_JAEGER = "Registration Failed: Character: {} is not from Jaeger!"
     REG_WRONG_FORMAT = "Incorrect Character Entry Format! Enter either 1 character for each faction separated by ',' " \
                        "or a space, or one character without a faction suffix and suffixes will be added for you."
-    REG_NO_CENSUS = "DBG's Census API is currently unavailable, cannot register characters.  Please try again soon!"
+    REG_NO_CENSUS = "DBG's Census API is currently unavailable, cannot register characters.  Please try again soon!" \
+                    "  Contact Colin if the problem persists!"
     REG_INFO = "", register_info
 
     PREF_PINGS_CURRENT = "Your current ping Preferences are:\n{}\nYou will only ever be pinged if the player joining "\
@@ -111,6 +112,7 @@ class AllStrings(Enum):
     MATCH_END = "Match ID: {} Ended, closing match channel..."
     MATCH_NOT_FOUND = "Match for channel {} not found!"
     MATCH_NOT_OWNER = "Only the match owner can do this!"
+    MATCH_NEW_OWNER = "The match owner is now {}!"
     MATCH_NOT_IN = "You are not in match {}."
     MATCH_NOT_IN_2 = "Player {} is not in match {}."
     MATCH_ALREADY = "{} is already in match {}."

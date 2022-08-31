@@ -296,6 +296,13 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
     if not acc.online_id:
         await clean_account(acc)
 
+async def terminate_all():
+    """Terminates all currently assigned accounts"""
+
+    terminate_coroutines = [terminate(acc) for acc in _busy_accounts.items()]
+    await asyncio.gather(*terminate_coroutines)
+
+
 
 async def clean_account(acc):
     if acc.is_validated:

@@ -33,6 +33,7 @@ class MatchState(Enum):
 class BaseMatch:
     _active_matches = dict()
     _recent_matches = dict()
+    UPDATE_DELAY = 15  # number of seconds to delay updates by
     MAX_PLAYERS = 10
     TYPE = "Casual"
 
@@ -48,9 +49,10 @@ class BaseMatch:
         self.timeout_warned = False
         self.was_timeout = False
         self.status = MatchState.LOGGING_IN
-        self.public_voice = False
+        self.__public_voice = False
         self.__ended = False
-        self.__update_locked = True
+        self.__update_lock = asyncio.Lock()
+        self.__next_update_handler: asyncio.TimerHandle | None = None  # store asyncio.Handle for next update call
 
         # Display
         self.text_channel: discord.TextChannel | None = None
@@ -90,13 +92,14 @@ class BaseMatch:
             if last_match:
                 _match_id_counter = last_match['_id']
         obj = cls(owner, invited)
-        obj.log(f'{owner.name} created the match with {invited.name}')
+        async with obj.__update_lock:
+            obj.log(f'{owner.name} created the match with {invited.name}')
 
-        await obj._make_channel()
+            await obj._make_channel()
 
-        await obj.send_embed()
-        obj.setup()
-        obj.__update_locked = False
+            await obj.send_embed()
+            obj.setup()
+            obj._schedule_update()
         return obj
 
     async def _make_channel(self):
@@ -109,7 +112,6 @@ class BaseMatch:
                 topic=f'Match channel for {self.TYPE.lower()} Match [{self.id_str}], created by {self.owner.name}'
             )
             # Create voice channel, with extended overwrites to set channel to private
-            overwrites[d_obj.guild.default_role].update(send_messages=False, connect=False)
             self.voice_channel = await d_obj.categories['user'].create_voice_channel(
                 name=f'{self.TYPE}┊{self.id_str}┊Voice',
                 # Same overwrites, except disallow sending messages in text-in-voice
@@ -121,9 +123,29 @@ class BaseMatch:
                               error=e)
             await self.end_match()
 
+    async def private_voice(self):
+        """Set the matches voice channel to private, only allowing members of the match to join.
+           Disconnect any users that aren't members of the match / admins"""
+        await self.voice_channel.set_permissions(d_obj.roles['view_channels'],
+                                                 connect=False, view_channel=False)
+        #  gather disconnect coroutines if users not in match, and not admins
+        to_disconnect = [memb.move_to(None) for memb in self.voice_channel.members
+                         if memb.id not in [p.id for p in self.players] and not d_obj.is_admin(memb)]
+
+        await asyncio.gather(*to_disconnect)
+        self.__public_voice = False
+        await self.update()
+
+    async def public_voice(self):
+        """Set the matches' voice channel to public, allowing any user to join"""
+        await self.match.voice_channel.set_permissions(d_obj.roles['view_channels'],
+                                                       connect=True, view_channel=True)
+        self.match.__public_voice = True
+        await self.match.update()
+
     def _get_overwrites(self):
         overwrites = {
-            d_obj.guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            d_obj.guild.default_role: discord.PermissionOverwrite(view_channel=False, connect=False),
             d_obj.roles['timeout']: discord.PermissionOverwrite(view_channel=False, connect=False),
             d_obj.roles['app_admin']: discord.PermissionOverwrite(view_channel=True, connect=True),
             d_obj.roles['admin']: discord.PermissionOverwrite(view_channel=True, connect=True),
@@ -170,34 +192,49 @@ class BaseMatch:
         if not self.__players and not self.is_ended:  # if no players left, and match not already ended.
             await self.end_match()  # Should only be called if match didn't end when owner left
 
+    async def change_owner(self, player: None | ActivePlayer = None):
+        """Set a new owner if player provided, otherwise pick a new owner from players.
+        Return new owner, or None if no new owner found."""
+
+        player = player or next((p for p in self.__players if p.player != self.owner), None)
+
+        if not player:
+            return False
+
+        self.owner = player
+        await disp.MATCH_NEW_OWNER.send(self.text_channel, player.mention)
+        await self.update()
+        return player
+
     async def end_match(self):
         if self.is_ended:
             return
-        self.__update_locked = True
-        self.end_stamp = tools.timestamp_now()
-        self.status = MatchState.ENDED
-        self.log('Match Ended')
-        await disp.MATCH_END.send(self.text_channel, self.id)
-        await self.update_embed()
-        self.__ended = True
-        await db.async_db_call(db.set_element, 'matches', self.id, self.get_data())
-        with self.text_channel.typing():
-            await asyncio.sleep(5)
-            for player in self.__players:
-                await self.leave_match(player)
-        BaseMatch._recent_matches[self.id] = BaseMatch._active_matches.pop(self.id)
-        if len(BaseMatch._recent_matches) > 50:  # Trim _recent_matches if it reaches over 50
-            keys = list(BaseMatch._recent_matches.keys())
-            for i in range(20):
-                del BaseMatch._recent_matches[keys[i]]
-        #  Delete text_channel if it is not already deleted
-        try:
-            await asyncio.gather(
-                self.text_channel.delete(reason='Match Ended'),
-                self.voice_channel.delete(reason='Match Ended')
-            )
-        except discord.NotFound:
-            pass
+        async with self.__update_lock:
+            self.end_stamp = tools.timestamp_now()
+            self.status = MatchState.ENDED
+            self.__ended = True
+            self.log('Match Ended')
+            await disp.MATCH_END.send(self.text_channel, self.id_str)
+            await self.update_embed()
+            await db.async_db_call(db.set_element, 'matches', self.id, self.get_data())
+            with self.text_channel.typing():
+                leave_coroutines = [self.leave_match(player) for player in self.__players]
+                await asyncio.gather(*leave_coroutines)
+
+            BaseMatch._recent_matches[self.id] = BaseMatch._active_matches.pop(self.id)
+            if len(BaseMatch._recent_matches) > 50:  # Trim _recent_matches if it reaches over 50
+                keys = list(BaseMatch._recent_matches.keys())
+                for i in range(20):
+                    del BaseMatch._recent_matches[keys[i]]
+
+            #  Delete channels if not already deleted
+            try:
+                await asyncio.gather(
+                    self.text_channel.delete(reason='Match Ended'),
+                    self.voice_channel.delete(reason='Match Ended')
+                )
+            except discord.NotFound:
+                pass
 
     def get_data(self):
         data = {'_id': self.id, 'start_stamp': self.start_stamp, 'end_stamp': self.end_stamp,
@@ -277,24 +314,36 @@ class BaseMatch:
         Login can be used to log a login action, pass a player.
         Otherwise, updates timeout, match status, and the embed if required"""
 
-        # Do nothing if match is ended or update_locked
-        if self.is_ended or self.__update_locked:
+        # ensure exclusive access to update
+        async with self.__update_lock:
+
+            # Lock the match, so it can't be updated by any other methods if an update is in progress
+            self.__update_locked = True
+
+            # Check if the match should be warned / timed out
+            await self.update_timeout()
+
+            # Updated Match Status
+            self.update_status()
+
+            # Reflect match embed with updated match attributes, also updates match view
+            await self.update_embed()
+
+            # schedule next update
+            self._schedule_update()
+
+    def _schedule_update(self):
+        """Schedule next update of the match, cancel currently scheduled update."""
+
+        # Cancel without scheduling update if match ended
+        if self.is_ended and self.__next_update_handler:
+            self.__next_update_handler.cancel()
             return
 
-        # Lock the match, so it can't be updated by any other methods if an update is in progress
-        self.__update_locked = True
-
-        # Check if the match should be warned / timed out
-        await self.update_timeout()
-
-        # Updated Match Status
-        self.update_status()
-
-        # Reflect match embed with updated match attributes, also updates match view
-        await self.update_embed()
-
-        # Unlock the match
-        self.__update_locked = False
+        # Cancel next update if it exists, schedule new one
+        if self.is_ended or self.__next_update_handler:
+            self.__next_update_handler.cancel()
+        self.__next_update_handler = d_obj.bot.loop.call_later(self.UPDATE_DELAY, self.update())
 
     def log(self, message, public=True):
         self.match_log.append((tools.timestamp_now(), message, public))
