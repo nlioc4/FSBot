@@ -165,13 +165,18 @@ async def on_application_command_error(context, exception):
     else:
         try:
             await display.AllStrings.LOG_GENERAL_ERROR.send_priv(context, exception)
-        except discord.errors.InteractionResponded or discord.errors.NotFound:
+        except (discord.errors.InteractionResponded, discord.errors.NotFound):
             pass
         finally:
             await d_obj.d_log(source=context.user.name, message=f"Ignoring exception in command {context.command}",
                               error=exception)
 
     # traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
+
+@bot.event()
+async def on_member_join(member):
+    """Ensure proper roles are applied to players on server join"""
+    await d_obj.role_update(member)
 
 
 # database init

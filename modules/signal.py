@@ -12,6 +12,7 @@ import discord
 import modules.database as db
 import cogs.direct_messages
 import modules.accounts_handler as accounts
+import modules.census as census
 
 
 log = getLogger('fs_bot')
@@ -25,6 +26,10 @@ async def save_state(loop):
 
     # Terminate all active account sessions
     await accounts.terminate_all()
+
+    # Ensure Auraxium event client's session is closed
+    if census.EVENT_CLIENT.websocket:
+        await census.EVENT_CLIENT.close()
 
     # save dm threads to DB, likely unnecesssary as threads are saved on creation/deletion
     dm_dict = cogs.direct_messages.dm_threads_to_str()

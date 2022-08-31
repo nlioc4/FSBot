@@ -304,6 +304,8 @@ class AdminCog(commands.Cog):
     async def after_census_watchtower(self):
         if self.census_watchtower.failed():
             await d_obj.log(f"{d_obj.colin.mention} Census Watchtower has failed")
+        if self.census_watchtower.is_being_cancelled():
+            await census.EVENT_CLIENT.close()
 
     census_watchtower.add_exception_type(auraxium.errors.ResponseError)
 
