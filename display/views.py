@@ -112,14 +112,16 @@ class MatchInfoView(FSBotView):
 
     def update(self):
         self._update()
-        if not self.match.should_warn:
-            if self.match.should_warn:
-                self.reset_timeout_button.style = discord.ButtonStyle.green
-                self.reset_timeout_button.disabled = False
-            else:
-                self.reset_timeout_button.style = discord.ButtonStyle.grey
-                self.reset_timeout_button.disabled = True
-        if self.match.__public_voice:
+        # Update timeout reset button
+        if self.match.should_warn:
+            self.reset_timeout_button.style = discord.ButtonStyle.green
+            self.reset_timeout_button.disabled = False
+        else:
+            self.reset_timeout_button.style = discord.ButtonStyle.grey
+            self.reset_timeout_button.disabled = True
+
+        # Update voice lock indicator
+        if self.match.public_voice:
             self.voice_button.label = "Voice: Public"
             self.voice_button.style = discord.ButtonStyle.green
         else:
@@ -195,13 +197,10 @@ class MatchInfoView(FSBotView):
             await disp.MATCH_NOT_OWNER.send_priv(inter)
             return
 
-        if self.match.__public_voice:  # if voice public, set to private
-            await self.match.private_voice()
-            await disp.MATCH_VOICE_PRIV.send_priv(inter, self.match.voice_channel.mention)
-
-        elif not self.match.__public_voice:  # if voice private, set to public
-            await self.match.public_voice()
+        if await self.match.toggle_voice_lock():
             await disp.MATCH_VOICE_PUB.send_priv(inter, self.match.voice_channel.mention)
+        else:
+            await disp.MATCH_VOICE_PRIV.send_priv(inter, self.match.voice_channel.mention)
 
 
 

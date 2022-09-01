@@ -173,7 +173,7 @@ async def on_application_command_error(context, exception):
 
     # traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
 
-@bot.event()
+@bot.event
 async def on_member_join(member):
     """Ensure proper roles are applied to players on server join"""
     await d_obj.role_update(member)

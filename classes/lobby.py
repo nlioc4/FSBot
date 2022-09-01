@@ -18,7 +18,7 @@ import modules.tools as tools
 log = getLogger('fs_bot')
 
 RECENT_LOG_LENGTH: int = 8
-RECENT_LOG_TIMEOUT: int = 3600  # one hour
+RECENT_LOG_TIMEOUT: int = 10800  # three hours
 LONGER_LOG_LENGTH: int = 30
 
 
@@ -138,7 +138,7 @@ class DashboardView(views.FSBotView):
         if len(self.lobby.logs) <= len(self.lobby.logs_recent):
             await disp.LOBBY_NO_HISTORY.send_temp(inter, inter.user.mention)
             return
-        await disp.LOBBY_LONGER_HISTORY.send(inter, inter.user.mention, logs=self.lobby.logs_longer, delete_after=20)
+        await disp.LOBBY_LONGER_HISTORY.send_priv(inter, inter.user.mention, logs=self.lobby.logs_longer)
 
     @discord.ui.button(label="Leave Lobby", style=discord.ButtonStyle.red)
     async def leave_lobby_button(self, button: discord.Button, inter: discord.Interaction):
@@ -208,8 +208,8 @@ class Lobby:
 
     @property
     def logs_recent(self):
-        return [item for item in self.__logs if item[0] > tools.timestamp_now() - RECENT_LOG_TIMEOUT][
-               -RECENT_LOG_LENGTH:]
+        return [item for item in self.__logs if
+                item[0] > tools.timestamp_now() - RECENT_LOG_TIMEOUT][-RECENT_LOG_LENGTH:]
 
     @property
     def logs_longer(self):
@@ -464,7 +464,7 @@ class Lobby:
             self.lobby_log(f'{player.name} joined the lobby.')
 
             # schedule update_pings call, so that lobby join doesn't have to wait for it to complete
-            d_obj.bot.loop.call_soon(self._update_pings(player))
+            asyncio.create_task(self._update_pings(player))
 
             return True
         else:

@@ -217,7 +217,7 @@ def duel_dashboard(lobby) -> Embed:
         inline=False
     )
 
-    players_string = 'No players in Lobby'
+    players_string = 'No players currently in lobby...'
     if lobby.lobbied:
         players_string = ''
         for p in lobby.lobbied:
@@ -244,7 +244,7 @@ def duel_dashboard(lobby) -> Embed:
             inline=False
         )
 
-    log_str = '' if lobby.logs_recent else 'None in the last hour...'
+    log_str = '' if lobby.logs_recent else 'None in the last 3 hours...'
     for log in lobby.logs_recent:
         time_formatted = format_stamp(log[0], 'T')
         log_str += f'[{time_formatted}]{log[1]}\n'
@@ -255,7 +255,7 @@ def duel_dashboard(lobby) -> Embed:
 
 
 def longer_lobby_logs(logs: list[(int, str)]) -> Embed:
-    """Player visible duel dashboard, shows currently looking duelers, their requested skill Levels."""
+    """Extended lobby history available on button press"""
 
     embed = Embed(
         colour=Colour.blurple(),
@@ -317,7 +317,7 @@ def match_info(match) -> Embed:
 
     if match.voice_channel:
         match_info_str += f'Match Voice Channel: {match.voice_channel.mention} ' \
-                          f'{"🔓" if match.__public_voice else "🔒"}\n' \
+                          f'{"🔓" if match.public_voice else "🔒"}\n' \
 
     embed.add_field(name="Match Info",
                     value=match_info_str,

@@ -27,7 +27,7 @@ class MatchesCog(commands.Cog, name="MatchesCog",
     def __init__(self, bot):
         self.bot = bot
         self.matches_init.start()
-        self.matches_loop.start()
+        # self.matches_loop.start()
 
     @tasks.loop(count=1)
     async def matches_init(self):

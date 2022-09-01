@@ -13,6 +13,7 @@ import modules.database as db
 import cogs.direct_messages
 import modules.accounts_handler as accounts
 import modules.census as census
+import classes.match
 
 
 log = getLogger('fs_bot')
@@ -22,7 +23,7 @@ async def save_state(loop):
     log.info('SIGINT caught, saving state...')
 
     # End all Matches
-
+    await classes.match.BaseMatch.end_all_matches()
 
     # Terminate all active account sessions
     await accounts.terminate_all()

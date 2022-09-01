@@ -85,6 +85,11 @@ class BaseMatch:
         return {match.text_channel.id: match for match in BaseMatch._active_matches.values()}
 
     @classmethod
+    async def end_all_matches(cls):
+        end_coros = [match.end_match() for match in cls.active_matches_dict().values()]
+        await asyncio.gather(*end_coros)
+
+    @classmethod
     async def create(cls, owner: Player, invited: Player):
         global _match_id_counter  # init _match_id_counter if first match created
         if not _match_id_counter:
@@ -95,14 +100,14 @@ class BaseMatch:
         async with obj.__update_lock:
             obj.log(f'{owner.name} created the match with {invited.name}')
 
-            await obj._make_channel()
+            await obj._make_channels()
 
             await obj.send_embed()
             obj.setup()
             obj._schedule_update()
         return obj
 
-    async def _make_channel(self):
+    async def _make_channels(self):
         overwrites = self._get_overwrites()
         try:
             # Create text channel, with provided overwrites
@@ -123,7 +128,17 @@ class BaseMatch:
                               error=e)
             await self.end_match()
 
-    async def private_voice(self):
+    async def toggle_voice_lock(self):
+        """Toggles whether the matches voice channel is public or private.
+          Returns whether channel is currently public"""
+
+        if self.__public_voice:
+            await self.set_voice_private()
+        else:
+            await self.set_voice_public()
+        return self.__public_voice
+
+    async def set_voice_private(self):
         """Set the matches voice channel to private, only allowing members of the match to join.
            Disconnect any users that aren't members of the match / admins"""
         await self.voice_channel.set_permissions(d_obj.roles['view_channels'],
@@ -136,11 +151,11 @@ class BaseMatch:
         self.__public_voice = False
         await self.update()
 
-    async def public_voice(self):
+    async def set_voice_public(self):
         """Set the matches' voice channel to public, allowing any user to join"""
         await self.match.voice_channel.set_permissions(d_obj.roles['view_channels'],
                                                        connect=True, view_channel=True)
-        self.match.__public_voice = True
+        self.__public_voice = True
         await self.match.update()
 
     def _get_overwrites(self):
@@ -210,19 +225,28 @@ class BaseMatch:
         if self.is_ended:
             return
         async with self.__update_lock:
+
+            # Update vars, cancel next scheduled update
             self.end_stamp = tools.timestamp_now()
             self.status = MatchState.ENDED
             self.__ended = True
             self.log('Match Ended')
+            if self.__next_update_handler:
+                self.__next_update_handler.cancel()
+
+            # Display match ended to users
             await disp.MATCH_END.send(self.text_channel, self.id_str)
             await self.update_embed()
+
+            # Update DB with current players, then remove players
             await db.async_db_call(db.set_element, 'matches', self.id, self.get_data())
             with self.text_channel.typing():
                 leave_coroutines = [self.leave_match(player) for player in self.__players]
                 await asyncio.gather(*leave_coroutines)
 
+            # Store match object, trim _recent_matches if it is too large
             BaseMatch._recent_matches[self.id] = BaseMatch._active_matches.pop(self.id)
-            if len(BaseMatch._recent_matches) > 50:  # Trim _recent_matches if it reaches over 50
+            if len(BaseMatch._recent_matches) > 50:
                 keys = list(BaseMatch._recent_matches.keys())
                 for i in range(20):
                     del BaseMatch._recent_matches[keys[i]]
@@ -245,6 +269,7 @@ class BaseMatch:
         return data
 
     async def _channel_update(self, player, action: bool | None):
+        """Updates a players access to the Matches channels"""
         player_member = d_obj.guild.get_member(player.id)
         await asyncio.gather(
             self.text_channel.set_permissions(player_member, view_channel=action),
@@ -301,7 +326,8 @@ class BaseMatch:
                 self.was_timeout = True
                 self.log("Match timed out for inactivity...")
                 await disp.MATCH_TIMEOUT.send(self.text_channel, self.all_mentions)
-                await self._on_timeout()
+                # Use create_task, so that on_timeout runs after current update iteration
+                asyncio.create_task(self._on_timeout())
             elif self.should_warn and not self.timeout_warned:  # Warn of timeout
                 self.timeout_warned = True
                 self.log("Unless the timeout is reset, the match will timeout soon...")
@@ -310,15 +336,10 @@ class BaseMatch:
                                                    delete_after=30)
 
     async def update(self):
-        """Update the match object.  Check_timeout is used to specify whether the timeout should be checked, default True.
-        Login can be used to log a login action, pass a player.
-        Otherwise, updates timeout, match status, and the embed if required"""
+        """Update the match object:  updates timeout, match status, and the embed if required"""
 
         # ensure exclusive access to update
         async with self.__update_lock:
-
-            # Lock the match, so it can't be updated by any other methods if an update is in progress
-            self.__update_locked = True
 
             # Check if the match should be warned / timed out
             await self.update_timeout()
@@ -334,16 +355,11 @@ class BaseMatch:
 
     def _schedule_update(self):
         """Schedule next update of the match, cancel currently scheduled update."""
-
-        # Cancel without scheduling update if match ended
-        if self.is_ended and self.__next_update_handler:
-            self.__next_update_handler.cancel()
-            return
-
         # Cancel next update if it exists, schedule new one
-        if self.is_ended or self.__next_update_handler:
+        if self.__next_update_handler:
             self.__next_update_handler.cancel()
-        self.__next_update_handler = d_obj.bot.loop.call_later(self.UPDATE_DELAY, self.update())
+        self.__next_update_handler = d_obj.bot.loop.call_later(self.UPDATE_DELAY, asyncio.create_task, self.update())
+
 
     def log(self, message, public=True):
         self.match_log.append((tools.timestamp_now(), message, public))
@@ -402,6 +418,10 @@ class BaseMatch:
     @property
     def all_mentions(self):
         return ''.join([p.mention for p in self.__players])
+
+    @property
+    def public_voice(self):
+        return self.__public_voice
 
     @property
     def timeout_at(self):

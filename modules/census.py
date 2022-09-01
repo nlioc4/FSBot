@@ -15,7 +15,7 @@ import modules.accounts_handler as accounts
 log = getLogger('fs_bot')
 
 WORLD_ID = 19
-EVENT_CLIENT = auraxium.event.EventClient(service_id=cfg.general['api_key'])
+EVENT_CLIENT = None
 
 
 
@@ -160,6 +160,10 @@ async def online_status_updater(chars_players_map_func):
     online characters"""
     acc_char_ids = accounts.account_char_ids
 
+    client = auraxium.event.EventClient(service_id=cfg.general['api_key'])
+    global EVENT_CLIENT
+    EVENT_CLIENT = client
+
     async def login_action(evt: auraxium.event.PlayerLogin):
         player_char_ids = chars_players_map_func()
         await _login(evt.character_id, acc_char_ids, player_char_ids)
@@ -174,8 +178,8 @@ async def online_status_updater(chars_players_map_func):
     # noinspection PyTypeChecker
     logout_trigger = auraxium.Trigger(auraxium.event.PlayerLogout, worlds=[WORLD_ID], action=logout_action)
 
-    EVENT_CLIENT.add_trigger(login_trigger)
-    EVENT_CLIENT.add_trigger(logout_trigger)
+    client.add_trigger(login_trigger)
+    client.add_trigger(logout_trigger)
 
 
 async def online_status_rest(chars_players_map):
