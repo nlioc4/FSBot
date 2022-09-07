@@ -272,6 +272,25 @@ class AdminCog(commands.Cog):
 
         await disp.REG_INFO.send_priv(ctx, player=p)
 
+    @player_admin.command(name='clean')
+    async def player_clean(self, ctx: discord.ApplicationContext,
+                           member: discord.Option(discord.Member, "@mention to clean", required=True)):
+        """Remove a player from their active commitments: lobbies, matches, accounts."""
+        await ctx.defer(ephemeral=True)
+        p = Player.get(member.id)
+        if not p:
+            await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+            return
+
+        if p.account:
+            await accounts.terminate(p.account)
+        if p.match:
+            await p.match.leave_match(p.active)
+        if p.lobby:
+            p.lobby.lobby_leave(p)
+
+        await disp.ADMIN_PLAYER_CLEAN.send_priv(ctx, p.mention)
+
 
     @msg_assign_account.error
     async def msg_assign_account_concurrency_error(self, ctx, error):

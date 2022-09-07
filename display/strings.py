@@ -32,6 +32,8 @@ class AllStrings(Enum):
     MANUAL_CENSUS = "Manual Census Check {}"
     SUGGESTION_ACCEPTED = "{} your suggestion has been submitted to the administration team. Thanks!"
 
+    ADMIN_PLAYER_CLEAN = "{} has been cleaned."
+
     LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], name: [{}]"
     LOG_ERROR = "{} has run into an error, {} {}."
     LOG_GENERAL = "Log: {}"
@@ -221,7 +223,8 @@ class AllStrings(Enum):
                         msg = await getattr(ctx.followup, 'send')(**args_dict)
                     elif action == 'edit':
                         msg = await getattr(ctx, 'edit_original_message')(**args_dict)
-                msg = await getattr(ctx.response, action + '_message')(**args_dict)
+                else:
+                    msg = await getattr(ctx.response, action + '_message')(**args_dict)
 
             case discord.ApplicationContext:
                 if action == "send":

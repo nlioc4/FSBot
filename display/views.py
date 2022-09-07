@@ -9,7 +9,7 @@ from logging import getLogger
 
 # Interal Imports
 import modules.discord_obj as d_obj
-from modules.spam_detector import is_spam
+from modules.spam_detector import is_spam, unlock
 import modules.tools as tools
 from classes import Player
 from display import AllStrings as disp
@@ -55,6 +55,11 @@ class FSBotView(discord.ui.View):
             await disp.NONE.edit(self.msg, view=self)
         except (discord.errors.NotFound, tools.UnexpectedError):
             log.warning(f'View {repr(self)} timed out with no self.msg')
+
+    async def _scheduled_task(self, item: discord.ui.Item, interaction: discord.Interaction):
+        """Subclassed scheduled task to unlock users from spam filter after callbacks finish"""
+        await super()._scheduled_task(item, interaction)
+        unlock(interaction.user.id)
 
 
 class InviteView(FSBotView):

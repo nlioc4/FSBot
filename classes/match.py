@@ -17,8 +17,8 @@ from classes.player_stats import PlayerStats
 
 log = getLogger('fs_bot')
 
-MATCH_TIMEOUT_TIME = 60
-MATCH_WARN_TIME = 15
+MATCH_TIMEOUT_TIME = 900
+MATCH_WARN_TIME = 600
 _match_id_counter = 0
 
 
@@ -348,6 +348,7 @@ class BaseMatch:
             with self.text_channel.typing():
                 leave_coroutines = [self.leave_match(player) for player in self.__players]
                 await asyncio.gather(*leave_coroutines)
+                await asyncio.sleep(5)
 
             # Store match object, trim _recent_matches if it is too large
             BaseMatch._recent_matches[self.id] = BaseMatch._active_matches.pop(self.id)
@@ -444,8 +445,9 @@ class BaseMatch:
                 self.was_timeout = True
                 self.log("Match timed out for inactivity...")
                 await disp.MATCH_TIMEOUT.send(self.text_channel, self.all_mentions)
-                # Use create_task, so that on_timeout runs after current update iteration
+                # Use create_task, so that on_update doesn't wait for on_timeout
                 asyncio.create_task(self._on_timeout())
+                raise asyncio.CancelledError
             elif self.should_warn and not self.timeout_warned:  # Warn of timeout
                 self.timeout_warned = True
                 self.log("Unless the timeout is reset, the match will timeout soon...")
@@ -456,12 +458,10 @@ class BaseMatch:
     async def update(self):
         """Update the match object:  updates timeout, match status, and the embed if required"""
         # ensure exclusive access to update
-        print("updating")
         try:
             async with self.__update_lock:
                 if self.is_ended:  # Quit update if match is ended
                     return
-                print("exclusive update")
 
                 # Check if the match should be warned / timed out
                 await self.update_timeout()
@@ -471,22 +471,16 @@ class BaseMatch:
 
                 # Reflect match embed with updated match attributes, also updates match view
                 await self.update_embed()
-
-
         except asyncio.CancelledError:
-            print("Update Cancelled")
+            pass
         else:
             # schedule next update
-            print("Update Scheduler")
             d_obj.bot.loop.call_later(0.1, self._schedule_update_task)
 
     async def _update_task(self):
         """Task wrapper around update call"""
-        try:
-            await asyncio.sleep(self.UPDATE_DELAY)
-            await self.update()
-        except asyncio.CancelledError:
-            pass
+        await asyncio.sleep(self.UPDATE_DELAY)
+        await self.update()
 
 
     def _schedule_update_task(self):
@@ -496,7 +490,6 @@ class BaseMatch:
 
         # Schedule next update
         self.__next_update_task = d_obj.bot.loop.create_task(self._update_task(), name=f'Match [{self.id_str}] Updater')
-        print("Update Scheduled")
 
     def _cancel_update(self):
         """Cancel the next upcoming update"""
