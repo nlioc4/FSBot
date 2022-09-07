@@ -140,7 +140,7 @@ class DashboardView(views.FSBotView):
     @discord.ui.button(label="Extended History", style=discord.ButtonStyle.blurple)
     async def history_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         if len(self.lobby.logs) <= len(self.lobby.logs_recent):
-            await disp.LOBBY_NO_HISTORY.send_temp(inter, inter.user.mention)
+            await disp.LOBBY_NO_HISTORY.send_priv(inter, inter.user.mention)
             return
         await disp.LOBBY_LONGER_HISTORY.send_priv(inter, inter.user.mention, logs=self.lobby.logs_longer)
 

@@ -241,24 +241,34 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
     # update account object, return if already validated
     if not acc.validate():
         return False
-    try:
-        # Update GSheet with Usage
-        gc = service_account(cfg.GAPI_SERVICE)  # connection
-        sh = gc.open_by_key(cfg.database["accounts_id"])  # sheet
-        ws = sh.worksheet(cfg.database["accounts_sheet_name"])  # worksheet
-        row = acc.id * Y_SKIP  # row of the account to be updated
-        column = len(ws.row_values(row)) + 1  # updates via counting row values, instead of below counting nb_uniques
-        # column = acc.nb_unique_usages + USAGE_OFFSET # column of the account to be updated
-        cells_list = ws.range(row, column, row + 2, column)
-        date = datetime.now().astimezone(eastern).date().strftime('%m/%d/%Y')
-        cells_list[0].value = date
-        cells_list[1].value = player.name
-        cells_list[2].value = str(player.id)
 
+    # Update GSheet with Usage
+    gc = service_account(cfg.GAPI_SERVICE)  # connection
+    sh = gc.open_by_key(cfg.database["accounts_id"])  # sheet
+    ws = sh.worksheet(cfg.database["accounts_sheet_name"])  # worksheet
+    row = acc.id * Y_SKIP  # row of the account to be updated
+    column = len(ws.row_values(row)) + 1  # updates via counting row values, instead of below counting nb_uniques
+    # column = acc.nb_unique_usages + USAGE_OFFSET # column of the account to be updated
+    cells_list = ws.range(row, column, row + 2, column)
+    date = datetime.now().astimezone(eastern).date().strftime('%m/%d/%Y')
+    cells_list[0].value = date
+    cells_list[1].value = player.name
+    cells_list[2].value = str(player.id)
+
+    try:
         ws.update_cells(cells_list, 'USER_ENTERED')  # actually update the sheet
         ws.format(cells_list[0].address,
                   {"numberFormat": {"type": "DATE", "pattern": "mmmm dd"}, "horizontalAlignment": "CENTER"})
     except gspread.exceptions.APIError as e:
+        resp = e.response.text
+        if "exceeds grid limits" in resp:
+            start_index = resp.index('max columns: ') + len('max columns: ')
+            stop_index = resp.index('"', start_index)
+            cols = int(resp[start_index: stop_index])
+            new_cols = cols + 15
+            ws.resize(cols=new_cols)
+            ws.update_cells(cells_list, 'USER_ENTERED')
+            return True
         log.error(f"Error logging usage to GSheet for Account: {acc.id}, user: {player.name}, ID: {player.id}")
         raise e
     return True
