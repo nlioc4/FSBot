@@ -45,6 +45,6 @@ async def save_state(loop):
 def init(client: 'discord.Bot'):
     try:
         loop = client.loop
-        loop.add_signal_handler(signal.SIGINT, asyncio.create_task(save_state(loop)))
+        loop.add_signal_handler(signal.SIGINT, loop.create_task, save_state(loop))
     except Exception as e:
         log.error('Error in signal init %s', e)
