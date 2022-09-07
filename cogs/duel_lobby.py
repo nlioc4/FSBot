@@ -44,6 +44,8 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog"):
             lobby_updates.append(lobby.update())
         await asyncio.gather(*lobby_updates)
 
+    dashboard_loop.add_exception_type(discord.errors.DiscordServerError)
+
     @dashboard_loop.before_loop
     async def before_lobby_loop(self):
         if Lobby.all_lobbies.get("casual"):

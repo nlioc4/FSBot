@@ -136,7 +136,7 @@ def account_online_check(online) -> Embed:
     return fs_author(embed)
 
 
-def register_info(player) -> Embed:
+def player_info(player) -> Embed:
     embed = Embed(
         colour=Colour.greyple(),
         title=f"FSBot Registration Info for {player.name}",
@@ -156,6 +156,23 @@ def register_info(player) -> Embed:
         embed.add_field(name="Registered Characters",
                         value="Player is not registered",
                         inline=False)
+
+    if player.account:
+        embed.add_field(name="FSBot Jaeger Account",
+                        value=f"Currently Assigned: {player.account.ig_name}")
+
+    if player.online_name:
+        embed.add_field(name="Online Character",
+                        value=f"{cfg.emojis[player.current_faction]}{player.online_name}")
+
+    if player.lobby:
+        embed.add_field(name="Player Lobby",
+                        value=f"Current Lobby: {player.lobby.channel.mention}")
+    if player.match:
+        embed.add_field(name="Player Match",
+                        value=f"Current Match: [{player.match.id_str}]({player.match.text_channel.mention})\n",)
+
+
 
     pref_fac_str = ''.join([cfg.emojis[fac] for fac in player.pref_factions]) if player.pref_factions else 'Any'
     pref_level_str = ' '.join(
@@ -304,8 +321,8 @@ def match_info(match) -> Embed:
     )
 
     match_info_str = (f"Owner: {match.owner.mention}\n"
-                      f"Match status: {match.status.value}\n"
-                      f"Match Start Time: {format_stamp(match.start_stamp)}\n"
+                      f"Match Status: {match.status.value}\n"
+                      f"Match Started: {format_stamp(match.start_stamp, 'R')} at {format_stamp(match.start_stamp)}\n"
                       )
 
     if match.timeout_at:
@@ -317,11 +334,10 @@ def match_info(match) -> Embed:
 
     if match.voice_channel:
         match_info_str += f'Match Voice Channel: {match.voice_channel.mention} ' \
-                          f'{"🔓" if match.public_voice else "🔒"}\n' \
-
-    embed.add_field(name="Match Info",
-                    value=match_info_str,
-                    inline=False)
+                          f'{"🔓" if match.public_voice else "🔒"}\n'
+        embed.add_field(name="Match Info",
+                        value=match_info_str,
+                        inline=False)
 
     embed.add_field(
         name='----------------------------------------------------------',
@@ -345,7 +361,9 @@ def match_info(match) -> Embed:
         for p in match.players:
             p = p.player
             preferred_facs = ''.join([cfg.emojis[fac] for fac in p.pref_factions]) if p.pref_factions else 'Any'
-            string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}]\n'
+            account_status = '\u2611' if p.has_own_account else ''
+            account_status = '\u2705' if p.account else account_status
+            string = f'{account_status}{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}]\n'
 
             players_string += string
 
@@ -439,7 +457,7 @@ def fsbot_rules_embed() -> Embed:
               "1) Be kind! We're here to have fun, along with improving our skills, please be courteous to your fellow"
               " players during matches, and all of the time!\n"
               "2) Do not harass other players, whether this be through pings to duel or following them on Jaeger\n"
-              "3) Do not exploit the system, if you find a bug please let @Colin know!\n",
+             f"3) Do not exploit the system, if you find a bug please let {d_obj.colin.mention} know!\n",
         inline=False
     )
 
@@ -517,20 +535,19 @@ def fsbot_info_embed() -> Embed:
 
     embed.add_field(
         name="Notifications",
-        value="By default you will receive a notification if a player who matches your requested skill levels joins"
-              " the lobby, at maximum one per half hour, and only if you are marked 'online' on discord.  When you are "
-              "pinged, and how frequently, can be adjusted below this message in the 'Lobby Pings' menu.  Setting your "
-              "requested skill level to 'any' means you will receive a ping when a player of any skill level joins"
-              "the lobby."
+        value="You can opt-in to receive a notification if a player who matches your requested skill levels joins"
+            " the lobby.  When you are pinged, and how frequently, can be adjusted below this message in the 'Lobby"
+            " Pings' menu.  Setting your requested skill level to 'any' means you will receive a ping when a player of"
+            " any skill level joins the lobby."
     )
 
     embed.add_field(
         name="Lobby",
         value=f"The duel lobby remains in <#{cfg.channels['dashboard']}> where a constantly updated embed shows the "
-              f"currently lobbied players, along with their preferences, and gives buttons and a dropdown to interact "
-              f"with the lobby.  The select menu can be used to invite any number of players to a match, though you "
-              f"obviously can not invite yourself. The select menu can also be used by a match owner to invite new "
-              f"users to an ongoing match.  Active matches and their owner are also displayed in the dashboard Embed.",
+              "currently lobbied players, along with their preferences, and gives buttons and a dropdown to interact "
+              "with the lobby.  The select menu can be used to invite any number of players to a match, though you "
+              "obviously can not invite yourself. The select menu can also be used by a match owner to invite new "
+              "users to an ongoing match.  Active matches and their owner are also displayed in the dashboard Embed.",
         inline=False
     )
 

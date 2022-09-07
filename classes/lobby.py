@@ -28,7 +28,7 @@ class DashboardView(views.FSBotView):
         self.lobby: Lobby = lobby
         if self.lobby.disabled:
             self.disable_all_items()
-
+            return
         if self.lobby.lobbied:
             self.add_item(self.ChallengeDropdown(self.lobby))
         else:
@@ -114,11 +114,15 @@ class DashboardView(views.FSBotView):
         if not await d_obj.is_registered(inter, player):
             return
         elif player.match:
-            await disp.LOBBY_ALREADY_MATCH.send_priv(inter, player.mention, player.match.text_channel.mention)
-        elif await self.lobby.lobby_join(player):
+            await disp.LOBBY_ALREADY_MATCH.send_priv(inter, player.mention,
+                                                     player.match.id_str,
+                                                     player.match.text_channel.mention)
+        elif not player.lobby:
             self.enable_all_items()
-            await self.lobby.update_dashboard()
             await disp.LOBBY_JOIN.send_temp(inter, player.mention)
+            self.lobby.lobby_join(player)
+            await self.lobby.update_dashboard()
+
         else:
             await disp.LOBBY_ALREADY_IN.send_priv(inter, player.mention)
 
@@ -453,7 +457,7 @@ class Lobby:
         else:
             return False
 
-    async def lobby_join(self, player):
+    def lobby_join(self, player):
         """Adds to lobby list, executes player lobby join method, returns True if added.
         param timeout_at, timestamp to timeout player at
         """

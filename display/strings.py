@@ -16,6 +16,8 @@ log = getLogger('fs_bot')
 
 
 class AllStrings(Enum):
+    NONE = None
+    LOADING = "Loading..."
     NOT_REGISTERED = "You are not registered {}, please go to {} first!"
     NOT_PLAYER = "You are not a player {}, please go to {} first!"
     NOT_PLAYER_2 = "{} is not a player"
@@ -37,7 +39,7 @@ class AllStrings(Enum):
 
     DM_ONLY = "This command can only be used in DM's!   "
     DM_INVITED = "{} you have been invited to a match by {}! Accept or decline below!"
-    DM_INVITE_EXPIRED = "This invite has expired!"
+    DM_INVITE_EXPIRED = "This invite from {} has expired!"
     DM_INVITE_EXPIRED_INFO = "Your invite to {} has expired!"
     DM_INVITE_INVALID = "This invite is invalid!"
     DM_ALREADY = "You already have a Modmail thread started! Simple send a message to the bot to respond!"
@@ -63,7 +65,7 @@ class AllStrings(Enum):
                        "or a space, or one character without a faction suffix and suffixes will be added for you."
     REG_NO_CENSUS = "DBG's Census API is currently unavailable, cannot register characters.  Please try again soon!" \
                     "  Contact Colin if the problem persists!"
-    REG_INFO = "", register_info
+    REG_INFO = "", player_info
 
     PREF_PINGS_CURRENT = "Your current ping Preferences are:\n{}\nYou will only ever be pinged if the player joining "\
                          "the lobby matches your requested skill levels\nChoose your lobby ping preferences below..."
@@ -84,7 +86,7 @@ class AllStrings(Enum):
     LOBBY_NO_DM = "{} could not be invited as they are refusing DM's from the bot!"
     LOBBY_NO_DM_ALL = "{} no players could be invited."
     LOBBY_ALREADY_IN = "{} you are already in this lobby!"
-    LOBBY_ALREADY_MATCH = '{} you are already in a match ({}), leave to join the lobby again.'
+    LOBBY_ALREADY_MATCH = '{} you are already in a match [{}]({}), leave to join the lobby again.'
     LOBBY_TIMEOUT = "{} you have been removed from the lobby by timeout!"
     LOBBY_TIMEOUT_SOON = "{} you will soon be timed out from the lobby, click above to reset."
     LOBBY_TIMEOUT_RESET = "{} you have reset your lobby timeout."
@@ -98,23 +100,23 @@ class AllStrings(Enum):
     MATCH_CREATE = "{} Match created ID: {}"
     MATCH_INFO = "", match_info
     MATCH_INVITED = "{} You've been invited to a match by {}, accept or decline below", None
-    MATCH_ACCEPT = "You have accepted the invite, join {}."
-    MATCH_DECLINE = "You have decline the invite."
+    MATCH_ACCEPT = "You have accepted the invite from {}, join {}."
+    MATCH_DECLINE = "You have decline the invite from {}."
     MATCH_DECLINE_INFO = "{} has declined your match invitation."
     MATCH_JOIN = "{} has joined the match"
     MATCH_JOIN_2 = "{} has joined match {}."
     MATCH_LEAVE = "{} has left the match."
     MATCH_LEAVE_2 = "{} has left match {}."
-    MATCH_TIMEOUT_WARN = "{} No online players detected, match will timeout in {}! Login or reset above!"
+    MATCH_TIMEOUT_WARN = "{} No online players detected, match will timeout {}! Login or reset above!"
     MATCH_TIMEOUT_RESET = "{} timeout reset!"
     MATCH_TIMEOUT_NO_RESET = "{} timeout can't be reset without 2 or more players!"
     MATCH_TIMEOUT = "{} Match is being closed due to inactivity"
     MATCH_END = "Match ID: {} Ended, closing match channel..."
-    MATCH_NOT_FOUND = "Match for channel {} not found!"
+    MATCH_NOT_FOUND = "Match fornot found for {}!"
     MATCH_NOT_OWNER = "Only the match owner can do this!"
     MATCH_NEW_OWNER = "The match owner is now {}!"
     MATCH_NOT_IN = "You are not in match {}."
-    MATCH_NOT_IN_2 = "Player {} is not in match {}."
+    MATCH_NOT_IN_2 = "Player {} is not in a match."
     MATCH_ALREADY = "{} is already in match {}."
     MATCH_VOICE_PUB = "{} is now public!"
     MATCH_VOICE_PRIV = "{} is now private!"
@@ -185,41 +187,53 @@ class AllStrings(Enum):
         if kwargs.get('remove_embed'):
             args_dict['embed'] = None
 
+        msg = None
+
         match type(ctx):
             case discord.User | discord.Member | discord.TextChannel | discord.VoiceChannel | discord.Thread:
-                return await getattr(ctx, action)(**args_dict)
+                msg = await getattr(ctx, action)(**args_dict)
 
             case discord.Message:
                 if action == "send":
-                    return await getattr(ctx, "reply")(**args_dict)
-                if action == "edit":
-                    return await getattr(ctx, action)(**args_dict)
+                    msg = await getattr(ctx, "reply")(**args_dict)
+                elif action == "edit":
+                    msg = await getattr(ctx, action)(**args_dict)
 
             case discord.InteractionResponse:
-                return await getattr(ctx, action + '_message')(**args_dict)
+                if ctx.is_done():
+                    ctx = ctx._parent
+                    if action == 'send':
+                        msg = await getattr(ctx.followup, 'send')(**args_dict)
+                    elif action == 'edit':
+                        msg = await getattr(ctx, 'edit_original_message')(**args_dict)
+                else:
+                    msg = await getattr(ctx, action + '_message')(**args_dict)
 
             case discord.Webhook if ctx.type == discord.WebhookType.application:
                 if action == "send":
-                    return await getattr(ctx, 'send')(**args_dict)
-                if action == "edit":  # Probably (definitely) doesn't work
-                    return await getattr(await ctx.fetch_message(), 'edit_message')(**args_dict)
+                    msg = await getattr(ctx, 'send')(**args_dict)
+                elif action == "edit":  # Probably (definitely) doesn't work
+                    msg = await getattr(await ctx.fetch_message(), 'edit_message')(**args_dict)
 
             case discord.Interaction:
                 if ctx.response.is_done():
                     if action == 'send':
-                        return await getattr(ctx.followup, 'send')(**args_dict)
-                    if action == 'edit':
-                        return await getattr(ctx, 'edit_original_message')(**args_dict)
-                return await getattr(ctx.response, action + '_message')(**args_dict)
+                        msg = await getattr(ctx.followup, 'send')(**args_dict)
+                    elif action == 'edit':
+                        msg = await getattr(ctx, 'edit_original_message')(**args_dict)
+                msg = await getattr(ctx.response, action + '_message')(**args_dict)
 
             case discord.ApplicationContext:
                 if action == "send":
-                    return await getattr(ctx, "respond")(**args_dict)
-                if action == "edit":
-                    return await getattr(ctx, action)(**args_dict)
+                    msg = await getattr(ctx, "respond")(**args_dict)
+                elif action == "edit":
+                    msg = await getattr(ctx, action)(**args_dict)
 
             case _:
                 raise UnexpectedError(f"Unrecognized Context, {type(ctx)}")
+        if (view := args_dict.get('view')):
+            view.msg = msg
+        return msg
 
     async def send(self, ctx, *args, **kwargs):
         return await self._do_send('send', ctx, *args, **kwargs)

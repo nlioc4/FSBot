@@ -115,11 +115,14 @@ class AdminCog(commands.Cog):
 
     @match_admin.command(name="addplayer")
     async def add_player(self, ctx: discord.ApplicationContext,
+                         member: discord.Option(discord.Member, "User to invite to match", required=True),
                          match_channel: discord.Option(discord.TextChannel, "Match Channel to invite member to",
-                                                       required=True),
-                         member: discord.Option(discord.Member, "User to invite to match", required=True)):
-        """Add a player to a given match."""
+                                                       required=False)
+                         ):
+        """Add a player to a match. If a channel isnt provided, current is used."""
         p = Player.get(member.id)
+        match_channel = match_channel or ctx.channel
+
         try:
             match = BaseMatch.active_match_channel_ids()[match_channel.id]
         except KeyError:
@@ -130,37 +133,34 @@ class AdminCog(commands.Cog):
             return
 
         await match.join_match(p)
+        if p.lobby:
+            p.lobby.lobby_leave(player=p, match=match)
         await disp.MATCH_JOIN_2.send_priv(ctx, p.name, match.text_channel.mention)
 
     @match_admin.command(name="removeplayer")
     async def remove_player(self, ctx: discord.ApplicationContext,
-                            match_channel: discord.Option(discord.TextChannel, "Match Channel to remove member from",
-                                                          required=True),
                             member: discord.Option(discord.Member, "User to remove from match", required=True)):
-        """Remove a player from a given match.  If the owner is removed from a match, the match will end."""
+        """Remove a player from a match.  If the owner is removed from a match, the match will end."""
         p = Player.get(member.id)
-        try:
-            match = BaseMatch.active_match_channel_ids()[match_channel.id]
-        except KeyError:
-            await disp.MATCH_NOT_FOUND.send_priv(ctx, match_channel.mention)
-            return
-        if p.match == match:
+
+        if p.match:
+            await disp.MATCH_LEAVE_2.send_priv(ctx, p.name, p.match.text_channel.mention)
             await match.leave_match(p.active)
-            await disp.MATCH_LEAVE_2.send_priv(ctx, p.name, match.text_channel.mention)
+
         else:
-            await disp.MATCH_NOT_IN_2.send_priv(ctx, p.name, match.text_channel.mention)
+            await disp.MATCH_NOT_IN_2.send_priv(ctx, p.name)
 
     @match_admin.command(name="end")
     async def end_match(self, ctx: discord.ApplicationContext,
                         match_id: discord.Option(int, "Match ID to end",
-                                                 required=True)):
-        """End a given match forcibly."""
+                                                 required=False)):
+        """End a given match forcibly.  Uses current channel if no ID provided"""
         await ctx.defer()
-        try:
-            match = BaseMatch.active_matches_dict()[match_id]
-        except KeyError:
-            await disp.MATCH_NOT_FOUND.send_priv(ctx, match_id)
-            return
+        match = BaseMatch.active_matches_dict.get(match_id) or \
+                 BaseMatch.active_match_channel_ids().get(ctx.channel_id)
+
+        if not match:
+            await disp.MATCH_NOT_FOUND(ctx, (match_id or ctx.channel.mention))
 
         await disp.MATCH_END.send_priv(ctx, match.id_str)
         await match.end_match()

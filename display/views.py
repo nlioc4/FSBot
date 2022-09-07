@@ -24,6 +24,7 @@ class FSBotView(discord.ui.View):
 
     def __init__(self, timeout=None):
         super().__init__(timeout=timeout)
+        self.msg = None
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if is_all_locked():
@@ -48,6 +49,13 @@ class FSBotView(discord.ui.View):
             # log.error("Error on component interaction", exc_info=error)
         # traceback.print_exception(error.__class__, error, error.__traceback__, file=sys.stderr)
 
+    async def on_timeout(self) -> None:
+        self.disable_all_items()
+        try:
+            await disp.NONE.edit(self.msg, view=self)
+        except (discord.errors.NotFound, tools.UnexpectedError):
+            log.warning(f'View {repr(self)} timed out with no self.msg')
+
 
 class InviteView(FSBotView):
     """View to handle accepting or declining match invites"""
@@ -57,7 +65,6 @@ class InviteView(FSBotView):
         self.lobby = lobby
         self.owner: Player = owner
         self.player = player
-        self.msg = None
 
     @discord.ui.button(label="Accept Invite", style=discord.ButtonStyle.green)
     async def accept_button(self, button: discord.Button, inter: discord.Interaction):
@@ -65,16 +72,14 @@ class InviteView(FSBotView):
         if not await d_obj.is_registered(inter, p):
             return
 
-        self.disable_all_items()
         self.stop()
-
+        await disp.LOADING.edit(inter, view=False)
         match = await self.lobby.accept_invite(self.owner, p)
 
         if match:
-            await disp.MATCH_ACCEPT.send(inter.message, match.text_channel.mention)
-            await inter.response.edit_message(view=self)
-            return
-        await disp.DM_INVITE_INVALID.edit(inter.message, view=self)
+            await disp.MATCH_ACCEPT.edit(inter.message, self.owner.mention, match.text_channel.mention)
+        else:
+            await disp.DM_INVITE_INVALID.edit(inter.message)
 
     @discord.ui.button(label="Decline Invite", style=discord.ButtonStyle.red)
     async def decline_button(self, button: discord.Button, inter: discord.Interaction):
@@ -82,126 +87,24 @@ class InviteView(FSBotView):
         if not await d_obj.is_registered(inter, p):
             return
         self.lobby.decline_invite(self.owner, p)
-        self.disable_all_items()
         self.stop()
 
         owner_mem = d_obj.guild.get_member(self.owner.id)
         await disp.MATCH_DECLINE_INFO.send(owner_mem, p.mention)
 
-        await inter.response.edit_message(view=self)
-        await disp.MATCH_DECLINE.send(inter.message)
+        await disp.MATCH_DECLINE.edit(inter, self.owner.mention, view=False)
 
     async def on_timeout(self) -> None:
+        # Show player invite as expired
         self.disable_all_items()
-        await self.msg.edit(view=self)
-        await disp.DM_INVITE_EXPIRED.send(self.msg)
+        await disp.DM_INVITE_EXPIRED.edit(self.msg, self.owner.mention, view=False)
+
+        # Show owner invite expired
         owner_mem = d_obj.guild.get_member(self.owner.id)
         await disp.DM_INVITE_EXPIRED_INFO.send(owner_mem, self.player.mention)
+
+        # Decline Invite
         self.lobby.decline_invite(self.owner, self.player)
-
-
-class MatchInfoView(FSBotView):
-    """View to handle match controls"""
-
-    def __init__(self, match):
-        super().__init__(timeout=None)
-        self.match = match
-        if not self.match.should_warn:
-            self.reset_timeout_button.style = discord.ButtonStyle.grey
-            self.reset_timeout_button.disabled = True
-
-    def update(self):
-        self._update()
-        # Update timeout reset button
-        if self.match.should_warn:
-            self.reset_timeout_button.style = discord.ButtonStyle.green
-            self.reset_timeout_button.disabled = False
-        else:
-            self.reset_timeout_button.style = discord.ButtonStyle.grey
-            self.reset_timeout_button.disabled = True
-
-        # Update voice lock indicator
-        if self.match.public_voice:
-            self.voice_button.label = "Voice: Public"
-            self.voice_button.style = discord.ButtonStyle.green
-        else:
-            self.voice_button.label = "Voice: Private"
-            self.voice_button.style = discord.ButtonStyle.red
-
-        if self.match.is_ended:
-            self.disable_all_items()
-
-        return self
-
-    def _update(self):
-        """For Inheritance"""
-        pass
-
-    async def in_match_check(self, inter, p: Player) -> bool:
-        if p.active in self.match.players:
-            return True
-        await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
-        return False
-
-    @discord.ui.button(label="Leave Match", style=discord.ButtonStyle.red)
-    async def leave_button(self, button: discord.Button, inter: discord.Interaction):
-        p: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, p) or not await self.in_match_check(inter, p):
-            return
-
-        await disp.MATCH_LEAVE.send_priv(inter, p.mention)
-        await self.match.leave_match(p.active)
-
-    @discord.ui.button(label="Reset Timeout", style=discord.ButtonStyle.green)
-    async def reset_timeout_button(self, button: discord.Button, inter: discord.Interaction):
-        """Resets the match from timeout, if there are more than two players"""
-        if len(self.match.players) < 2:
-            await disp.MATCH_TIMEOUT_NO_RESET.send_temp(self.match.text_channel, inter.user.mention)
-            return
-        self.match.timeout_stamp = None
-        await disp.MATCH_TIMEOUT_RESET.send_temp(self.match.text_channel, inter.user.mention)
-        self.match.log("Match Timeout Reset")
-        await self.match.update()
-
-    @discord.ui.button(label="Request Account", style=discord.ButtonStyle.blurple)
-    async def account_button(self, button: discord.Button, inter: discord.Interaction):
-        """Requests an account for the player"""
-        await inter.response.defer()
-        p: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, p) or not await self.in_match_check(inter, p):
-            return
-        elif p.has_own_account:
-            await disp.ACCOUNT_HAS_OWN.send_priv(inter)
-            return
-        elif p.account:
-            await disp.ACCOUNT_ALREADY.send_priv(inter)
-            return
-        else:
-            acc = accounts.pick_account(p)
-            if acc:  # if account found
-                msg = await accounts.send_account(acc)
-                if msg:  # if allowed to dm user
-                    await disp.ACCOUNT_SENT.send_priv(inter, msg.channel.jump_url)
-                else:  # if couldn't dm
-                    await disp.ACCOUNT_NO_DMS.send_priv(inter)
-                    acc.clean()
-
-            else:  # if no account found
-                await disp.ACCOUNT_NO_ACCOUNT.send_priv(inter)
-
-    @discord.ui.button(label="Voice: Private", style=discord.ButtonStyle.red)
-    async def voice_button(self, button: discord.Button, inter: discord.Interaction):
-        """Toggles whether the match voice channel is public or private.  Only usable by the match Owner"""
-        p = Player.get(inter.user.id)
-        if p != self.match.owner and not d_obj.is_admin(inter.user):
-            await disp.MATCH_NOT_OWNER.send_priv(inter)
-            return
-
-        if await self.match.toggle_voice_lock():
-            await disp.MATCH_VOICE_PUB.send_priv(inter, self.match.voice_channel.mention)
-        else:
-            await disp.MATCH_VOICE_PRIV.send_priv(inter, self.match.voice_channel.mention)
-
 
 
 class RegisterPingsView(FSBotView):

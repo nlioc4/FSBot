@@ -62,9 +62,9 @@ discord_logger.addHandler(console_handler)
 
 # Log to file only if not testing
 if not c_args.get('test'):
-    # single_ log_handler = logging.FileHandler(filename=log_path, encoding='utf-8', mode='w')  # single log
+    # single_log_handler = logging.FileHandler(filename=log_path, encoding='utf-8', mode='w')  # single log
     log_handler = logging.handlers.TimedRotatingFileHandler(log_path, when='D',
-                                                            interval=3)  # rotating log files, every 3 days
+                                                            interval=1)  # rotating log files, every day
     log_handler.setFormatter(log_formatter)
     log.addHandler(log_handler)
     discord_logger.addHandler(log_handler)

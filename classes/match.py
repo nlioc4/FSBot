@@ -4,6 +4,7 @@ import discord
 import asyncio
 from logging import getLogger
 from enum import Enum
+from typing import Coroutine
 
 # Internal Imports
 import modules.discord_obj as d_obj
@@ -16,8 +17,8 @@ from classes.player_stats import PlayerStats
 
 log = getLogger('fs_bot')
 
-MATCH_TIMEOUT_TIME = 900
-MATCH_WARN_TIME = 600
+MATCH_TIMEOUT_TIME = 60
+MATCH_WARN_TIME = 15
 _match_id_counter = 0
 
 
@@ -37,6 +38,111 @@ class BaseMatch:
     MAX_PLAYERS = 10
     TYPE = "Casual"
 
+    class MatchInfoView(views.FSBotView):
+        """View to handle match controls"""
+
+        def __init__(self, match):
+            super().__init__(timeout=None)
+            self.match = match
+            if not self.match.should_warn:
+                self.reset_timeout_button.style = discord.ButtonStyle.grey
+                self.reset_timeout_button.disabled = True
+
+        def update(self):
+            self._update()
+            # Update timeout reset button
+            if self.match.should_warn:
+                self.reset_timeout_button.style = discord.ButtonStyle.green
+                self.reset_timeout_button.disabled = False
+            else:
+                self.reset_timeout_button.style = discord.ButtonStyle.grey
+                self.reset_timeout_button.disabled = True
+
+            # Update voice lock indicator
+            if self.match.public_voice:
+                self.voice_button.label = "Voice: Public"
+                self.voice_button.style = discord.ButtonStyle.green
+            else:
+                self.voice_button.label = "Voice: Private"
+                self.voice_button.style = discord.ButtonStyle.red
+
+            if self.match.is_ended:
+                self.disable_all_items()
+
+            return self
+
+        def _update(self):
+            """For Inheritance"""
+            pass
+
+        async def in_match_check(self, inter, p: Player) -> bool:
+            if p.active in self.match.players:
+                return True
+            await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
+            return False
+
+        @discord.ui.button(label="Leave Match", style=discord.ButtonStyle.red)
+        async def leave_button(self, button: discord.Button, inter: discord.Interaction):
+            p: Player = Player.get(inter.user.id)
+            if not await d_obj.is_registered(inter, p) or not await self.in_match_check(inter, p):
+                return
+
+            await disp.MATCH_LEAVE.send_priv(inter, p.mention)
+            await self.match.leave_match(p.active)
+
+        @discord.ui.button(label="Reset Timeout", style=discord.ButtonStyle.green)
+        async def reset_timeout_button(self, button: discord.Button, inter: discord.Interaction):
+            """Resets the match from timeout, if there are more than two players"""
+            await inter.response.defer(ephemeral=True)
+
+            # Refuse timeout reset if less than 2 players
+            if len(self.match.players) < 2:
+                await disp.MATCH_TIMEOUT_NO_RESET.send_priv(inter.response, inter.user.mention)
+
+            else:
+                await self.match.reset_timeout()
+                await disp.MATCH_TIMEOUT_RESET.send_priv(inter.response, inter.user.mention)
+
+        @discord.ui.button(label="Request Account", style=discord.ButtonStyle.blurple)
+        async def account_button(self, button: discord.Button, inter: discord.Interaction):
+            """Requests an account for the player"""
+            await inter.response.defer()
+            p: Player = Player.get(inter.user.id)
+            if not await d_obj.is_registered(inter, p) or not await self.in_match_check(inter, p):
+                return
+            elif p.has_own_account:
+                await disp.ACCOUNT_HAS_OWN.send_priv(inter)
+                return
+            elif p.account:
+                await disp.ACCOUNT_ALREADY.send_priv(inter)
+                return
+            else:
+                acc = accounts.pick_account(p)
+                if acc:  # if account found
+                    msg = await accounts.send_account(acc)
+                    if msg:  # if allowed to dm user
+                        await disp.ACCOUNT_SENT.send_priv(inter, msg.channel.jump_url)
+                    else:  # if couldn't dm
+                        await disp.ACCOUNT_NO_DMS.send_priv(inter)
+                        acc.clean()
+
+                else:  # if no account found
+                    await disp.ACCOUNT_NO_ACCOUNT.send_priv(inter)
+
+        @discord.ui.button(label="Voice: Private", style=discord.ButtonStyle.red)
+        async def voice_button(self, button: discord.Button, inter: discord.Interaction):
+            """Toggles whether the match voice channel is public or private.  Only usable by the match Owner"""
+            p = Player.get(inter.user.id)
+            if p != self.match.owner and not d_obj.is_admin(inter.user):
+                await disp.MATCH_NOT_OWNER.send_priv(inter)
+                return
+            await inter.response.defer(ephemeral=True)
+
+            if await self.match.toggle_voice_lock():
+                await disp.MATCH_VOICE_PUB.send_priv(inter.response, self.match.voice_channel.mention)
+            else:
+                await disp.MATCH_VOICE_PRIV.send_priv(inter.response, self.match.voice_channel.mention)
+
     def __init__(self, owner: Player, player: Player):
         # Vars
         global _match_id_counter
@@ -52,16 +158,18 @@ class BaseMatch:
         self.__public_voice = False
         self.__ended = False
         self.__update_lock = asyncio.Lock()
-        self.__next_update_handler: asyncio.TimerHandle | None = None  # store asyncio.Handle for next update call
+        self.__next_update_task: asyncio.Task | None = None  # store asyncio.Handle for next update call
+        self.__next_update: Coroutine = None
 
         # Display
         self.text_channel: discord.TextChannel | None = None
         self.voice_channel: discord.VoiceChannel | None = None
         self.info_message: discord.Message | None = None
+        self.__timeout_message: discord.Message | None = None
         self.embed_cache: discord.Embed | None = None
         self.__embed_func = embeds.match_info
-        self.__view: views.MatchInfoView | None = None
-        self.view_func = views.MatchInfoView
+        self.__view: BaseMatch.MatchInfoView | None = None
+        self.__view_class = self.MatchInfoView
 
         #  Containers
         self.__players: list[ActivePlayer] = [owner.on_playing(self),
@@ -97,14 +205,12 @@ class BaseMatch:
             if last_match:
                 _match_id_counter = last_match['_id']
         obj = cls(owner, invited)
-        async with obj.__update_lock:
-            obj.log(f'{owner.name} created the match with {invited.name}')
+        obj.log(f'{owner.name} created the match with {invited.name}')
 
-            await obj._make_channels()
+        await obj._make_channels()
 
-            await obj.send_embed()
-            obj.setup()
-            obj._schedule_update()
+        await obj.update()
+
         return obj
 
     async def _make_channels(self):
@@ -153,10 +259,10 @@ class BaseMatch:
 
     async def set_voice_public(self):
         """Set the matches' voice channel to public, allowing any user to join"""
-        await self.match.voice_channel.set_permissions(d_obj.roles['view_channels'],
-                                                       connect=True, view_channel=True)
+        await self.voice_channel.set_permissions(d_obj.roles['view_channels'],
+                                                 connect=True, view_channel=True)
         self.__public_voice = True
-        await self.match.update()
+        await self.update()
 
     def _get_overwrites(self):
         overwrites = {
@@ -170,9 +276,6 @@ class BaseMatch:
         overwrites.update({d_obj.guild.get_member(p.id): discord.PermissionOverwrite(view_channel=True, connect=True)
                            for p in self.__players})
         return overwrites
-
-    def setup(self):
-        """For Inheritance, called post match_create"""
 
     async def join_match(self, player: Player):
         if len(self.__players) >= self.MAX_PLAYERS:
@@ -188,6 +291,11 @@ class BaseMatch:
         return True
 
     async def leave_match(self, player: ActivePlayer):
+        #  If player is owner, and match isn't ended, end match
+        if player.player == self.owner and not self.is_ended:
+            await self.end_match()
+            return
+
         self.__players.remove(player)
         self.__previous_players.append(player.on_quit())
         self.log(f'{player.name} left the match')
@@ -201,9 +309,7 @@ class BaseMatch:
         if player.account:
             await accounts.terminate(player=player.player)
             player.player.set_account(None)
-        if player.player == self.owner and not self.is_ended:
-            await self.end_match()
-            return
+
         if not self.__players and not self.is_ended:  # if no players left, and match not already ended.
             await self.end_match()  # Should only be called if match didn't end when owner left
 
@@ -231,8 +337,7 @@ class BaseMatch:
             self.status = MatchState.ENDED
             self.__ended = True
             self.log('Match Ended')
-            if self.__next_update_handler:
-                self.__next_update_handler.cancel()
+            self._cancel_update()
 
             # Display match ended to users
             await disp.MATCH_END.send(self.text_channel, self.id_str)
@@ -282,7 +387,7 @@ class BaseMatch:
     def view(self, new=False):
         if not new and self.__view:
             return self.__view.update()
-        self.__view = self.view_func(self)
+        self.__view = self.__view_class(self)
         return self.__view
 
     async def send_embed(self):
@@ -293,12 +398,14 @@ class BaseMatch:
 
     async def update_embed(self):
         if self.info_message:
-            self.embed_cache = self.embed_cache if tools.compare_embeds(self.embed_cache,
-                                                                        self._new_embed()) else self._new_embed()
-            try:
-                await disp.MATCH_INFO.edit(self.info_message, embed=self.embed_cache, view=self.view())
-            except discord.NotFound as e:
-                log.error("Couldn't find self.info_message for Match %s", self.id_str, exc_info=e)
+            if not tools.compare_embeds(self.embed_cache, new_embed := self._new_embed()):
+                self.embed_cache = new_embed
+
+                try:
+                    await disp.MATCH_INFO.edit(self.info_message, embed=self.embed_cache, view=self.view())
+                except discord.errors.NotFound as e:
+                    log.error("Couldn't find self.info_message for Match %s", self.id_str, exc_info=e)
+                    await self.send_embed()
         else:
             await self.send_embed()
 
@@ -314,8 +421,19 @@ class BaseMatch:
         """for inheritance purposes"""
         await self.end_match()
 
+    async def reset_timeout(self):
+        """Resets the matches current timeout, deletes old timeout warning"""
+        if self.__timeout_message:
+            try:
+                await self.__timeout_message.delete()
+            except discord.errors.NotFound:
+                log.error("No timeout warning message found for match %s", self.id_str)
+        self.timeout_stamp = None
+        self.log("Match Timeout Reset")
+        await self.update()
+
     async def update_timeout(self):
-        # check timeout, reset if least 2 players and online_players
+        # check timeout, reset if at least 2 players and online_players
         if self.online_players and len(self.players) >= 2:
             self.timeout_stamp = None
         else:
@@ -331,35 +449,59 @@ class BaseMatch:
             elif self.should_warn and not self.timeout_warned:  # Warn of timeout
                 self.timeout_warned = True
                 self.log("Unless the timeout is reset, the match will timeout soon...")
-                await disp.MATCH_TIMEOUT_WARN.send(self.text_channel, self.all_mentions,
-                                                   tools.format_time_from_stamp(self.timeout_at, 'R'),
-                                                   delete_after=30)
+                self.__timeout_message = await disp.MATCH_TIMEOUT_WARN.send(
+                    self.text_channel, self.all_mentions,
+                    tools.format_time_from_stamp(self.timeout_at, 'R'))
 
     async def update(self):
         """Update the match object:  updates timeout, match status, and the embed if required"""
-
         # ensure exclusive access to update
-        async with self.__update_lock:
+        print("updating")
+        try:
+            async with self.__update_lock:
+                if self.is_ended:  # Quit update if match is ended
+                    return
+                print("exclusive update")
 
-            # Check if the match should be warned / timed out
-            await self.update_timeout()
+                # Check if the match should be warned / timed out
+                await self.update_timeout()
 
-            # Updated Match Status
-            self.update_status()
+                # Updated Match Status
+                self.update_status()
 
-            # Reflect match embed with updated match attributes, also updates match view
-            await self.update_embed()
+                # Reflect match embed with updated match attributes, also updates match view
+                await self.update_embed()
 
+
+        except asyncio.CancelledError:
+            print("Update Cancelled")
+        else:
             # schedule next update
-            self._schedule_update()
+            print("Update Scheduler")
+            d_obj.bot.loop.call_later(0.1, self._schedule_update_task)
 
-    def _schedule_update(self):
+    async def _update_task(self):
+        """Task wrapper around update call"""
+        try:
+            await asyncio.sleep(self.UPDATE_DELAY)
+            await self.update()
+        except asyncio.CancelledError:
+            pass
+
+
+    def _schedule_update_task(self):
         """Schedule next update of the match, cancel currently scheduled update."""
-        # Cancel next update if it exists, schedule new one
-        if self.__next_update_handler:
-            self.__next_update_handler.cancel()
-        self.__next_update_handler = d_obj.bot.loop.call_later(self.UPDATE_DELAY, asyncio.create_task, self.update())
+        # Cancel next update if it exists
+        self._cancel_update()
 
+        # Schedule next update
+        self.__next_update_task = d_obj.bot.loop.create_task(self._update_task(), name=f'Match [{self.id_str}] Updater')
+        print("Update Scheduled")
+
+    def _cancel_update(self):
+        """Cancel the next upcoming update"""
+        if self.__next_update_task:
+            self.__next_update_task.cancel()
 
     def log(self, message, public=True):
         self.match_log.append((tools.timestamp_now(), message, public))
@@ -455,7 +597,7 @@ class RankedMatch(BaseMatch):
     MAX_PLAYERS = 2
     TYPE = 'Ranked'
 
-    class RankedMatchView(views.MatchInfoView):
+    class RankedMatchView(BaseMatch.MatchInfoView):
 
         def __init__(self, match: 'RankedMatch'):
             super().__init__(match)
@@ -491,10 +633,7 @@ class RankedMatch(BaseMatch):
         self.__player2_stats = PlayerStats.get_from_db(p_id=invited.id, p_name=invited.name)
         self.__p1_submitted_score = None
         self.__p2_submitted_score = None
-        super().view_func = self.RankedMatchView
-
-    def setup(self):
-        pass
+        self.__view_class = self.RankedMatchView
 
     def _check_scores_submitted(self):
         if self.__p1_submitted_score and self.__p2_submitted_score:
