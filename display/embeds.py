@@ -126,7 +126,7 @@ def account_online_check(online) -> Embed:
         if not last_player:
             player_ment = f"User not found for ID {acc.last_user_id}"
         else:
-            player_ment = last_player.mention
+            player_ment = f"{last_player.mention}({last_player.name})"
         string = string + f'{char_name} : {player_ment}\n'
 
     embed.add_field(name='Currently Online Accounts',
@@ -528,8 +528,8 @@ def fsbot_info_embed() -> Embed:
               "by the user.  These preferences will be displayed in the duel lobby next to your name. Self-assigned "
               "skill levels are available to help pick balanced partners.  Keep in mind that skill levels are "
               "self-assigned, and may not be entirely accurate.  Requested skill levels can also be chosen, "
-              "for those who might wish to duel those outside their own skill range.  Users preferred faction can help"
-              "match them up with an opponent using the specific ESF they want to practice against.",
+              "for those who might wish to duel those in a specific skill range.  Users preferred faction indicates "
+              "which faction they would like to play given the choice.",
         inline=False
     )
 
