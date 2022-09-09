@@ -24,6 +24,7 @@ class AllStrings(Enum):
     STOP_SPAM = "{}: Please stop spamming!"
     ALL_LOCKED = "FSBot is currently disabled, please try again later!"
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
+    AS = "As {}: {}"
 
     CHECK_FAILURE = "You have failed a check to run this command!"
     UNASSIGNED_ONLINE = "{} Unassigned Login", account_online_check

@@ -296,6 +296,31 @@ class AdminCog(commands.Cog):
 
         await disp.ADMIN_PLAYER_CLEAN.send_priv(ctx, p.mention)
 
+    register_admin = admin.create_subgroup(
+        name="register", description="Admin Registration Commands"
+    )
+
+    @register_admin.command(name="noaccount")
+    async def register_no_acc(self, ctx: discord.ApplicationContext,
+                              member: discord.Option(discord.Member, "@mention to modify", required=True)):
+        """Force register a specific player as not having a personal Jaeger account."""
+        await ctx.defer(ephemeral=True)
+        if (p := Player.get(member.id)) is None:
+            return await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+
+        if await p.register(None):
+            return await disp.AS.send_priv(ctx, member.mention, disp.REG_SUCCESFUL_NO_CHARS())
+        return await disp.AS.send_priv(ctx, member.mention, disp.REG_ALREADY_NO_CHARS())
+
+    @register_admin.command(name="personal")
+    async def register_personal_acc(self, ctx: discord.ApplicationContext,
+                                    member: discord.Option(discord.Member, "@mention to modify", required=True)):
+
+        """Force register a specific player with their personal jaeger account."""
+        if (p := Player.get(member.id)) is None:
+            return await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+        await ctx.send_modal(register.RegisterCharacterModal(player=p))
+
     ###############################################################
 
     timeout_admin = admin.create_subgroup(
