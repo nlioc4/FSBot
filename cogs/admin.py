@@ -6,7 +6,8 @@ import discord
 from discord.ext import commands, tasks
 from logging import getLogger
 import asyncio
-from datetime import datetime as dt, time, timezone
+from datetime import datetime as dt, time, timedelta
+from pytz import timezone
 
 # Internal Imports
 import modules.config as cfg
@@ -33,7 +34,6 @@ class AdminCog(commands.Cog):
         description='Admin Only Commands',
         guild_ids=[cfg.general['guild_id']]
     )
-
 
     # TODO Fix, currently doesn't unload/reload lobbies correctly
     @admin.command()
@@ -119,7 +119,7 @@ class AdminCog(commands.Cog):
                          match_channel: discord.Option(discord.TextChannel, "Match Channel to invite member to",
                                                        required=False)
                          ):
-        """Add a player to a match. If a channel isnt provided, current is used."""
+        """Add a player to a match. If a channel isn't provided, current is used."""
         p = Player.get(member.id)
         match_channel = match_channel or ctx.channel
 
@@ -145,7 +145,7 @@ class AdminCog(commands.Cog):
 
         if p.match:
             await disp.MATCH_LEAVE_2.send_priv(ctx, p.name, p.match.text_channel.mention)
-            await match.leave_match(p.active)
+            await p.match.leave_match(p.active)
 
         else:
             await disp.MATCH_NOT_IN_2.send_priv(ctx, p.name)
@@ -155,12 +155,12 @@ class AdminCog(commands.Cog):
                         match_id: discord.Option(int, "Match ID to end",
                                                  required=False)):
         """End a given match forcibly.  Uses current channel if no ID provided"""
-        await ctx.defer()
-        match = BaseMatch.active_matches_dict.get(match_id) or \
-                 BaseMatch.active_match_channel_ids().get(ctx.channel_id)
+        await ctx.defer(epehemeral=True)
+        match = BaseMatch.active_matches_dict().get(match_id) or BaseMatch.active_match_channel_ids().get(
+            ctx.channel_id)
 
         if not match:
-            await disp.MATCH_NOT_FOUND(ctx, (match_id or ctx.channel.mention))
+            await disp.MATCH_NOT_FOUND.send_priv(ctx, (match_id or ctx.channel.mention))
 
         await disp.MATCH_END.send_priv(ctx, match.id_str)
         await match.end_match()
@@ -255,6 +255,11 @@ class AdminCog(commands.Cog):
         await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
         await message.add_reaction("\u2705")
 
+    @msg_assign_account.error
+    async def msg_assign_account_concurrency_error(self, ctx, error):
+        if isinstance(error, commands.MaxConcurrencyReached):
+            await ctx.respond('Someone else is using this command right now, try again soon!', ephemeral=True)
+
     ##########################################################
 
     player_admin = admin.create_subgroup(
@@ -291,11 +296,113 @@ class AdminCog(commands.Cog):
 
         await disp.ADMIN_PLAYER_CLEAN.send_priv(ctx, p.mention)
 
+    ###############################################################
 
-    @msg_assign_account.error
-    async def msg_assign_account_concurrency_error(self, ctx, error):
-        if isinstance(error, commands.MaxConcurrencyReached):
-            await ctx.respond('Someone else is using this command right now, try again soon!', ephemeral=True)
+    timeout_admin = admin.create_subgroup(
+        name="timeout", description="Admin Timeout Commands"
+    )
+
+    @timeout_admin.command(name='check')
+    async def timeout_check(self, ctx: discord.ApplicationContext,
+                            member: discord.Option(discord.Member, "@mention to check timeout for", required=True)):
+        """Check the timeout status of a player"""
+        if (p := Player.get(member.id)) and p.is_timeout:
+            timestamps = [tools.format_time_from_stamp(p.timeout_until, x) for x in ("R", "F")]
+            return await disp.TIMEOUT_UNTIL.send_priv(ctx, p.mention, p.name, *timestamps)
+        await disp.TIMEOUT_NOT.send_priv(ctx, p.mention, p.name)
+
+    @timeout_admin.command(name='until')
+    async def timeout_until(self, ctx: discord.ApplicationContext,
+                            member: discord.Option(discord.Member, "@mention to timeout", required=True),
+                            date: discord.Option(str, name="date",
+                                                 description="Format YYYY-MM-DD", required=True,
+                                                 min_length=10, max_length=10),
+                            time_str: discord.Option(str, name="time",
+                                                     description="Format HH:MM", default="00:00",
+                                                     min_length=5, max_length=5),
+                            zone: discord.Option(str, name="timezone",
+                                                 description="Defaults to UTC", default="UTC",
+                                                 choices=[discord.OptionChoice("UTC"),
+                                                          discord.OptionChoice("Pacific NA", "US/Pacific"),
+                                                          discord.OptionChoice("Eastern NA", "US/Eastern"),
+                                                          discord.OptionChoice("Western European", "WET"),
+                                                          discord.OptionChoice("Central European", "CET"),
+                                                          discord.OptionChoice("Eastern European", "EST")
+                                                          ])):
+        """Timeout a player until a specific date/time, useful for long timeouts.  Timezone defaults to UTC."""
+        await ctx.defer(ephemeral=True)
+
+        full_dt_str = ' '.join([date, time_str])
+        try:
+            timeout_dt = dt.strptime(full_dt_str, '%Y-%m-%d %M:%S')
+            timeout_dt = timeout_dt.astimezone(timezone(zone))
+        except ValueError:
+            return await disp.TIMEOUT_WRONG_FORMAT.send_priv(ctx, full_dt_str)
+
+        if p := Player.get(member.id):
+            # Set timeout, clear player
+            p.timeout_until = timeout_dt.timestamp()
+
+            if p.account:
+                await accounts.terminate(p.account)
+            if p.match:
+                await p.match.leave_match(p.active)
+            if p.lobby:
+                p.lobby.lobby_leave(p)
+
+            await d_obj.role_update(member=member, reason=f"Timeout by {ctx.author.name}")
+            timestamps = [tools.format_time_from_stamp(p.timeout_until, x) for x in ("R", "f")]
+            return await disp.TIMEOUT_NEW.send_priv(ctx, p.mention, p.name, *timestamps)
+        await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+
+    @timeout_admin.command(name='for')
+    async def timeout_for(self, ctx: discord.ApplicationContext,
+                          member: discord.Option(discord.Member, "@mention to timeout", required=True),
+                          minutes: discord.Option(int, "Minutes to timeout", default=0),
+                          hours: discord.Option(int, "Hours to timeout", default=0),
+                          days: discord.Option(int, "Days to timeout", default=0),
+                          weeks: discord.Option(int, "Weeks to timeout", default=0)
+                          ):
+        """Timeout a player for a set period of time"""
+        await ctx.defer(ephemeral=True)
+
+        if (delta := timedelta(minutes=minutes, hours=hours, days=days, weeks=weeks)) + dt.now() == dt.now():
+            return await disp.TIMEOUT_NO_TIME.send_priv(ctx)
+
+        timeout_dt = dt.now() + delta
+
+        if p := Player.get(member.id):
+            # Set timeout, clear player
+            p.timeout_until = timeout_dt.timestamp()
+
+            if p.account:
+                await accounts.terminate(p.account)
+            if p.match:
+                await p.match.leave_match(p.active)
+            if p.lobby:
+                p.lobby.lobby_leave(p)
+
+            await d_obj.role_update(member=member, reason=f"Timeout by {ctx.author.name}")
+            timestamps = [tools.format_time_from_stamp(p.timeout_until, x) for x in ("R", "f")]
+            return await disp.TIMEOUT_NEW.send_priv(ctx, p.mention, p.name, *timestamps)
+        await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+
+    @timeout_admin.command(name='clear')
+    async def timeout_clear(self, ctx: discord.ApplicationContext,
+                            member: discord.Option(discord.Member, "@mention to end timeout for", required=True)):
+        """Clear a specific players timeout"""
+        await ctx.defer(ephemeral=True)
+        if p := Player.get(member.id):
+            if not p.is_timeout:
+                return await disp.TIMEOUT_NOT.send_priv(ctx, p.mention, p.name)
+
+            # Set Timeout to 0 (clearing it) ##TODO add end timeout func
+            p.timeout_until = 0
+            await d_obj.role_update(member=member, reason=f"Timeout cleared by {ctx.author.name}")
+            return await disp.TIMEOUT_CLEAR.send_priv(ctx, p.mention, p.name)
+        await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+
+    ##############################################################
 
     @commands.Cog.listener('on_ready')
     async def on_ready(self):

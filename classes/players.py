@@ -150,7 +150,7 @@ class Player:
         self.online_id = None
         self.__is_registered = False
         self.__hidden = False
-        self.__timeout = 0
+        self.__timeout: int = 0
         self.__lobby_timeout_stamp = 0
         self.__lobbied_stamp = 0
         self.__active = None
@@ -282,15 +282,15 @@ class Player:
         return self.__account
 
     @property
-    def timeout_until(self):
+    def timeout_until(self) -> int:
         return self.__timeout
 
     @timeout_until.setter
-    def timeout_until(self, time):
+    def timeout_until(self, time: int):
         self.__timeout = time
 
     @property
-    def is_timeout(self):
+    def is_timeout(self) -> bool:
         return self.__timeout > datetime.now().timestamp()
 
     @property

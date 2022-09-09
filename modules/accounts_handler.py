@@ -179,6 +179,7 @@ class ValidateView(views.FSBotView):
 
     @discord.ui.button(label="Confirm Rules", style=discord.ButtonStyle.green)
     async def validate_button(self, button: discord.Button, inter: discord.Interaction):
+        await inter.response.defer()
         try:
             await disp.ACCOUNT_EMBED_FETCH.edit(inter, acc=self.acc, view=self)
         except discord.NotFound:
@@ -269,7 +270,6 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
             ws.resize(cols=new_cols)
             ws.update_cells(cells_list, 'USER_ENTERED')
             return True
-        log.error(f"Error logging usage to GSheet for Account: {acc.id}, user: {player.name}, ID: {player.id}")
         raise e
     return True
 

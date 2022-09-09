@@ -70,6 +70,16 @@ def is_player(user: discord.Member | discord.User) -> classes.Player | bool:
         return False
 
 
+def is_timeout(user: discord.Member | discord.User) -> bool | int:
+    """Simple check if a user is timed out, returns timeout until stamp if True
+    Also returns false if user is not a player."""
+    p = classes.Player.get(user.id)
+    if p:
+        if p.is_timeout:
+            return p.timeout_until
+    return False
+
+
 async def is_registered(ctx, user: discord.Member | discord.User | classes.Player) -> bool:
     """Checks if a user is a registered player, returns True if passed and sends a response if not."""
     player = classes.Player.get(user.id)
@@ -110,7 +120,7 @@ async def role_update(member: discord.Member = None, player: classes.Player = No
         if p.is_timeout and roles['timeout'] not in current_roles:
             roles_to_add.append(roles['timeout'])
         elif not p.is_timeout and roles['timeout'] in current_roles:
-            roles_to_remove.append(roles['view_channels'])
+            roles_to_remove.append(roles['timeout'])
 
     if roles_to_add:
         await member.add_roles(*roles_to_add, reason=reason)

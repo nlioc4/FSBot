@@ -148,6 +148,14 @@ class AllStrings(Enum):
     ACCOUNT_VALIDATE_ERROR = "There was an error logging this usage.  Please try again, and if the " \
                              "issue persists please ask for help!"
 
+    TIMEOUT_UNTIL = "{}({}) is timed out, their timeout will expire {}, at {}."
+    TIMEOUT_NOT = "{}({}) is not timed out."
+    TIMEOUT_CLEAR = "{}({}) has had their timeout ended."
+    TIMEOUT_WRONG_FORMAT = "Incorrect format ''{}'', formatting must follow ''YYYY-MM-DD'' for dates," \
+                           "and ''HH:MM'' for times."
+    TIMEOUT_NEW = "{}({}) has been timed out, their timeout will expire {}, at {}."
+    TIMEOUT_NO_TIME = "Can't have all arguments == 0, that's not a timeout!"
+
     def __init__(self, string, embed=None):
         self.__string = string
         self.__embed = embed
