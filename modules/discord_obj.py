@@ -11,6 +11,7 @@ import discord
 # Internal Imports
 import modules.config as cfg
 import classes.players
+from modules.tools import UnexpectedError
 from display import AllStrings as disp
 
 log = getLogger('fs_bot')
@@ -63,20 +64,18 @@ def is_admin(member: discord.Member) -> bool:
 
 def is_player(user: discord.Member | discord.User) -> classes.Player | bool:
     """Simple check if a user is a player, returns Player if passed"""
-    p = classes.Player.get(user.id)
-    if p:
+    if p := classes.Player.get(user.id):
         return p
-    else:
-        return False
+    return False
 
 
 def is_timeout(user: discord.Member | discord.User) -> bool | int:
     """Simple check if a user is timed out, returns timeout until stamp if True
     Also returns false if user is not a player."""
-    p = classes.Player.get(user.id)
-    if p:
+    if p := classes.Player.get(user.id):
         if p.is_timeout:
             return p.timeout_until
+        raise UnexpectedError("User passed to is_timeout is not a player!")
     return False
 
 

@@ -157,6 +157,7 @@ class AllStrings(Enum):
     TIMEOUT_NEW = "{}({}) has been timed out, their timeout will expire {}, at {}."
     TIMEOUT_NO_TIME = "Can't have all arguments == 0, that's not a timeout!"
     TIMEOUT_PAST = "{} is in the past, timeout module does not possess a time machine!"
+    TIMEOUT_RELEASED = "You have been released from timeout! Please behave this time..."
 
     def __init__(self, string, embed=None):
         self.__string = string

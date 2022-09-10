@@ -6,7 +6,9 @@ import asyncio
 
 # Internal Imports
 from modules import trello
+from modules import discord_obj as d_obj
 from display import AllStrings as disp
+
 import modules.config as cfg
 
 log = getLogger('fs_bot')
@@ -25,6 +27,14 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
 
         await trello.create_card(title, f"Suggested by [{ctx.user.name}] : " + description)
         await disp.SUGGESTION_ACCEPTED.send_priv(ctx, ctx.user.mention)
+
+    @commands.slash_command(name="freeme", guild_ids=[cfg.general['guild_id']])
+    async def free_me(self, ctx: discord.ApplicationContext):
+        await ctx.defer(epehemeral=True)
+        if not (p := d_obj.is_player(ctx.user)):
+            return await disp.NOT_PLAYER.send_priv(ctx)
+        await d_obj.role_update(member=ctx.user, player=p, reason=f"{ctx.user.name} requested freedom and was granted it.")
+        await disp.TIMEOUT_RELEASED.send_priv(ctx)
 
 
 def setup(client):

@@ -456,6 +456,7 @@ class AdminCog(commands.Cog):
             await census.EVENT_CLIENT.close()
 
     census_watchtower.add_exception_type(auraxium.errors.ResponseError)
+    census_watchtower.add_exception_type(asyncio.TimeoutError)
 
     @tasks.loop(time=time(hour=11, minute=0, second=0))
     async def account_sheet_reload(self):
