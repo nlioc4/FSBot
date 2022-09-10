@@ -333,7 +333,7 @@ class Lobby:
             elif p.lobby_timeout_stamp < tools.timestamp_now():
                 try:
                     self.lobby_timeout(p)
-                except KeyError as e:
+                except ValueError as e:
                     log.error(f"Error on timeout for {p.name}, running lobby_leave...", exc_info=e)
                     self.lobby_leave(p)
                 await disp.LOBBY_TIMEOUT.send(self.channel, p.mention, delete_after=30)
