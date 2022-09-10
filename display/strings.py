@@ -156,6 +156,7 @@ class AllStrings(Enum):
                            "and ''HH:MM'' for times."
     TIMEOUT_NEW = "{}({}) has been timed out, their timeout will expire {}, at {}."
     TIMEOUT_NO_TIME = "Can't have all arguments == 0, that's not a timeout!"
+    TIMEOUT_PAST = "{} is in the past, timeout module does not possess a time machine!"
 
     def __init__(self, string, embed=None):
         self.__string = string
@@ -243,7 +244,7 @@ class AllStrings(Enum):
 
             case _:
                 raise UnexpectedError(f"Unrecognized Context, {type(ctx)}")
-        if (view := args_dict.get('view')):
+        if hasattr(view := args_dict.get('view'), 'msg'):
             view.msg = msg
         return msg
 

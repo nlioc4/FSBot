@@ -199,6 +199,13 @@ def player_info(player) -> Embed:
         inline=False
     )
 
+    if player.is_timeout:
+        relative, short = format_stamp(player.timeout_until, "R"), format_stamp(player.timeout_until, "f")
+        embed.add_field(
+            name="Player Timeout",
+            value=f"Player is currently timed out, their timeout will expire {relative}, at {short}."
+        )
+
     return fs_author(embed)
 
 
