@@ -16,9 +16,9 @@ import modules.discord_obj as d_obj
 from modules import census
 from modules import tools
 from modules import loader
-from classes import Player, ActivePlayer
+from classes import Player
 from classes.match import BaseMatch
-from display import AllStrings as disp, views, embeds
+from display import AllStrings as disp, embeds
 import cogs.register as register
 
 log = getLogger('fs_bot')
@@ -180,7 +180,7 @@ class AdminCog(commands.Cog):
         await ctx.defer(ephemeral=True)
         p = Player.get(member.id)
         if not p:
-            await disp.NOT_PLAYER.send_priv(ctx, member.mention)
+            await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
             return
         if p.account:
             await accounts.terminate(p.account)
@@ -235,7 +235,7 @@ class AdminCog(commands.Cog):
 
         p = Player.get(message.author.id)
         if not p:  # if not a player
-            await disp.NOT_PLAYER.send_priv(ctx, message.author.mention)
+            await disp.NOT_PLAYER_2.send_priv(ctx, message.author.mention)
             await message.add_reaction("\u274C")
             return
 
@@ -339,6 +339,7 @@ class AdminCog(commands.Cog):
     @timeout_admin.command(name='until')
     async def timeout_until(self, ctx: discord.ApplicationContext,
                             member: discord.Option(discord.Member, "@mention to timeout", required=True),
+                            reason: discord.Option(str, name="reason", description="Reason for timeout"),
                             date: discord.Option(str, name="date",
                                                  description="Format YYYY-MM-DD", required=True,
                                                  min_length=10, max_length=10),
@@ -347,7 +348,8 @@ class AdminCog(commands.Cog):
                                                      min_length=5, max_length=5),
                             zone: discord.Option(str, name="timezone",
                                                  description="Defaults to UTC", default="UTC",
-                                                 choices=tools.pytz_discord_options())):
+                                                 choices=tools.pytz_discord_options())
+                            ):
         """Timeout a player until a specific date/time, useful for long timeouts.  Timezone defaults to UTC."""
         await ctx.defer(ephemeral=True)
         full_dt_str = ' '.join([date, time_str])
@@ -365,21 +367,14 @@ class AdminCog(commands.Cog):
                 return await disp.TIMEOUT_PAST.send_priv(ctx, short_time)
 
             # Set timeout, clear player
-            p.timeout_until = stamp
-            if p.account:
-                await accounts.terminate(p.account)
-            if p.match:
-                await p.match.leave_match(p.active)
-            if p.lobby:
-                p.lobby.lobby_leave(p)
-
-            await d_obj.role_update(member=member, reason=f"Timeout by {ctx.author.name}")
+            await d_obj.timeout_player(p=p, stamp=stamp, mod=ctx.user, reason=reason)
             return await disp.TIMEOUT_NEW.send_priv(ctx, p.mention, p.name, relative, short_time)
         await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
 
     @timeout_admin.command(name='for')
     async def timeout_for(self, ctx: discord.ApplicationContext,
                           member: discord.Option(discord.Member, "@mention to timeout", required=True),
+                          reason: discord.Option(str, name="reason", description="Reason for timeout"),
                           minutes: discord.Option(int, "Minutes to timeout", default=0, min_value=0),
                           hours: discord.Option(int, "Hours to timeout", default=0, min_value=0),
                           days: discord.Option(int, "Days to timeout", default=0, min_value=0),
@@ -395,16 +390,8 @@ class AdminCog(commands.Cog):
 
         if p := Player.get(member.id):
             # Set timeout, clear player
-            p.timeout_until = int(timeout_dt.timestamp())
+            await d_obj.timeout_player(p=p, stamp= int(timeout_dt.timestamp()), mod=ctx.user, reason=reason)
 
-            if p.account:
-                await accounts.terminate(p.account)
-            if p.match:
-                await p.match.leave_match(p.active)
-            if p.lobby:
-                p.lobby.lobby_leave(p)
-
-            await d_obj.role_update(member=member, reason=f"Timeout by {ctx.author.name}")
             timestamps = [tools.format_time_from_stamp(p.timeout_until, x) for x in ("R", "f")]
             return await disp.TIMEOUT_NEW.send_priv(ctx, p.mention, p.name, *timestamps)
         await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
@@ -419,8 +406,7 @@ class AdminCog(commands.Cog):
                 return await disp.TIMEOUT_NOT.send_priv(ctx, p.mention, p.name)
 
             # Set Timeout to 0 (clearing it)
-            p.timeout_until = 0
-            await d_obj.role_update(member=member, reason=f"Timeout cleared by {ctx.author.name}")
+            await d_obj.timeout_player(p=p, stamp=0, mod=ctx.user)
             return await disp.TIMEOUT_CLEAR.send_priv(ctx, p.mention, p.name)
         await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
 

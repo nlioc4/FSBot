@@ -150,7 +150,7 @@ class Player:
         self.online_id = None
         self.__is_registered = False
         self.__hidden = False
-        self.__timeout: int = 0
+        self.__timeout: dict = {'stamp': 0, "msg_id": 0, "reason": "", "mod_id": 0}
         self.__lobby_timeout_stamp = 0
         self.__lobbied_stamp = 0
         self.__active = None
@@ -282,16 +282,43 @@ class Player:
         return self.__account
 
     @property
-    def timeout_until(self) -> int:
-        return self.__timeout
-
-    @timeout_until.setter
-    def timeout_until(self, time: int):
-        self.__timeout = time
+    def is_timeout(self) -> bool:
+        return self.__timeout['stamp'] > datetime.now().timestamp()
 
     @property
-    def is_timeout(self) -> bool:
-        return self.__timeout > datetime.now().timestamp()
+    def timeout_until(self):
+        return self.__timeout['stamp']
+
+    @property
+    def timeout_msg_id(self):
+        return self.__timeout['msg_id']
+
+    @property
+    def timeout_reason(self):
+        return self.__timeout['reason']
+
+    @property
+    def timeout_mod_id(self):
+        return self.__timeout['mod_id']
+
+    async def set_timeout(self, timeout_until, timeout_msg_id=0, reason='', mod_id=0):
+        """Should be rewritten to just always send values instead of conditionally updating values."""
+        if timeout_until == 0:
+            self.__timeout['stamp'] = timeout_until
+            self.__timeout['msg_id'] = 0
+            self.__timeout['reason'] = ''
+            self.__timeout['mod_id'] = 0
+        elif self.is_timeout:
+            self.__timeout['stamp'] = timeout_until
+            self.__timeout['mod_id'] = mod_id
+            if reason:
+                self.__timeout['reason'] = reason
+        else:
+            self.__timeout['stamp'] = timeout_until
+            self.__timeout['msg_id'] = timeout_msg_id
+            self.__timeout['reason'] = reason
+            self.__timeout['mod_id'] = mod_id
+        await self.db_update('timeout')
 
     @property
     def hidden(self):

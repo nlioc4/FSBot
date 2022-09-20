@@ -203,7 +203,9 @@ def player_info(player) -> Embed:
         relative, short = format_stamp(player.timeout_until, "R"), format_stamp(player.timeout_until, "f")
         embed.add_field(
             name="Player Timeout",
-            value=f"Player is currently timed out, their timeout will expire {relative}, at {short}."
+            value=f"Player is currently timed out, their timeout will expire {relative}, at {short}.\n"
+                  f"Reason: {player.timeout_reason}\n"
+                  f"Mod: {d_obj.bot.get_user(player.timeout_mod_id).mention}"
         )
 
     return fs_author(embed)

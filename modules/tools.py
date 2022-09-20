@@ -72,10 +72,10 @@ def compare_embeds(embed1, embed2) -> bool:
     return embed1dict == embed2dict
 
 
-def format_time_from_stamp(timestamp: int, type_str: Literal["f", "F", "d", "D", "t", "T", "R"]) -> str:
+def format_time_from_stamp(timestamp: int, type_str: Literal["f", "F", "d", "D", "t", "T", "R"] = "t") -> str:
     """converts a timestamp into a time formatted for discord.
     type indicates what format will be used, options are
-    t| 22:57 |Short Time
+    t| 22:57 |Short Time **default
     T| 22:57:58 |Long Time
     d| 17/05/2016| Short Date
     D| 17 May 2016 |Long Date

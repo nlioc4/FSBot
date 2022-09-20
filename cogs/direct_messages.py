@@ -57,8 +57,13 @@ class DMCog(commands.Cog):
 
     @commands.slash_command(name="modmail")
     async def modmail(self, ctx: discord.ApplicationContext,
-                      init_msg: discord.Option(str, 'Input your initial message to the mods here', required=True),
-                      files=None):
+                      init_msg: discord.Option(str, name="message",
+                                               description='Input your initial message to the mods here',
+                                               required=True),
+                      files: discord.Option(discord.Attachment,
+                                            name="attachments",
+                                            desciription="Attachments to include",
+                                            default=None)):
         """Send a message to the staff of FS bot"""
         if ctx.author.id in DM_THREADS:
             await disp.DM_ALREADY.send_priv(ctx)

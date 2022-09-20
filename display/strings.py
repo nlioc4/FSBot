@@ -21,6 +21,7 @@ class AllStrings(Enum):
     NOT_REGISTERED = "You are not registered {}, please go to {} first!"
     NOT_PLAYER = "You are not a player {}, please go to {} first!"
     NOT_PLAYER_2 = "{} is not a player"
+    CANT_USE = "You can't use this!"
     STOP_SPAM = "{}: Please stop spamming!"
     ALL_LOCKED = "FSBot is currently disabled, please try again later!"
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
@@ -35,7 +36,7 @@ class AllStrings(Enum):
 
     ADMIN_PLAYER_CLEAN = "{} has been cleaned."
 
-    LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], name: [{}]"
+    LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], mention: [{}], name: [{}]"
     LOG_ERROR = "{} has run into an error, {} {}."
     LOG_GENERAL = "Log: {}"
     LOG_GENERAL_ERROR = "An error has occurred, {}"
@@ -137,7 +138,7 @@ class AllStrings(Enum):
     ACCOUNT_ALREADY_2 = "{} already has been assigned an account, ID: {}"
     ACCOUNT_SENT = "You have been sent an account, check your DM's <{}>."
     ACCOUNT_SENT_2 = "{} has been sent account ID: {}."
-    ACCOUNT_LOG_OUT = "Your session has been ended, please log out of {} if you haven't already!"
+    ACCOUNT_LOG_OUT = "Your session has been ended, please log out of {}!"
     ACCOUNT_TOKEN_EXPIRED = "After 5 minutes this account token has expired, please request another" \
                             " if you still need an account."
     ACCOUNT_NO_DMS = "You must allow the bot to send you DM's in order to receive an account!"
@@ -158,6 +159,13 @@ class AllStrings(Enum):
     TIMEOUT_NO_TIME = "Can't have all arguments == 0, that's not a timeout!"
     TIMEOUT_PAST = "{} is in the past, timeout module does not possess a time machine!"
     TIMEOUT_RELEASED = "You have been released from timeout! Please behave this time..."
+    TIMEOUT_DM = "You have been timed out from FSBot until {} by {} for reason: {}."
+    TIMEOUT_DM_REMOVED = "Your FSBot timeout has been removed by {}."
+    TIMEOUT_DM_UPDATED = "{}\nThis timeout was last updated: {}."
+    TIMEOUT_DM_UPDATE_R = "{}\nThis timeout was removed: {}."
+    TIMEOUT_STILL = "You are still timed out, try again {}..."
+    TIMEOUT_FREE = "You are not timed out from FSBot!"
+    TIMEOUT_LOG = "{} has been timed out until {} by {} with reason: {}"
 
     def __init__(self, string, embed=None):
         self.__string = string
@@ -258,6 +266,11 @@ class AllStrings(Enum):
     async def send_temp(self, ctx, *args, **kwargs):
         """ .send but sets delete_after to 5 seconds"""
         kwargs['delete_after'] = 5
+        return await self.send(ctx, *args, **kwargs)
+
+    async def send_long(self, ctx, *args, **kwargs):
+        """ .send_temp but sets delete_after to 30 seconds"""
+        kwargs['delete_after'] = 30
         return await self.send(ctx, *args, **kwargs)
 
     async def send_priv(self, ctx, *args, **kwargs):
