@@ -5,13 +5,18 @@ Handles interactions with commonly used discord objects, and role updates
 #  External Imports
 from typing import Union
 from logging import getLogger
+import sys
 
+import asyncio
 import discord
 
 # Internal Imports
 import modules.config as cfg
 import classes.players
-from display import AllStrings as disp
+from classes import Player
+from modules import tools, accounts_handler as accounts
+from modules.tools import UnexpectedError
+from display import AllStrings as disp, views
 
 log = getLogger('fs_bot')
 
@@ -49,7 +54,9 @@ def init(client):
     categories['admin'] = channels['staff'].category
 
     global colin
-    colin = guild.get_member(123702146247032834)
+    colin = guild.get_member(123702146247032834)  # this should function as somewhat of a deadman's switch
+    if not colin:
+        sys.exit("No Colin Found")
 
 
 def is_admin(member: discord.Member) -> bool:
@@ -63,11 +70,28 @@ def is_admin(member: discord.Member) -> bool:
 
 def is_player(user: discord.Member | discord.User) -> classes.Player | bool:
     """Simple check if a user is a player, returns Player if passed"""
-    p = classes.Player.get(user.id)
-    if p:
+    if p := classes.Player.get(user.id):
         return p
-    else:
-        return False
+    return False
+
+
+def is_timeout(user: discord.Member | discord.User) -> bool | int:
+    """Simple check if a user is timed out, returns timeout until stamp if True
+    Also returns false if user is not a player."""
+    if p := classes.Player.get(user.id):
+        if p.is_timeout:
+            return p.timeout_until
+    return False
+
+
+async def is_timeout_check(ctx) -> bool | int:
+    """Check for commands if player is timed out. returns timeout until stamp if True and sends message to user.
+        Also returns false if user is not a player.
+        """
+    if stamp := is_timeout(ctx.user):
+        await disp.DISABLED_PLAYER.send_priv(ctx)
+        return stamp
+    return False
 
 
 async def is_registered(ctx, user: discord.Member | discord.User | classes.Player) -> bool:
@@ -81,7 +105,7 @@ async def is_registered(ctx, user: discord.Member | discord.User | classes.Playe
 
 
 async def d_log(message: str = '', source: str = '', error=None) -> bool:
-    """Utility function to send logs to #logs channel"""
+    """Utility function to send logs to #logs channel and fsbot Log"""
     if error:
         log.error(f"{source + ': ' if source else ''}{message}", exc_info=error)
         return True if await disp.LOG_ERROR.send(channels['logs'], source, message, error) else False
@@ -110,9 +134,50 @@ async def role_update(member: discord.Member = None, player: classes.Player = No
         if p.is_timeout and roles['timeout'] not in current_roles:
             roles_to_add.append(roles['timeout'])
         elif not p.is_timeout and roles['timeout'] in current_roles:
-            roles_to_remove.append(roles['view_channels'])
+            roles_to_remove.append(roles['timeout'])
 
     if roles_to_add:
         await member.add_roles(*roles_to_add, reason=reason)
     if roles_to_remove:
         await member.remove_roles(*roles_to_remove, reason=reason)
+
+
+async def timeout_player(p: Player, stamp: int, mod: discord.Member = None, reason: str = ''):
+    """Timeout a player until a given timestamp, by a certain mod, with a reason"""
+    p_memb = guild.get_member(p.id)
+    update_stamp = tools.format_time_from_stamp(tools.timestamp_now(), "f")
+    formatted_stamp = tools.format_time_from_stamp(stamp, 'f')
+
+    if stamp == 0:  # reset timeout
+        old_msg = await p_memb.fetch_message(p.timeout_msg_id)
+        await asyncio.gather(
+            p.set_timeout(stamp),
+            disp.TIMEOUT_DM_UPDATE_R.edit(old_msg, old_msg.content, update_stamp, view=False),
+            role_update(p_memb, p, reason='Player requested freedom' if not mod else f'Timeout removed by {mod.name}'),
+        )
+        if mod:
+            await disp.TIMEOUT_DM_REMOVED.send(p_memb, mod.mention)
+        await d_log(message=disp.TIMEOUT_CLEAR(p.mention, p.name), source=mod.name if mod else None)
+        return True
+
+    elif p.timeout_msg_id:
+        old_msg = await p_memb.fetch_message(p.timeout_msg_id)
+        await p.set_timeout(stamp, timeout_msg_id=p.timeout_msg_id, reason=reason, mod_id=mod.id)
+        await disp.TIMEOUT_DM_UPDATED.edit(old_msg,
+                                           disp.TIMEOUT_DM(formatted_stamp, mod.mention, p.timeout_reason),
+                                           update_stamp),
+        return True
+
+    else:  # Set new timeout
+        msg = await disp.TIMEOUT_DM.send(p_memb, formatted_stamp, mod.mention, reason, view=views.RemoveTimeoutView())
+        await p.set_timeout(stamp, msg.id, reason, mod.id)
+        await role_update(p_memb, p, reason=f'Player timed out by {mod.name} for reason: {reason}')
+        await d_log(message=disp.TIMEOUT_LOG(p.name, formatted_stamp, mod.name, reason))
+        if p.account:
+            await accounts.terminate(p.account)
+        if p.match:
+            await p.match.leave_match(p.active)
+        if p.lobby:
+            p.lobby.lobby_leave(p)
+        await p.db_update('timeout')
+        return True

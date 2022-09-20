@@ -1,9 +1,9 @@
-'''
+"""
 Main Script, run from here
 Parses Some Args from command line run,
 --test=BOOL : Sets config.ini path to use config_test.ini
 --loglevel=LEVEL [-l] : Sets loglevel, DEBUG, WARN, INFO etc.
-'''
+"""
 
 # external imports
 import discord
@@ -29,8 +29,6 @@ import display
 import modules.spam_detector as spam
 
 # parse commandline args
-
-
 ap = argparse.ArgumentParser()
 ap.add_argument('--test', default=False, type=bool)
 ap.add_argument('-l', '--loglevel', default='INFO', type=str)
@@ -104,12 +102,13 @@ intents.message_content = True
 
 bot = commands.Bot(intents=intents)
 
-bot.activity = discord.Game(name="on Jaeger in some epic ESF duels... type 'modmail ' in DM's to talk to the mods!")
+bot.activity = discord.Game(name="/modmail to talk to the mods!")
 
 
 @bot.event
 async def on_ready():
     log.info(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    modules.signal.init(bot)
     d_obj.init(bot)
     await modules.accounts_handler.init(cfg.GAPI_SERVICE)
     await loader.unlock_all(bot)
@@ -117,16 +116,20 @@ async def on_ready():
 
 #  Global Bot Interaction Check
 @bot.check
-async def global_interaction_check(interaction):
+async def global_interaction_check(ctx):
     if loader.is_all_locked():
-        memb = d_obj.guild.get_member(interaction.user.id)
+        memb = d_obj.guild.get_member(ctx.user.id)
         if d_obj.is_admin(memb):
             return True
         else:
             raise AllLocked
 
-    if await spam.is_spam(interaction):
+    if await spam.is_spam(ctx):
         return False
+
+    if await d_obj.is_timeout_check(ctx) and not ctx.command.full_parent_name == "freeme":
+        return False
+
     return True
 
 
@@ -173,6 +176,7 @@ async def on_application_command_error(context, exception):
 
     # traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
 
+
 @bot.event
 async def on_member_join(member):
     """Ensure proper roles are applied to players on server join"""
@@ -184,6 +188,6 @@ modules.database.init(cfg.database)
 modules.database.get_all_elements(classes.Player.new_from_data, 'users')
 log.info("Loaded Players from Database: %s", len(classes.Player.get_all_players()))
 
-modules.signal.init(bot)
+
 loader.init(bot)
 bot.run(cfg.general['token'])

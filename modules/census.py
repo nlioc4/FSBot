@@ -111,7 +111,7 @@ async def _login(char_id, acc_char_ids, player_char_ids):
     # Account Section
     if char_id in acc_char_ids:
         acc = acc_char_ids[char_id]
-        if not acc.online_id == char_id:  # if already online
+        if acc.online_id != char_id:  # if not already online
             acc.online_id = char_id
             if acc.a_player and acc.a_player.match:
                 await acc.a_player.match.char_login(user=acc.a_player)
@@ -121,7 +121,7 @@ async def _login(char_id, acc_char_ids, player_char_ids):
     # Player Section
     if char_id in player_char_ids:
         p = player_char_ids[char_id]
-        if not p.online_id == char_id:  # if already online
+        if p.online_id != char_id:  # if not already online
             p.online_id = char_id
             if p.match:
                 await p.match.char_login(user=p)
@@ -135,24 +135,26 @@ async def _logout(char_id, acc_char_ids, player_char_ids):
         acc = accounts.account_char_ids[char_id]
         if not acc.online_id:  # if already offline
             return
-        char_name = acc.online_name_by_id(char_id)
-        acc.online_id = None
+
         if acc.a_player and acc.a_player.match:
-            await acc.a_player.match.char_logout(user=acc.a_player, char_name=char_name)
-        if acc.is_terminated:
+            await acc.a_player.match.char_logout(user=acc.a_player, char_name=acc.online_name)
+
+        log.info(f'Logout detected: {char_id}: {acc.online_name}')
+        acc.online_id = None
+
+        if acc.is_terminated: # last to avoid issues with unassigned login detection
             await accounts.clean_account(acc)
-        log.info(f'Logout detected: {char_id}: {char_name}')
 
     # Player Section
     if char_id in player_char_ids:
         p = player_char_ids[char_id]
         if not p.online_id:  # if already offline
             return
-        char_name = p.online_name_by_id(char_id)
-        p.online_id = None
         if p.match:
-            await p.match.char_logout(user=p, char_name=char_name)
-        log.info(f'Logout detected: {char_id}: {char_name}')
+            await p.match.char_logout(user=p, char_name=p.online_name)
+
+        log.info(f'Logout detected: {char_id}: {p.online_name}')
+        p.online_id = None
 
 
 async def online_status_updater(chars_players_map_func):
@@ -193,7 +195,7 @@ async def online_status_rest(chars_players_map):
         query.add_term('character_id', ids_string)
         query.create_join('characters_online_status')
         query.show('character_id')
-        query.limit(1000)
+        query.limit(5000)
         try:
             data = await client.request(query)
         except (auraxium.errors.ServiceUnavailableError, auraxium.errors.ResponseError):

@@ -167,3 +167,20 @@ class RegisterPingsView(FSBotView):
         p.lobby_ping_freq = int(select.values[0])
         await p.db_update('lobby_ping_freq')
         await self.send_prefs(inter, p)
+
+
+class RemoveTimeoutView(FSBotView):
+    def __init__(self):
+        super().__init__()
+
+    @discord.ui.button(label="Free Me!", custom_id="free_me", style=discord.ButtonStyle.green)
+    async def free_me_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        await inter.response.defer()
+
+        if not (p := d_obj.is_player(inter.user)):
+            raise tools.UnexpectedError("Non player clicked 'free me' button")
+
+        if p.is_timeout:
+            return await disp.TIMEOUT_STILL.send_priv(inter, tools.format_time_from_stamp(p.timeout_until, "R"))
+
+        await d_obj.timeout_player(p=p, stamp=0)

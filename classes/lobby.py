@@ -106,7 +106,7 @@ class DashboardView(views.FSBotView):
             else:
                 await disp.LOBBY_NO_DM_ALL.send_priv(inter, owner.mention)
 
-            await self.lobby.update_dashboard()
+            self.lobby.schedule_dashboard_update()
 
     @discord.ui.button(label="Join Lobby", style=discord.ButtonStyle.green)
     async def join_lobby_button(self, button: discord.Button, inter: discord.Interaction):
@@ -121,7 +121,7 @@ class DashboardView(views.FSBotView):
             self.enable_all_items()
             await disp.LOBBY_JOIN.send_temp(inter, player.mention)
             self.lobby.lobby_join(player)
-            await self.lobby.update_dashboard()
+            self.lobby.schedule_dashboard_update()
 
         else:
             await disp.LOBBY_ALREADY_IN.send_priv(inter, player.mention)
@@ -140,7 +140,7 @@ class DashboardView(views.FSBotView):
     @discord.ui.button(label="Extended History", style=discord.ButtonStyle.blurple)
     async def history_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         if len(self.lobby.logs) <= len(self.lobby.logs_recent):
-            await disp.LOBBY_NO_HISTORY.send_temp(inter, inter.user.mention)
+            await disp.LOBBY_NO_HISTORY.send_priv(inter, inter.user.mention)
             return
         await disp.LOBBY_LONGER_HISTORY.send_priv(inter, inter.user.mention, logs=self.lobby.logs_longer)
 
@@ -150,7 +150,7 @@ class DashboardView(views.FSBotView):
         if not await d_obj.is_registered(inter, player):
             return
         elif self.lobby.lobby_leave(player):
-            await self.lobby.update_dashboard()
+            self.lobby.schedule_dashboard_update()
             await disp.LOBBY_LEAVE.send_temp(inter, player.mention)
         else:
             await disp.LOBBY_NOT_IN.send_temp(inter, player.mention)
@@ -277,18 +277,17 @@ class Lobby:
 
     async def create_dashboard(self):
         """Purges the channel, and then creates dashboard Embed w/ view"""
-        if not self.dashboard_msg:
-            try:
-                msg_id = await db.async_db_call(db.get_field, 'restart_data', 0, 'dashboard_msg_id')
-            except KeyError:
-                log.info('No previous embed found for %s, creating new message...', self.name)
-                self.dashboard_msg = await self._dashboard_message()
-            else:
-                self.dashboard_msg = await self.channel.fetch_message(msg_id)
-                self.dashboard_msg = await self._dashboard_message(action='edit', force=True)
-            finally:
-                await db.async_db_call(db.set_field, 'restart_data', 0, {'dashboard_msg_id': self.dashboard_msg.id})
-                await self.channel.purge(check=self.dashboard_purge_check)
+        try:
+            msg_id = await db.async_db_call(db.get_field, 'restart_data', 0, 'dashboard_msg_id')
+        except KeyError:
+            log.info('No previous embed found for %s, creating new message...', self.name)
+            self.dashboard_msg = await self._dashboard_message()
+        else:
+            self.dashboard_msg = await self.channel.fetch_message(msg_id)
+            self.dashboard_msg = await self._dashboard_message(action='edit', force=True)
+        finally:
+            await db.async_db_call(db.set_field, 'restart_data', 0, {'dashboard_msg_id': self.dashboard_msg.id})
+            await self.channel.purge(check=self.dashboard_purge_check)
 
     async def update_dashboard(self):
         """Checks if dashboard exists and either creates one, or updates the current dashboard and purges messages
@@ -305,7 +304,11 @@ class Lobby:
             await self._dashboard_message('edit')
         except discord.NotFound as e:
             await d_obj.d_log(f'Unable to edit {self.name} dashboard message, resending...', error=e)
-            await self._dashboard_message()
+            await self.create_dashboard()
+
+    def schedule_dashboard_update(self):
+        """Schedules a dashboard update"""
+        task = d_obj.bot.loop.create_task(self.update_dashboard())
 
     def _player_timeout_at(self, player: Player) -> int:
         """Determine a player timeout based on Player discord Status.

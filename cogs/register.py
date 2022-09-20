@@ -156,7 +156,7 @@ class PreferredFactionDropdown(discord.ui.Select):
 
 
 class RegisterCharacterModal(discord.ui.Modal):
-    def __init__(self) -> None:
+    def __init__(self, player: Player = None) -> None:
         super().__init__(
             discord.ui.InputText(
                 label="Input Character(s)",
@@ -169,9 +169,10 @@ class RegisterCharacterModal(discord.ui.Modal):
             title="Jaeger Character Registration",
 
         )
+        self.p = player
 
     async def callback(self, inter: discord.Interaction):
-        p: classes.Player = classes.Player.get(inter.user.id)
+        p: classes.Player = self.p or classes.Player.get(inter.user.id)
         # remove leading/trailing whitespaces, replace " " or "/n" with "," if user used spaces instead of
         # commmas to seperate chars.
         char_list = self.children[0].value.strip().replace(' ', ',').replace('\n', ',').split(',')
@@ -185,10 +186,20 @@ class RegisterCharacterModal(discord.ui.Modal):
         if len(char_list) == 1 or len(char_list) == 3:  # if base char name, or individual names provided
             try:
                 registered = await p.register(char_list)
-                if registered:
-                    await disp.REG_SUCCESSFUL_CHARS.send_priv(inter, *p.ig_names)
-                else:
-                    await disp.REG_ALREADY_CHARS.send_priv(inter, *p.ig_names)
+                # match/case to allow proxy registration responses
+                match registered:
+                    case True if not self.p:
+                        await disp.REG_SUCCESSFUL_CHARS.send_priv(inter, *p.ig_names)
+
+                    case True if self.p:
+                        await disp.AS.send_priv(inter, p.mention, disp.REG_SUCCESSFUL_CHARS(*p.ig_names))
+
+                    case _ if self.p:
+                        await disp.AS.send_priv(inter, p.mention, disp.REG_ALREADY_NO_CHARS(*p.ig_names))
+
+                    case _:
+                        await disp.REG_ALREADY_CHARS.send_priv(inter, *p.ig_names)
+
             except classes.players.CharMissingFaction as e:
                 await disp.REG_MISSING_FACTION.send_priv(inter, e.faction)
             except classes.players.CharAlreadyRegistered as e:

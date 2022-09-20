@@ -179,6 +179,7 @@ class ValidateView(views.FSBotView):
 
     @discord.ui.button(label="Confirm Rules", style=discord.ButtonStyle.green)
     async def validate_button(self, button: discord.Button, inter: discord.Interaction):
+        await inter.response.defer()
         try:
             await disp.ACCOUNT_EMBED_FETCH.edit(inter, acc=self.acc, view=self)
         except discord.NotFound:
@@ -194,7 +195,7 @@ class ValidateView(views.FSBotView):
         button.style = discord.ButtonStyle.grey
         self.end_session_button.disabled = False
         self.timeout = None
-        await disp.ACCOUNT_EMBED.edit(inter, clear_content=True, acc=self.acc, view=self)
+        await disp.ACCOUNT_EMBED.edit(self.acc.message, clear_content=True, acc=self.acc, view=self)
         if validated:
             log.info(f'Account [{self.acc.id}] sent to player: ID: [{inter.user.id}], name: [{inter.user.name}]')
             await disp.LOG_ACCOUNT.send(d_obj.channels['logs'], self.acc.id, inter.user.id, inter.user.mention,
@@ -202,9 +203,10 @@ class ValidateView(views.FSBotView):
 
     @discord.ui.button(label="End Session", style=discord.ButtonStyle.red)
     async def end_session_button(self, button: discord.Button, inter: discord.Interaction):
+        await inter.response.defer()
         button.disabled = True
         self.stop()
-        await terminate(acc=self.acc, inter=inter, view=self)
+        await terminate(acc=self.acc, view=self)
 
     async def on_timeout(self) -> None:
         self.disable_all_items()
@@ -241,25 +243,34 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
     # update account object, return if already validated
     if not acc.validate():
         return False
-    try:
-        # Update GSheet with Usage
-        gc = service_account(cfg.GAPI_SERVICE)  # connection
-        sh = gc.open_by_key(cfg.database["accounts_id"])  # sheet
-        ws = sh.worksheet(cfg.database["accounts_sheet_name"])  # worksheet
-        row = acc.id * Y_SKIP  # row of the account to be updated
-        column = len(ws.row_values(row)) + 1  # updates via counting row values, instead of below counting nb_uniques
-        # column = acc.nb_unique_usages + USAGE_OFFSET # column of the account to be updated
-        cells_list = ws.range(row, column, row + 2, column)
-        date = datetime.now().astimezone(eastern).date().strftime('%m/%d/%Y')
-        cells_list[0].value = date
-        cells_list[1].value = player.name
-        cells_list[2].value = str(player.id)
 
+    # Update GSheet with Usage
+    gc = service_account(cfg.GAPI_SERVICE)  # connection
+    sh = gc.open_by_key(cfg.database["accounts_id"])  # sheet
+    ws = sh.worksheet(cfg.database["accounts_sheet_name"])  # worksheet
+    row = acc.id * Y_SKIP  # row of the account to be updated
+    column = len(ws.row_values(row)) + 1  # updates via counting row values, instead of below counting nb_uniques
+    # column = acc.nb_unique_usages + USAGE_OFFSET # column of the account to be updated
+    cells_list = ws.range(row, column, row + 2, column)
+    date = datetime.now().astimezone(eastern).date().strftime('%m/%d/%Y')
+    cells_list[0].value = date
+    cells_list[1].value = player.name
+    cells_list[2].value = str(player.id)
+
+    try:
         ws.update_cells(cells_list, 'USER_ENTERED')  # actually update the sheet
         ws.format(cells_list[0].address,
                   {"numberFormat": {"type": "DATE", "pattern": "mmmm dd"}, "horizontalAlignment": "CENTER"})
     except gspread.exceptions.APIError as e:
-        log.error(f"Error logging usage to GSheet for Account: {acc.id}, user: {player.name}, ID: {player.id}")
+        resp = e.response.text
+        if "exceeds grid limits" in resp:
+            start_index = resp.index('max columns: ') + len('max columns: ')
+            stop_index = resp.index('"', start_index)
+            cols = int(resp[start_index: stop_index])
+            new_cols = cols + 15
+            ws.resize(cols=new_cols)
+            ws.update_cells(cells_list, 'USER_ENTERED')
+            return True
         raise e
     return True
 
@@ -277,31 +288,27 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
     if not acc.is_terminated:
         acc.terminate()  # if not already terminated
 
-        # Send log-out message, adjust embed
+        # Send log-out message if logged in, adjust embed
         user = d_obj.bot.get_user(player.id)
-        if acc.message:
+        if acc.message and acc.online_id:
             for _ in range(3):
                 try:
-                    if await disp.ACCOUNT_LOG_OUT.send(user, acc.ig_name):
+                    if await disp.ACCOUNT_LOG_OUT.send(user, acc.online_name):
                         break
                 except discord.Forbidden:
                     continue
 
-    if inter:
-        await disp.ACCOUNT_EMBED.edit(inter, acc=acc, view=view)  # use interaction response to edit
-    else:
-        await disp.ACCOUNT_EMBED.edit(acc.message, acc=acc, view=view)  # use acc.message context to edit
+    await disp.ACCOUNT_EMBED.edit(acc.message, acc=acc, view=view)  # use acc.message context to edit
 
     # Clean if already offline
     if not acc.online_id:
         await clean_account(acc)
 
+
 async def terminate_all():
     """Terminates all currently assigned accounts"""
-
-    terminate_coroutines = [terminate(acc) for acc in _busy_accounts.items()]
+    terminate_coroutines = [terminate(acc) for acc in _busy_accounts.values()]
     await asyncio.gather(*terminate_coroutines)
-
 
 
 async def clean_account(acc):
