@@ -28,6 +28,7 @@ class AdminCog(commands.Cog):
     def __init__(self, bot):
         self.bot: discord.Bot = bot
         self.online_cache = set()
+        self.census_watchtower: asyncio.Task = None
 
     admin = discord.SlashCommandGroup(
         name='admin',
@@ -417,13 +418,14 @@ class AdminCog(commands.Cog):
         #  Wait until the bot is ready before starting loops, ensure account_handler has finished init
         await asyncio.sleep(5)
         self.account_sheet_reload.start()
-        self.census_watchtower.start()
+        # self.census_watchtower.start()
         self.account_watchtower.start()
         self.census_rest.start()
+        self.census_watchtower = self.bot.loop.create_task(census.online_status_updater(Player.map_chars_to_players))
 
-    @tasks.loop(count=1)
-    async def census_watchtower(self):
-        await census.online_status_updater(Player.map_chars_to_players)
+    # @tasks.loop(count=1)
+    # async def census_watchtower(self):
+    #     await census.online_status_updater(Player.map_chars_to_players)
 
     @tasks.loop(seconds=15)
     async def census_rest(self):
@@ -434,15 +436,12 @@ class AdminCog(commands.Cog):
         log.warning("Could not reach REST api during census rest after 5 tries...")
         return False
 
-    @census_watchtower.after_loop
-    async def after_census_watchtower(self):
-        if self.census_watchtower.failed():
-            await d_obj.log(f"{d_obj.colin.mention} Census Watchtower has failed")
-        if self.census_watchtower.is_being_cancelled():
-            await census.EVENT_CLIENT.close()
-
-    census_watchtower.add_exception_type(auraxium.errors.ResponseError)
-    census_watchtower.add_exception_type(asyncio.TimeoutError)
+    # @census_watchtower.after_loop
+    # async def after_census_watchtower(self):
+    #     if self.census_watchtower.failed():
+    #         await d_obj.log(f"{d_obj.colin.mention} Census Watchtower has failed")
+    #     if self.census_watchtower.is_being_cancelled():
+    #         await census.EVENT_CLIENT.close()
 
     @tasks.loop(time=time(hour=11, minute=0, second=0))
     async def account_sheet_reload(self):

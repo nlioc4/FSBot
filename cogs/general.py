@@ -1,12 +1,12 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from logging import getLogger
 
 import asyncio
 
 # Internal Imports
 from modules import trello
-from modules import discord_obj as d_obj, tools
+from modules import discord_obj as d_obj, tools, bot_status
 from display import AllStrings as disp, views
 
 
@@ -20,6 +20,7 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
     def __init__(self, client):
         self.bot: discord.Bot = client
         self.bot.add_view(views.RemoveTimeoutView())
+        self.activity_update.start()
 
     @commands.slash_command(name="suggestion")
     async def suggestion(self, ctx: discord.ApplicationContext,
@@ -42,6 +43,10 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
             await disp.TIMEOUT_STILL.send_priv(ctx, tools.format_time_from_stamp(p.timeout_until, 'R'))
         else:
             await disp.TIMEOUT_FREE.send_priv(ctx)
+
+    @tasks.loop(seconds=5)
+    async def activity_update(self):
+        await bot_status.update_status()
 
 
 def setup(client):

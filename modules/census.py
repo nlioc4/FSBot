@@ -144,6 +144,7 @@ async def _logout(char_id, acc_char_ids, player_char_ids):
 
         if acc.is_terminated:  # last to avoid issues with unassigned login detection
             await accounts.clean_account(acc)
+        return
 
     # Player Section
     if char_id in player_char_ids:
@@ -155,6 +156,7 @@ async def _logout(char_id, acc_char_ids, player_char_ids):
 
         log.info(f'Logout detected: {char_id}: {p.online_name}')
         p.online_id = None
+        return
 
 
 async def online_status_updater(chars_players_map_func):
@@ -198,11 +200,11 @@ async def online_status_rest(chars_players_map):
         query.limit(5000)
         try:
             data = await client.request(query)
+            # Manual error addition if response returned is invalid
+            if data["returned"] == 0 or 'character_id_join_characters_online_status' not in data['character_list'][0]:
+                raise auraxium.errors.ResponseError
         except (auraxium.errors.ServiceUnavailableError, auraxium.errors.ResponseError):
-            log.error('API unreachable during online status init')
-            return False
-        if data["returned"] == 0 or 'character_id_join_characters_online_status' not in data['character_list'][0]:
-            log.error('API unreachable during online status init')
+            log.error('API Unreachable REST Online Check')
             return False
 
     # pull data from dict response
@@ -225,9 +227,9 @@ async def online_status_rest(chars_players_map):
     no_logout = [item for sublist in no_logout for item in sublist]
 
     # gather offline chars, except those owned by accs/players with another char online
+    # Sequential rather than gather to avoid multiple logout events for the same account
+    #
     offline_ids = set(offline_ids) - set(no_logout)
-    logout_coros = []
     for char_id in offline_ids:
-        logout_coros.append(_logout(char_id, acc_char_ids, chars_players_map))
-    await asyncio.gather(*logout_coros) ##TODO this causes 3 logout messages to fire simultaneously.  Switch to sequential or some other solution to solve.
+        await _logout(char_id, acc_char_ids, chars_players_map)
     return True
