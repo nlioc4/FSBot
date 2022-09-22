@@ -31,7 +31,7 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
         await trello.create_card(title, f"Suggested by [{ctx.user.name}] : " + description)
         await disp.SUGGESTION_ACCEPTED.send_priv(ctx, ctx.user.mention)
 
-    @commands.slash_command(name="freeme", guild_ids=[cfg.general['guild_id']])
+    @commands.slash_command(name="freeme")
     async def free_me(self, ctx: discord.ApplicationContext):
         await ctx.defer(epehemeral=True)
         if not (p := d_obj.is_player(ctx.user)):
