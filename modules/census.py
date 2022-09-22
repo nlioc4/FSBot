@@ -142,7 +142,7 @@ async def _logout(char_id, acc_char_ids, player_char_ids):
         log.info(f'Logout detected: {char_id}: {acc.online_name}')
         acc.online_id = None
 
-        if acc.is_terminated: # last to avoid issues with unassigned login detection
+        if acc.is_terminated:  # last to avoid issues with unassigned login detection
             await accounts.clean_account(acc)
 
     # Player Section
@@ -229,5 +229,5 @@ async def online_status_rest(chars_players_map):
     logout_coros = []
     for char_id in offline_ids:
         logout_coros.append(_logout(char_id, acc_char_ids, chars_players_map))
-    await asyncio.gather(*logout_coros)
+    await asyncio.gather(*logout_coros) ##TODO this causes 3 logout messages to fire simultaneously.  Switch to sequential or some other solution to solve.
     return True

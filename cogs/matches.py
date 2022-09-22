@@ -65,9 +65,10 @@ class MatchesCog(commands.Cog, name="MatchesCog",
         if message.channel.id not in match_channel_dict:
             return
 
-        match_channel_dict[message.channel.id].log(
-            f'{message.author.name}: {message.clean_content}', public=False
-        )
+        if p := Player.get(message.author.id):
+            match_channel_dict[message.channel.id].log(
+                f'{p.name}: {message.clean_content}', public=False
+            )
 
 
 def setup(client):

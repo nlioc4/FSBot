@@ -51,7 +51,7 @@ class AllStrings(Enum):
                   "Further messages will be sent to the same thread and marked with '📨'.\n" \
                   "To stop sending messages reply with ``=quit``"
     DM_RECEIVED_GUILD = "Check DM's for your new modmail thread!"
-    DM_IN_THREAD = '{} : {}'
+    DM_IN_THREAD = '{}\n: ``{}``'
     DM_TO_USER = None, from_staff_dm_embed
     DM_TO_STAFF = "{} New Modmail", to_staff_dm_embed
     DM_THREAD_CLOSE = "This DM thread has been closed.  A new instance must be created" \
