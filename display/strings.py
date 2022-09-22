@@ -71,7 +71,7 @@ class AllStrings(Enum):
                     "  Contact Colin if the problem persists!"
     REG_INFO = "", player_info
 
-    PREF_PINGS_CURRENT = "Your current ping Preferences are:\n{}\nYou will only ever be pinged if the player joining "\
+    PREF_PINGS_CURRENT = "Your current ping Preferences are:\n{}\nYou will only ever be pinged if the player joining " \
                          "the lobby matches your requested skill levels\nChoose your lobby ping preferences below..."
     PREF_PINGS_NEVER = "You have chosen to never receive a ping when someone joins the lobby!"
     PREF_PINGS_UPDATE = "Your ping preferences are now:\nReceive a ping when a matching player joins the lobby:" \
@@ -180,6 +180,11 @@ class AllStrings(Enum):
             args_dict['content'] = self.__string.format(*args)
         if kwargs.get('clear_content'):
             args_dict['content'] = None
+        elif ping := kwargs.get('ping'):  # elif so clear_content and ping are mutually exclusive
+            if type(ping) in [list, tuple]:
+                args_dict['content'] = ''.join([pingable.mention for pingable in ping]) + args_dict['content']
+            else:
+                args_dict['content'] = ping.mention + args_dict['content']
         if self.__embed and not kwargs.get('embed'):
             #  Checks if embed, then retrieves only the embed specific kwargs
             embed_sig = inspect.signature(self.__embed)

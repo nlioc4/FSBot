@@ -33,7 +33,8 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
 
     @commands.slash_command(name="freeme")
     async def free_me(self, ctx: discord.ApplicationContext):
-        await ctx.defer(epehemeral=True)
+        """Used to request freedom if you have been timed out from FSBot."""
+        await ctx.defer(ephemeral=True)
         if not (p := d_obj.is_player(ctx.user)):
             return await disp.NOT_PLAYER.send_priv(ctx, ctx.user.mention, d_obj.channels['register'])
         if p.timeout_until != 0 and not p.is_timeout:
