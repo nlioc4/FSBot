@@ -28,7 +28,7 @@ class AdminCog(commands.Cog):
     def __init__(self, bot):
         self.bot: discord.Bot = bot
         self.online_cache = set()
-        self.census_watchtower: asyncio.Task = None
+        self.census_watchtower: asyncio.Task | None = None
 
     admin = discord.SlashCommandGroup(
         name='admin',
@@ -468,7 +468,7 @@ class AdminCog(commands.Cog):
                                       f' 5 minutes after their session ended.  Force cleaning account...')
                     await accounts.clean_account(acc)
 
-        # compare to cache to see if login is new. Ping only if login is new.
+        # compare to cache to see if logins are new. Ping only if new login.
         new_online = unassigned_online - self.online_cache
         if new_online:
             await disp.UNASSIGNED_ONLINE.send(d_obj.channels['logs'],
