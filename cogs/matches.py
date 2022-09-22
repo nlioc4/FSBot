@@ -43,18 +43,6 @@ class MatchesCog(commands.Cog, name="MatchesCog",
                 channels_to_delete.append(channel.delete())
         await asyncio.gather(*channels_to_delete)
 
-
-
-    # @tasks.loop(seconds=15)
-    # async def matches_loop(self):
-    #     # update match info embeds
-    #     match_update_coros = []
-    #     for match in BaseMatch.active_matches_list():
-    #         if not match.is_ended:
-    #             match_update_coros.append(match.update())
-    #     await asyncio.gather(*match_update_coros)
-
-
     @commands.Cog.listener('on_message')
     async def matches_message_listener(self, message: discord.Message):
 
@@ -65,9 +53,10 @@ class MatchesCog(commands.Cog, name="MatchesCog",
         if message.channel.id not in match_channel_dict:
             return
 
-        match_channel_dict[message.channel.id].log(
-            f'{message.author.name}: {message.clean_content}', public=False
-        )
+        if p := Player.get(message.author.id):
+            match_channel_dict[message.channel.id].log(
+                f'{p.name}: {message.clean_content}', public=False
+            )
 
 
 def setup(client):

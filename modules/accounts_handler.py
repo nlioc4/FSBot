@@ -97,9 +97,8 @@ async def init(service_account_path: str):
     for acc_id, char_id in [(acc_id, char_id) for acc_id in all_accounts
                             for char_id in all_accounts[acc_id].ig_ids]:
         if char_id == 0 and acc_id not in to_drop:
-            string = f'Account ID: {acc_id} has a missing character! Dropping account object...'
-            print(string)
-            await d_obj.channels['logs'].send(content=f"{d_obj.roles['app_admin'].mention} {string}")
+            await d_obj.d_log(message=f'{d_obj.roles["app_admin"].mention}\n'
+                                      f'Account ID: {acc_id} has a missing character! Dropping account object...')
             to_drop.append(acc_id)
 
         if char_id != 0:
