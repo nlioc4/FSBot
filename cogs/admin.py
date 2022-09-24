@@ -30,6 +30,7 @@ class AdminCog(commands.Cog):
         self.online_cache = set()
         self.census_watchtower: asyncio.Task | None = None
 
+
     admin = discord.SlashCommandGroup(
         name='admin',
         description='Admin Only Commands',
