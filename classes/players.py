@@ -341,7 +341,7 @@ class Player:
         if self.online_id:
             return self.ig_names[self.ig_ids.index(self.online_id)]
         elif self.account and self.account.online_id:
-            return self.account.ig_names[self.account.ig_ids.index(self.account.online_id)]
+            return self.account.online_name
         else:
             return False
 

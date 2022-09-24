@@ -13,7 +13,7 @@ class Account:
         self.__username = username
         self.__password = password
         self.__ig_name = in_game
-        self.__ig_ids = [0, 0, 0]
+        self.__ig_ids = [0, 0, 0, 0]
         self.__online_id = None
         self.a_player = None
         self.__last_usage = dict()
@@ -48,7 +48,7 @@ class Account:
 
     @property
     def ig_names(self):
-        return [f'{self.__ig_name}VS', f'{self.__ig_name}NC', f'{self.__ig_name}TR']
+        return [f'{self.__ig_name}VS', f'{self.__ig_name}NC', f'{self.__ig_name}TR', f'{self.__ig_name}NS']
 
     @property
     def online_name(self):

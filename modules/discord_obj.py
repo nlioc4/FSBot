@@ -115,7 +115,7 @@ async def d_log(message: str = '', source: str = '', error=None) -> bool:
 
 async def role_update(member: discord.Member = None, player: classes.Player = None, reason="FSBot Role Update"):
     """Takes either a member or a player checks what roles they should have"""
-    member = member or await guild.get_member(player.id)
+    member = member or guild.get_member(player.id)
     p = player or is_player(member)
     if not p and not member:
         raise ValueError("No args in role_update")
