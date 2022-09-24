@@ -157,7 +157,7 @@ class AdminCog(commands.Cog):
                         match_id: discord.Option(int, "Match ID to end",
                                                  required=False)):
         """End a given match forcibly.  Uses current channel if no ID provided"""
-        await ctx.defer(epehemeral=True)
+        await ctx.defer(ephemeral=True)
         match = BaseMatch.active_matches_dict().get(match_id) or BaseMatch.active_match_channel_ids().get(
             ctx.channel_id)
 
