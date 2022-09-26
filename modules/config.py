@@ -32,7 +32,8 @@ JAEGER_CALENDAR_URL = "https://docs.google.com/spreadsheets/d/1eA4ybkAiz-nv_mPxu
 factions = {
     1: "VS",
     2: "NC",
-    3: "TR"
+    3: "TR",
+    4: "NS"
 }
 
 #: Dictionary to retrieve faction id by name.
@@ -61,7 +62,8 @@ general = {
 emojis = {
     "VS": "",
     "NC": "",
-    "TR": ""
+    "TR": "",
+    "NS": ""
 }
 
 # Discord Channel ID's

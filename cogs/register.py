@@ -128,7 +128,7 @@ class PreferredFactionDropdown(discord.ui.Select):
 
     def __init__(self):
         options = []
-        esfs_dict = {'VS': 'Scythe', 'NC': 'Reaver', 'TR': 'Mosquito'}
+        esfs_dict = {'VS': 'Scythe', 'NC': 'Reaver', 'TR': 'Mosquito', 'NS': 'Dervish'}
         for faction in cfg.factions.values():
             options.append(discord.SelectOption(label=faction,
                                                 description=esfs_dict[faction],
