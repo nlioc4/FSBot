@@ -619,7 +619,7 @@ def fs_join_embed(mention) -> Embed:
     embed.add_field(
         name="Flight School Bot and Duels",
         value=f"{d_obj.bot.user.mention} is a work in progress bot built to provide various utility functions to this"
-              f" server, as facilitate matchmaking and account access for Duels on the private Jaeger server."
+              f" server, as well as facilitate matchmaking and account access for Duels on the private Jaeger server."
               f"  The bot can be accessed by **reading** and accepting the rules in {d_obj.channels['rules'].mention},"
               f" after which you will be granted access to additional channels where you can request duels with other"
               f" server members.  These duels are a great way to improve your aim and general skill in the air!",
