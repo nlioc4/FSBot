@@ -253,6 +253,12 @@ class Player:
     def name(self):
         return self.__name
 
+    def rename(self, name):
+        if not re.match(cfg.name_regex, name):
+            return False
+        self.__name = name
+        return True
+
     @property
     def id(self):
         return self.__id

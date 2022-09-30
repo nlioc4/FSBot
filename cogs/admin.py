@@ -30,7 +30,6 @@ class AdminCog(commands.Cog):
         self.online_cache = set()
         self.census_watchtower: asyncio.Task | None = None
 
-
     admin = discord.SlashCommandGroup(
         name='admin',
         description='Admin Only Commands',
@@ -279,6 +278,20 @@ class AdminCog(commands.Cog):
 
         await disp.REG_INFO.send_priv(ctx, player=p)
 
+    @player_admin.command(name='rename')
+    async def player_rename(self, ctx: discord.ApplicationContext,
+                            member: discord.Option(discord.Member, "@mention to get info on", required=True),
+                            name: discord.Option(str, "New name for Player, must be alphanumeric", required=True)):
+        """Rename a given player"""
+        p = Player.get(member.id)
+        if not p:
+            await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+            return
+        if p.rename(name):
+            await disp.REGISTER_RENAME.send_priv(ctx, member.mention, name)
+            return
+        await disp.REGISTER_INVALID_NAME.send_priv(ctx, name)
+
     @player_admin.command(name='clean')
     async def player_clean(self, ctx: discord.ApplicationContext,
                            member: discord.Option(discord.Member, "@mention to clean", required=True)):
@@ -392,7 +405,7 @@ class AdminCog(commands.Cog):
 
         if p := Player.get(member.id):
             # Set timeout, clear player
-            await d_obj.timeout_player(p=p, stamp= int(timeout_dt.timestamp()), mod=ctx.user, reason=reason)
+            await d_obj.timeout_player(p=p, stamp=int(timeout_dt.timestamp()), mod=ctx.user, reason=reason)
 
             timestamps = [tools.format_time_from_stamp(p.timeout_until, x) for x in ("R", "f")]
             return await disp.TIMEOUT_NEW.send_priv(ctx, p.mention, p.name, *timestamps)
@@ -420,7 +433,8 @@ class AdminCog(commands.Cog):
         await asyncio.sleep(5)
         self.account_sheet_reload.start()
         # self.census_watchtower.start()
-        self.account_watchtower.start()
+        if not cfg.TEST:  # disable account watchtower if bot in testing mode
+            self.account_watchtower.start()
         self.census_rest.start()
         self.census_watchtower = self.bot.loop.create_task(census.online_status_updater(Player.map_chars_to_players))
 

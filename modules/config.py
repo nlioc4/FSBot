@@ -108,10 +108,15 @@ database = {
     "collections": _collections
 }
 
+TEST = False
 
-def get_config(config_path):
+
+def get_config(config_path, test=False):
     global GAPI_SERVICE
     GAPI_SERVICE = f'{pathlib.Path(__file__).parent.absolute()}/../service_account.json'
+
+    global TEST
+    TEST = test
 
     file = f'{pathlib.Path(__file__).parent.absolute()}/../{config_path}'
 
