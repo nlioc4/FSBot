@@ -148,8 +148,6 @@ def psb_account_usage(player, start_stamp, end_stamp, usages) -> Embed:
     )
     format_start, format_end = format_stamp(start_stamp, 'd'), format_stamp(end_stamp, 'd')
 
-
-
     # storage
     usage_split_dict = {}
     usage_lines = []
@@ -170,6 +168,12 @@ def psb_account_usage(player, start_stamp, end_stamp, usages) -> Embed:
                 else:
                     usage_split_dict[week] = [usage]
 
+    for week in usage_split_dict:
+        num_usages = len(usage_split_dict[week])
+        usage_lines.append(
+            f"\u2705 {num_usages} usages from [{format_stamp(week, 'd')}--{format_stamp(week + 604800, 'd')}]\n"
+        )
+
     if not usage_lines:
         embed.colour = Colour.red()
         embed.add_field(name="No Data",
@@ -186,15 +190,10 @@ def psb_account_usage(player, start_stamp, end_stamp, usages) -> Embed:
 
     embed.add_field(
         name="Summary",
-        value=f"Player has earned {len(usage_split_dict)} points over {len(usages)} usages in the supplied time period",
+        value=f"Total Usage(s): ``{len(usages)}``\n"
+              f"Total Point(s): ``{len(usage_split_dict)}``",
         inline=False
     )
-
-    for week in usage_split_dict:
-        num_usages = len(usage_split_dict[week])
-        usage_lines.append(
-            f"\u2705 {num_usages} usages from [{format_stamp(week, 'd')}--{format_stamp(week + 604800, 'd')}]\n"
-        )
 
     embed.add_field(
         name="Usages",
