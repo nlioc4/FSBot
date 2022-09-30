@@ -170,6 +170,10 @@ class Lobby:
 
         return obj
 
+    @classmethod
+    async def get(cls, lobby):
+        return cls.all_lobbies.get(lobby)
+
     @staticmethod
     def channel_to_lobby(channel: discord.TextChannel):
         channel_dict = {lobby.channel: lobby for lobby in Lobby.all_lobbies.values()}

@@ -16,7 +16,7 @@ class Account:
         self.__ig_ids = [0, 0, 0, 0]
         self.__online_id = None
         self.a_player = None
-        self.__last_usage = dict()
+        self.__last_usage = {"account_id": self.id}
         self.__unique_usages = unique_usages
         self.message = None
         self.__validated = False
@@ -95,7 +95,7 @@ class Account:
 
     def clean(self):
         self.a_player = None
-        self.__last_usage = dict()
+        self.__last_usage = {"account_id": self.id}
         self.__validated = False
         self.__terminated = False
 

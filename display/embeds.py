@@ -136,6 +136,74 @@ def account_online_check(online) -> Embed:
     return fs_author(embed)
 
 
+def psb_account_usage(player, start_stamp, end_stamp, usages) -> Embed:
+    """"PSB formatted account usage info for a given player"""
+
+    embed = Embed(
+        colour=Colour.blurple(),
+        title="Flight School Jaeger Account Usage",
+        description=f"Mention: {player.mention}\n"
+                    f"Name: ``{player.name}``\n"
+                    f"ID: ``{player.id}``"
+    )
+    format_start, format_end = format_stamp(start_stamp, 'd'), format_stamp(end_stamp, 'd')
+
+
+
+    # storage
+    usage_split_dict = {}
+    usage_lines = []
+
+    # create week separators
+    week_start_stamps = []
+    last_stamp = end_stamp - 604800  # seconds in a week
+    while last_stamp > start_stamp:
+        last_stamp = last_stamp - 604800  # seconds in a week
+        week_start_stamps.append(last_stamp)
+
+    # this is awful code
+    for week in week_start_stamps:
+        for usage in usages:
+            if week + 604800 > usage['start_time'] >= week:
+                if week_lst := usage_split_dict.get(week):
+                    week_lst.append(usage)
+                else:
+                    usage_split_dict[week] = [usage]
+
+    if not usage_lines:
+        embed.colour = Colour.red()
+        embed.add_field(name="No Data",
+                        value=f"This user has no registered use with FSBot Jaeger Accounts in the period\n"
+                              f"{format_start}--{format_end}",
+                        inline=False)
+        return embed
+
+    embed.add_field(
+        name="Selected Period",
+        value=f"{format_start}--{format_end}",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Summary",
+        value=f"Player has earned {len(usage_split_dict)} points over {len(usages)} usages in the supplied time period",
+        inline=False
+    )
+
+    for week in usage_split_dict:
+        num_usages = len(usage_split_dict[week])
+        usage_lines.append(
+            f"\u2705 {num_usages} usages from [{format_stamp(week, 'd')}--{format_stamp(week + 604800, 'd')}]\n"
+        )
+
+    embed.add_field(
+        name="Usages",
+        value=''.join(usage_lines),
+        inline=False
+    )
+    return embed
+
+
 def player_info(player) -> Embed:
     embed = Embed(
         colour=Colour.greyple(),

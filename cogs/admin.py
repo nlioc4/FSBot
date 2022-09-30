@@ -168,11 +168,11 @@ class AdminCog(commands.Cog):
 
     #########################################################
 
-    accounts = admin.create_subgroup(
+    accounts_admin = admin.create_subgroup(
         name="accounts", description="Admin Accounts Commands"
     )
 
-    @accounts.command(name="assign")
+    @accounts_admin.command(name="assign")
     async def assign(self, ctx: discord.ApplicationContext,
                      member: discord.Option(discord.Member, "Recipients @mention", required=True),
                      acc_id: discord.Option(int, "A specific account ID to assign, 1-24", min_value=1, max_value=24,
@@ -196,7 +196,7 @@ class AdminCog(commands.Cog):
         await accounts.send_account(acc, p)
         await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
 
-    @accounts.command(name='info')
+    @accounts_admin.command(name='info')
     async def account_info(self, ctx: discord.ApplicationContext):
         """Provide info on FSBot's connected Jaeger Accounts"""
         num_available = len(accounts._available_accounts)
@@ -206,7 +206,7 @@ class AdminCog(commands.Cog):
         await disp.ACCOUNT_INFO.send_priv(ctx, num_available=num_available, num_used=num_used, assigned=assigned,
                                           online=online)
 
-    @accounts.command(name='watchtower')
+    @accounts_admin.command(name='watchtower')
     async def watchtower_toggle(self, ctx: discord.ApplicationContext,
                                 action: discord.Option(str,
                                                        "Enable, Disable or check status of the accounts watchtower",

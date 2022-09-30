@@ -274,15 +274,16 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
     return True
 
 
-async def terminate(acc: classes.Account = None, player: classes.Player = None, inter=None,
-                    view: discord.ui.View | bool = False):
+async def terminate(acc: classes.Account = None, player: classes.Player = None, view: discord.ui.View | bool = False):
     """Terminates account and sends message to log off, provide either account or player"""
-    if not acc and not player:
-        raise ValueError("No args provided")
     if not acc:
         acc = player.account
     if not player:
         player = acc.a_player
+    if not acc and not player:
+        raise ValueError("No args provided")
+    if not acc:
+        return await d_obj.d_log(message=f"Terminating {player.name}'s account failed, no account object.")
 
     if not acc.is_terminated:
         acc.terminate()  # if not already terminated
@@ -314,7 +315,7 @@ async def clean_account(acc):
     if acc.is_validated:
         # Update DB Usage, only if account was actually used
         acc.logout()
-        await db.async_db_call(db.upsert_push_element, 'account_usages', acc.id, {'usages': acc.last_usage})
+        await db.async_db_call(db.add_element, 'account_usages', acc.last_usage)
 
     # Adjust player & account objects, return to available directory.
     acc.a_player.set_account(None)
