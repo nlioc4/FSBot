@@ -26,6 +26,7 @@ class AllStrings(Enum):
     ALL_LOCKED = "FSBot is currently disabled, please try again later!"
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
     AS = "As {}: {}"
+    SERVER_JOIN = "Welcome {}!", fs_join_embed
 
     CHECK_FAILURE = "You have failed a check to run this command!"
     UNASSIGNED_ONLINE = "{} Unassigned Login", account_online_check
@@ -128,6 +129,11 @@ class AllStrings(Enum):
     RM_SCORES_EQUAL = "Submitted scores are equal!"
     RM_SCORES_WRONG = "Submitted scores don't match, both players should submit again!"
     RM_SCORES_WRONG_2 = "Couldn't resolve scores, ending match and reporting..."
+
+    REGISTER_NEW_PLAYER = "Welcome {}, you have accepted the rules." \
+                          "  Set up your preferences in {} before dueling in {}!"
+    REGISTER_RENAME = "{} has been renamed to {} successfully!"
+    REGISTER_INVALID_NAME = "{} is not a valid alphanumeric name!"
 
     SKILL_LEVEL_REQ_ONE = "Your requested skill level has been set to: {}."
     SKILL_LEVEL_REQ_MORE = "Your requested skill levels have been set to: {}."

@@ -139,8 +139,8 @@ def account_online_check(online) -> Embed:
 def player_info(player) -> Embed:
     embed = Embed(
         colour=Colour.greyple(),
-        title=f"FSBot Registration Info for {player.name}",
-        description=f'Mention: {player.mention} ID: {player.id}',
+        title=f"FSBot Registration Info for ``{player.name}``",
+        description=f'Mention: {player.mention} ID: ``{player.id}``',
         timestamp=dt.now()
     )
 
@@ -159,7 +159,7 @@ def player_info(player) -> Embed:
 
     if player.account:
         embed.add_field(name="FSBot Jaeger Account",
-                        value=f"Currently Assigned: {player.account.ig_name}")
+                        value=f"Currently Assigned: ``{player.account.ig_name}``")
 
     if player.online_name:
         embed.add_field(name="Online Character",
@@ -167,12 +167,10 @@ def player_info(player) -> Embed:
 
     if player.lobby:
         embed.add_field(name="Player Lobby",
-                        value=f"Current Lobby: {player.lobby.channel.mention}")
+                        value=f"Current Lobby: ``{player.lobby.channel.mention}``")
     if player.match:
         embed.add_field(name="Player Match",
-                        value=f"Current Match: [{player.match.id_str}]({player.match.text_channel.mention})\n",)
-
-
+                        value=f"Current Match: ``[{player.match.id_str}]({player.match.text_channel.mention})\n``")
 
     pref_fac_str = ''.join([cfg.emojis[fac] for fac in player.pref_factions]) if player.pref_factions else 'Any'
     pref_level_str = ' '.join(
@@ -466,7 +464,7 @@ def fsbot_rules_embed() -> Embed:
               "1) Be kind! We're here to have fun, along with improving our skills, please be courteous to your fellow"
               " players during matches, and all of the time!\n"
               "2) Do not harass other players, whether this be through pings to duel or following them on Jaeger\n"
-             f"3) Do not exploit the system, if you find a bug please let {d_obj.colin.mention} know!\n",
+              f"3) Do not exploit the system, if you find a bug please let {d_obj.colin.mention} know!\n",
         inline=False
     )
 
@@ -545,9 +543,9 @@ def fsbot_info_embed() -> Embed:
     embed.add_field(
         name="Notifications",
         value="You can opt-in to receive a notification if a player who matches your requested skill levels joins"
-            " the lobby.  When you are pinged, and how frequently, can be adjusted below this message in the 'Lobby"
-            " Pings' menu.  Setting your requested skill level to 'any' means you will receive a ping when a player of"
-            " any skill level joins the lobby."
+              " the lobby.  When you are pinged, and how frequently, can be adjusted below this message in the 'Lobby"
+              " Pings' menu.  Setting your requested skill level to 'any' means you will receive a ping when a player of"
+              " any skill level joins the lobby."
     )
 
     embed.add_field(
@@ -578,5 +576,63 @@ def fsbot_info_embed() -> Embed:
         name="Elo",
         value="A separate ranked lobby with 1v1 Elo Rated matches and a leaderboard is coming soon(tm)",
         inline=False
+    )
+    return fs_author(embed)
+
+
+def fs_join_embed(mention) -> Embed:
+    embed = Embed(
+        colour=Colour.blurple(),
+        title="Welcome to PREY's Flight School!",
+        description=f"Hi {mention}, welcome to PREY's Flight School, the premier Discord server for the air game in"
+                    f" [Planetside 2](https://www.planetside2.com/).  This server offers a number of resources for"
+                    f" those just learning to fly, as well as experienced pilots.  Thanks for joining our community!"
+    )
+    # TODO fix hardcoded ID's, add to config or d_obj via search.
+    embed.add_field(
+        name="Guides and Resources",
+        value=f"Guides for most different air vehicles can be found in <#751111752191574057>,"  # Guides channel
+              f" which makes a great starting point for those new to the air game.  Channels in the 'Improvements and"
+              f" advice' Section offer advice specific to certain vehicles, and should be kept on topic when possible."
+              f"  Ask questions relating to each vehicle in their channel, or general Planetside 2 related questions "
+              f" in <#751114546906792017>.",  # #ask-anything
+        inline=False
+    )
+
+    embed.add_field(
+        name="Hands on Teachers",
+        value="<@&823128534759243796> represents a group of volunteers that try to make themselves available for more"
+              " specific training.  If you have already gone through the Guides above and are still struggling with"
+              " a concept or skill, feel free to ping this role to ask for specific help.  Keep in mind that these"
+              " volunteers reside in a number of different timezones, and may not always be available to help.",
+        inline=False
+    )
+    embed.add_field(
+        name="Gameplay and Crew Requests",
+        value="Feel free to use the voice channels in the 'Gameplay' category to play on live servers with other"
+              " server members.  <#761753919906775061> can be used to find members to play specific vehicles with,"
+              " by pinging the roles that can be granted in <#751115817692954717>.  When making these pings please"
+              " remember to specify your Faction and Server, as there are players from all different servers here.",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Flight School Bot and Duels",
+        value=f"{d_obj.bot.user.mention} is a work in progress bot built to provide various utility functions to this"
+              f" server, as facilitate matchmaking and account access for Duels on the private Jaeger server."
+              f"  The bot can be accessed by **reading** and accepting the rules in {d_obj.channels['rules'].mention},"
+              f" after which you will be granted access to additional channels where you can request duels with other"
+              f" server members.  These duels are a great way to improve your aim and general skill in the air!",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Moderation",
+        value=f"Ensure you are following the rules in <#751221386093264936> at all times."
+              f"If you have any other questions feel free to reach out to"
+              f" to any {d_obj.roles['mod'].mention} or {d_obj.roles['admin'].mention}."
+              f" For any moderation questions you may also message the entire staff team by using the /modmail command"
+              f" or sending a message to {d_obj.bot.user.mention}, starting your message with ``dm ``, ``modmail ``,"
+              f" or ``staff `` "
     )
     return fs_author(embed)
