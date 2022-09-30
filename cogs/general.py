@@ -1,3 +1,5 @@
+# External Imports
+from datetime import datetime as dt, timedelta
 import discord
 from discord.ext import commands, tasks
 from logging import getLogger
@@ -5,9 +7,9 @@ from logging import getLogger
 import asyncio
 
 # Internal Imports
-from modules import trello
-from modules import discord_obj as d_obj, tools, bot_status
+from modules import discord_obj as d_obj, tools, bot_status, trello, account_usage
 from display import AllStrings as disp, views
+from classes import Player
 
 
 import modules.config as cfg
@@ -44,6 +46,34 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
             await disp.TIMEOUT_STILL.send_priv(ctx, tools.format_time_from_stamp(p.timeout_until, 'R'))
         else:
             await disp.TIMEOUT_FREE.send_priv(ctx)
+
+    @commands.slash_command(name="usage")
+    async def psb_usage(self, ctx: discord.ApplicationContext,
+                        member: discord.Option(discord.Member, "Member to check usage for", required=True),
+                        period_end: discord.Option(str, "Last of day of period, format YYYY-MM-DD.  Defaults to today.",
+                                                   required=False)):
+        """Command to retrieve all FS Jaeger Account usage by a specific player in an 9 week period."""
+        await ctx.defer(ephemeral=True)
+
+        p = Player.get(member.id)
+        if not p:
+            await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+            return
+
+        if period_end:
+            try:
+                period_end_dt = dt.strptime(period_end, '%Y-%m-%d')
+            except ValueError:
+                return await disp.USAGE_WRONG_FORMAT.send_priv(ctx, period_end)
+        else:
+            period_end_dt = dt.now()
+
+        start_stamp, end_stamp = int((period_end_dt - timedelta(weeks=9)).timestamp()), int(period_end_dt.timestamp())
+
+        usages = await account_usage.get_usages_period(p.id, start_stamp, end_stamp)
+
+        await disp.USAGE_PSB.send_priv(ctx, player=p, start_stamp=start_stamp, end_stamp=end_stamp, usages=usages)
+
 
     @tasks.loop(seconds=5)
     async def activity_update(self):

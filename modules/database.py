@@ -58,16 +58,18 @@ def get_all_elements(init_class_method: Callable, collection: str):
         raise DatabaseError(f"KeyError when retrieving {collection} from database: {e}")
 
 
-async def async_db_call(call: Callable, *args):
+async def async_db_call(call: Callable, *args, **kwargs):
     """
     Call a db function asynchronously.
 
     :param call: Function to call.
     :param args: Args to pass to the called function.
+    :param kwargs: Kwargs to pass to the called function
     :return: Return the result of the call.
     """
     loop = get_event_loop()
-    return await loop.run_in_executor(None, call, *args)
+    return await loop.run_in_executor(None, lambda: call(*args, **kwargs))
+
 
 
 def force_update(collection: str, elements):
@@ -200,3 +202,28 @@ def remove_element(collection: str, e_id: int):
         _collections[collection].delete_one({"_id": e_id})
     else:
         raise DatabaseError(f"Element {e_id} doesn't exist in collection {collection}")
+
+
+def find_elements(collection: str, query: dict, projection=None):
+    """
+    Query a collection via selection_criteria query
+
+    """
+    if projection:
+        return _collections[collection].find(query, projection)
+    return _collections[collection].find(query)
+
+
+def aggregate_fields(collection: str, query: list):
+    """
+    Aggregate a collection via query list, using keywords for $match, $group, $project dicts etc
+    """
+    return _collections[collection].aggregate(query)
+
+
+def add_element(collection: str, doc):
+    """
+    Add an element to a collection, with an unspecified object ID
+    """
+    _collections[collection].insert_one(doc)
+
