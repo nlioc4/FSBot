@@ -244,16 +244,19 @@ class BaseMatch:
             await self.set_voice_public()
         return self.__public_voice
 
-    async def set_voice_private(self):
-        """Set the matches voice channel to private, only allowing members of the match to join.
-           Disconnect any users that aren't members of the match / admins"""
-        await self.voice_channel.set_permissions(d_obj.roles['view_channels'],
-                                                 connect=False, view_channel=False)
+    async def _clear_voice(self):
         #  gather disconnect coroutines if users not in match, and not admins
         to_disconnect = [memb.move_to(None) for memb in self.voice_channel.members
                          if memb.id not in [p.id for p in self.players] and not d_obj.is_admin(memb)]
 
         await asyncio.gather(*to_disconnect)
+
+    async def set_voice_private(self):
+        """Set the matches voice channel to private, only allowing members of the match to join.
+           Disconnect any users that aren't members of the match / admins"""
+        await self.voice_channel.set_permissions(d_obj.roles['view_channels'],
+                                                 connect=False, view_channel=False)
+        await self._clear_voice()
         self.__public_voice = False
         await self.update()
 
@@ -303,6 +306,7 @@ class BaseMatch:
         if not self.is_ended:
             await self.update()
             await self._channel_update(player, None)
+            await self._clear_voice()
             await disp.MATCH_LEAVE.send(self.text_channel, player.mention)
 
         #  Object cleanup

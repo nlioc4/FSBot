@@ -159,8 +159,8 @@ class AllStrings(Enum):
     TIMEOUT_UNTIL = "{}({}) is timed out, their timeout will expire {}, at {}."
     TIMEOUT_NOT = "{}({}) is not timed out."
     TIMEOUT_CLEAR = "{}({}) has had their timeout ended."
-    TIMEOUT_WRONG_FORMAT = "Incorrect format ''{}'', formatting must follow ''YYYY-MM-DD'' for dates," \
-                           "and ''HH:MM'' for times."
+    TIMEOUT_WRONG_FORMAT = "Incorrect format ``{}``, formatting must follow ``YYYY-MM-DD`` for dates," \
+                           "and ``HH:MM`` for times."
     TIMEOUT_NEW = "{}({}) has been timed out, their timeout will expire {}, at {}."
     TIMEOUT_NO_TIME = "Can't have all arguments == 0, that's not a timeout!"
     TIMEOUT_PAST = "{} is in the past, timeout module does not possess a time machine!"
@@ -172,6 +172,9 @@ class AllStrings(Enum):
     TIMEOUT_STILL = "You are still timed out, try again {}..."
     TIMEOUT_FREE = "You are not timed out from FSBot!"
     TIMEOUT_LOG = "{} has been timed out until {} by {} with reason: {}"
+
+    USAGE_WRONG_FORMAT = "Incorrect format ``{}``, formatting must follow ``YYYY-MM-DD``. "
+    USAGE_PSB = None, psb_account_usage
 
     def __init__(self, string, embed=None):
         self.__string = string
