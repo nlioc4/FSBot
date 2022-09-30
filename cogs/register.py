@@ -18,6 +18,7 @@ import modules.discord_obj as d_obj
 
 log = getLogger('fs_bot')
 
+
 # Views
 class RulesView(views.FSBotView):
     """Defines view to accept rules and start a player profile"""
@@ -37,12 +38,15 @@ class RulesView(views.FSBotView):
             await interaction.response.send_message(content=f"You've already accepted the rules "
                                                             f"{interaction.user.mention}!",
                                                     ephemeral=True, delete_after=15)
+
         else:
             p = classes.Player(interaction.user.id, discord.utils.escape_markdown(interaction.user.name))
             await db.async_db_call(db.set_element, 'users', p.id, p.get_data())
-            await interaction.response.send_message(content=f"You have accepted the rules "
-                                                            f"{interaction.user.mention}, have fun!",
-                                                    ephemeral=True, delete_after=15)
+
+            await disp.REGISTER_NEW_PLAYER.send_priv(interaction.response,
+                                                     interaction.user.mention,
+                                                     d_obj.channels['register'].mention,
+                                                     d_obj.channels['dashboard'].mention)
         await d_obj.role_update(interaction.user)
 
     @discord.ui.button(label="Hide Category", custom_id="rules-hide", style=discord.ButtonStyle.red)

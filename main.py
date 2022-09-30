@@ -91,7 +91,7 @@ sys.stdout = StreamToLogger(log, logging.INFO)
 sys.stderr = StreamToLogger(log, logging.ERROR)
 
 if c_args.get('test'):
-    cfg.get_config('config_test.ini')
+    cfg.get_config('config_test.ini', test=True)
 else:
     cfg.get_config('config.ini')
 
@@ -179,8 +179,9 @@ async def on_application_command_error(context, exception):
 
 @bot.event
 async def on_member_join(member):
-    """Ensure proper roles are applied to players on server join"""
+    """Ensure proper roles are applied to players on server join and post join message"""
     await d_obj.role_update(member)
+    await display.AllStrings.SERVER_JOIN.send(d_obj.guild.system_channel, member.mention, mention=member.mention)
 
 
 # database init
