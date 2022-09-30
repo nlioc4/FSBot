@@ -148,13 +148,7 @@ def psb_account_usage(player, start_stamp, end_stamp, usages) -> Embed:
     )
     format_start, format_end = format_stamp(start_stamp, 'd'), format_stamp(end_stamp, 'd')
 
-    if not usages:
-        embed.colour = Colour.red()
-        embed.add_field(name="No Data",
-                        value=f"This user has no registered use with FSBot Jaeger Accounts in the period\n"
-                              f"{format_start}--{format_end}",
-                        inline=False)
-        return embed
+
 
     # storage
     usage_split_dict = {}
@@ -176,6 +170,14 @@ def psb_account_usage(player, start_stamp, end_stamp, usages) -> Embed:
                 else:
                     usage_split_dict[week] = [usage]
 
+    if not usage_lines:
+        embed.colour = Colour.red()
+        embed.add_field(name="No Data",
+                        value=f"This user has no registered use with FSBot Jaeger Accounts in the period\n"
+                              f"{format_start}--{format_end}",
+                        inline=False)
+        return embed
+
     embed.add_field(
         name="Selected Period",
         value=f"{format_start}--{format_end}",
@@ -184,7 +186,7 @@ def psb_account_usage(player, start_stamp, end_stamp, usages) -> Embed:
 
     embed.add_field(
         name="Summary",
-        value=f"Player has earned {len(usage_split_dict)} points over {len(usages)} in the supplied time period",
+        value=f"Player has earned {len(usage_split_dict)} points over {len(usages)} usages in the supplied time period",
         inline=False
     )
 
