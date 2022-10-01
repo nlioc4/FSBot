@@ -27,6 +27,7 @@ class AllStrings(Enum):
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
     AS = "As {}: {}"
     SERVER_JOIN = "Welcome {}!", fs_join_embed
+    GUILD_ONLY = "This can only be used in the Flight School Discord!"
 
     CHECK_FAILURE = "You have failed a check to run this command!"
     UNASSIGNED_ONLINE = "{} Unassigned Login", account_online_check

@@ -47,13 +47,15 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
         else:
             await disp.TIMEOUT_FREE.send_priv(ctx)
 
-    @commands.slash_command(name="usage", guild_ids=[cfg.general['guild_id']])
+    @commands.slash_command(name="usage")
     async def psb_usage(self, ctx: discord.ApplicationContext,
                         member: discord.Option(discord.Member, "Member to check usage for", required=True),
                         period_end: discord.Option(str, "Last of day of period, format YYYY-MM-DD.  Defaults to today.",
                                                    required=False)):
         """Command to retrieve all FS Jaeger Account usage by a specific player in an 9 week period."""
         await ctx.defer(ephemeral=True)
+        if not ctx.guild:
+            return await disp.GUILD_ONLY.send_priv(ctx)
 
         p = Player.get(member.id)
         if not p:
