@@ -47,7 +47,7 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
         else:
             await disp.TIMEOUT_FREE.send_priv(ctx)
 
-    @commands.slash_command(name="usage")
+    @commands.slash_command(name="usage", guild_ids=[cfg.general['guild_id']])
     async def psb_usage(self, ctx: discord.ApplicationContext,
                         member: discord.Option(discord.Member, "Member to check usage for", required=True),
                         period_end: discord.Option(str, "Last of day of period, format YYYY-MM-DD.  Defaults to today.",
