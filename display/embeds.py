@@ -191,7 +191,7 @@ def psb_account_usage(player, start_stamp, end_stamp, usages) -> Embed:
     embed.add_field(
         name="Summary",
         value=f"Total Usage(s): ``{len(usages)}``\n"
-              f"Total Point(s): ``{len(usage_split_dict)}``",
+              f"Total Point(s): ``{0.75 * len(usage_split_dict)}``",
         inline=False
     )
 
