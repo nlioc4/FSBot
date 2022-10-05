@@ -29,18 +29,17 @@ class SkillLevel(tools.AutoNumber):
     DANGEROUS = "Excellent aim or movement, but not both at the same time"
     EXPERT = "Capable of taking on all but the most skilled pilots"
     MASTER = "Top tier pilot, both aiming and movement mastered"
+    TEACHER = "Players willing to spend time teaching new pilots to fly"
 
     def __init__(self, description=' '):
         self.description = description
 
     def __str__(self):
-        first = self.name[0]
-        rest = self.name[1:].lower()
-        return first + rest
+        return self.name[0] + self.name[1:].lower()
 
     @property
     def rank(self):
-        return self._rank
+        return "T" if self._rank == 9 else self._rank # hardcoding fix for 'TEACHER' rank
 
     @property
     def value(self):
