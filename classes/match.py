@@ -210,6 +210,7 @@ class BaseMatch:
         await obj._make_channels()
 
         await obj.update()
+        asyncio.create_task(obj._check_accounts_delay())
 
         return obj
 
@@ -400,6 +401,15 @@ class BaseMatch:
             self.embed_cache = self._new_embed()
         self.info_message = await disp.MATCH_INFO.send(self.text_channel, embed=self.embed_cache, view=self.view())
         await self.info_message.pin()
+
+    async def _check_accounts_delay(self):
+        await asyncio.sleep(300)  # run check after 5 minutes
+        no_acc = []
+        for p in self.__players:
+            if not p.player.has_own_account or not p.account:
+              no_acc.append(p)
+        if no_acc:
+            await disp.MATCH_NO_ACCOUNT(self.text_channel, ''.join([p.mention for p in no_acc]))
 
     async def update_embed(self):
         if self.info_message:

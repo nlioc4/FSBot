@@ -39,7 +39,7 @@ class SkillLevel(tools.AutoNumber):
 
     @property
     def rank(self):
-        return "T" if self._rank == 9 else self._rank # hardcoding fix for 'TEACHER' rank
+        return "T" if self._rank == 9 else self._rank  # hardcoding fix for 'TEACHER' rank
 
     @property
     def value(self):
