@@ -144,7 +144,8 @@ class AllStrings(Enum):
     ACCOUNT_ALREADY_2 = "{} already has been assigned an account, ID: {}"
     ACCOUNT_SENT = "You have been sent an account, check your DM's <{}>."
     ACCOUNT_SENT_2 = "{} has been sent account ID: {}."
-    ACCOUNT_LOG_OUT = "Your session has been ended, please log out of {}!"
+    ACCOUNT_TERM_LOG = "Your FSBot Account session has ended, please log out of {}!"
+    ACCOUNT_TERM = "Your FSBot Account session has ended!"
     ACCOUNT_TOKEN_EXPIRED = "After 5 minutes this account token has expired, please request another" \
                             " if you still need an account."
     ACCOUNT_NO_DMS = "You must allow the bot to send you DM's in order to receive an account!"

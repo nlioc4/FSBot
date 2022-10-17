@@ -696,7 +696,7 @@ def fs_join_embed(mention) -> Embed:
     embed.add_field(
         name="Moderation",
         value=f"Ensure you are following the rules in <#751221386093264936> at all times."
-              f"If you have any other questions feel free to reach out to"
+              f" If you have any other questions feel free to reach out to"
               f" to any {d_obj.roles['mod'].mention} or {d_obj.roles['admin'].mention}."
               f" For any moderation questions you may also message the entire staff team by using the /modmail command"
               f" or sending a message to {d_obj.bot.user.mention}, starting your message with ``dm ``, ``modmail ``,"
