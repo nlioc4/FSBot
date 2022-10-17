@@ -259,6 +259,7 @@ class BaseMatch:
                                                  connect=False, view_channel=False)
         await self._clear_voice()
         self.__public_voice = False
+        self.log("Voice Channel has been set to private!")
         await self.update()
 
     async def set_voice_public(self):
@@ -266,6 +267,7 @@ class BaseMatch:
         await self.voice_channel.set_permissions(d_obj.roles['view_channels'],
                                                  connect=True, view_channel=True)
         self.__public_voice = True
+        self.log("Voice Channel has been set to public!")
         await self.update()
 
     def _get_overwrites(self):
@@ -297,8 +299,12 @@ class BaseMatch:
     async def leave_match(self, player: ActivePlayer):
         #  If player is owner, and match isn't ended, end match
         if player.player == self.owner and not self.is_ended:
-            await self.end_match()
-            return
+            if len(self.players) >= 3 and await self.change_owner():
+                # if 3 or more players and new owner possible, assign new owner rather than ending the match
+                pass
+            else:
+                await self.end_match()
+                return
 
         self.__players.remove(player)
         self.__previous_players.append(player.on_quit())
@@ -316,7 +322,7 @@ class BaseMatch:
             player.player.set_account(None)
 
         if not self.__players and not self.is_ended:  # if no players left, and match not already ended.
-            await self.end_match()  # Should only be called if match didn't end when owner left
+            await self.end_match()  # Should only be called if match didn't end when owner left??
 
     async def change_owner(self, player: None | ActivePlayer = None):
         """Set a new owner if player provided, otherwise pick a new owner from players.
@@ -327,7 +333,7 @@ class BaseMatch:
         if not player:
             return False
 
-        self.owner = player
+        self.owner = player.player
         await disp.MATCH_NEW_OWNER.send(self.text_channel, player.mention)
         await self.update()
         return player
