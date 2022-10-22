@@ -515,8 +515,6 @@ class ActivePlayer:
 
     def __init__(self, player: Player):
         self.__player = player
-        self.__match = player.match
-        self.__account = player.account
         self.online_id = player.online_id
         self.chosen_faction = None
         self.round_wins = 0
@@ -529,11 +527,15 @@ class ActivePlayer:
 
     @property
     def match(self):
-        return self.__match
+        return self.__player.match
+
+    @property
+    def has_own_account(self):
+        return self.__player.has_own_account
 
     @property
     def account(self):
-        return self.__account
+        return self.__player.account
 
     @property
     def id(self):
@@ -545,7 +547,7 @@ class ActivePlayer:
 
     @property
     def mention(self):
-        return self.player.mention
+        return self.__player.mention
 
     @property
     def ig_names(self):

@@ -283,12 +283,11 @@ class Lobby:
         """Purges the channel, and then creates dashboard Embed w/ view"""
         try:
             msg_id = await db.async_db_call(db.get_field, 'restart_data', 0, 'dashboard_msg_id')
-        except KeyError:
-            log.info('No previous embed found for %s, creating new message...', self.name)
-            self.dashboard_msg = await self._dashboard_message()
-        else:
             self.dashboard_msg = await self.channel.fetch_message(msg_id)
             self.dashboard_msg = await self._dashboard_message(action='edit', force=True)
+        except (KeyError, discord.NotFound):
+            log.info('No previous embed found for %s, creating new message...', self.name)
+            self.dashboard_msg = await self._dashboard_message()
         finally:
             await db.async_db_call(db.set_field, 'restart_data', 0, {'dashboard_msg_id': self.dashboard_msg.id})
             await self.channel.purge(check=self.dashboard_purge_check)
@@ -487,7 +486,8 @@ class Lobby:
             try:
                 memb = d_obj.guild.get_member(invited.id)
                 view = views.InviteView(self, owner, invited)
-                msg = await disp.DM_INVITED.send(memb, invited.mention, owner.mention, view=view)
+                name_str = f'{owner.mention}({owner.name})[{owner.skill_level.rank}]'
+                msg = await disp.DM_INVITED.send(memb, invited.mention, name_str, view=view)
                 view.msg = msg
                 return self.invite(owner, invited)
             except discord.Forbidden:

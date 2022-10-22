@@ -127,8 +127,8 @@ class AllStrings(Enum):
     MATCH_VOICE_PUB = "{} is now public!"
     MATCH_VOICE_PRIV = "{} is now private!"
     MATCH_NO_ACCOUNT = "{} you are registered without a Jaeger Account and have yet to request one for this match!" \
-                       f"  If you have your own account please register it in <#{cfg.channels['register']}, otherwise" \
-                       "request an account using the button above!"
+                       "  If you have your own account please register it in {}," \
+                       " otherwise request an account using the button above!"
 
     RM_SCORES_EQUAL = "Submitted scores are equal!"
     RM_SCORES_WRONG = "Submitted scores don't match, both players should submit again!"

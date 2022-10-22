@@ -292,7 +292,8 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
         user = d_obj.bot.get_user(player.id)
         if acc.message:
             # choose which message to send depending on whether the account is currently online
-            send_coro = disp.ACCOUNT_TERM_LOG.send(user, acc.online_name) if acc.online_id else disp.ACCOUNT_TERM(user)
+            send_coro = disp.ACCOUNT_TERM_LOG.send(user, acc.online_name) if acc.online_id \
+                else disp.ACCOUNT_TERM.send(user)
             for _ in range(3):
                 try:
                     if await send_coro:

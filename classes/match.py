@@ -319,7 +319,6 @@ class BaseMatch:
         #  Object cleanup
         if player.account:
             await accounts.terminate(player=player.player)
-            player.player.set_account(None)
 
         if not self.__players and not self.is_ended:  # if no players left, and match not already ended.
             await self.end_match()  # Should only be called if match didn't end when owner left??
@@ -412,10 +411,12 @@ class BaseMatch:
         await asyncio.sleep(300)  # run check after 5 minutes
         no_acc = []
         for p in self.__players:
-            if not p.player.has_own_account or not p.account:
+            if not p.has_own_account and not p.account:
               no_acc.append(p)
         if no_acc:
-            await disp.MATCH_NO_ACCOUNT(self.text_channel, ''.join([p.mention for p in no_acc]))
+            await disp.MATCH_NO_ACCOUNT.send(self.text_channel,
+                                             ''.join([p.mention for p in no_acc]),
+                                             d_obj.channels['register'].mention)
 
     async def update_embed(self):
         if self.info_message:
