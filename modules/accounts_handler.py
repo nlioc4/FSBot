@@ -179,6 +179,7 @@ class ValidateView(views.FSBotView):
     @discord.ui.button(label="Confirm Rules", style=discord.ButtonStyle.green)
     async def validate_button(self, button: discord.Button, inter: discord.Interaction):
         await inter.response.defer()
+        p = classes.Player.get(inter.user.id)
         try:
             await disp.ACCOUNT_EMBED_FETCH.edit(inter, acc=self.acc, view=self)
         except discord.NotFound:
@@ -196,9 +197,9 @@ class ValidateView(views.FSBotView):
         self.timeout = None
         await disp.ACCOUNT_EMBED.edit(self.acc.message, clear_content=True, acc=self.acc, view=self)
         if validated:
-            log.info(f'Account [{self.acc.id}] sent to player: ID: [{inter.user.id}], name: [{inter.user.name}]')
-            await disp.LOG_ACCOUNT.send(d_obj.channels['logs'], self.acc.id, inter.user.id, inter.user.mention,
-                                        inter.user.name, allowed_mentions=False)
+            log.info(f'Account [{self.acc.id}] sent to player: ID: [{p.id}], name: [{p.name}]')
+            await disp.LOG_ACCOUNT.send(d_obj.channels['logs'], self.acc.id, p.id, p.mention,
+                                        p.name, allowed_mentions=False)
 
     @discord.ui.button(label="End Session", style=discord.ButtonStyle.red)
     async def end_session_button(self, button: discord.Button, inter: discord.Interaction):

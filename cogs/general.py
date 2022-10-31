@@ -76,7 +76,6 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
 
         await disp.USAGE_PSB.send_priv(ctx, player=p, start_stamp=start_stamp, end_stamp=end_stamp, usages=usages)
 
-
     @tasks.loop(seconds=5)
     async def activity_update(self):
         await bot_status.update_status()

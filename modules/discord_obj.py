@@ -142,6 +142,7 @@ async def role_update(member: discord.Member = None, player: classes.Player = No
         await member.remove_roles(*roles_to_remove, reason=reason)
 
 
+# Maybe this should be in the Player class
 async def timeout_player(p: Player, stamp: int, mod: discord.Member = None, reason: str = ''):
     """Timeout a player until a given timestamp, by a certain mod, with a reason"""
     p_memb = guild.get_member(p.id)
