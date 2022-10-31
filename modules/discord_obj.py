@@ -59,8 +59,11 @@ def init(client):
         sys.exit("No Colin Found")
 
 
-def is_admin(member: discord.Member) -> bool:
+def is_admin(user: discord.Member | discord.User) -> bool:
     """Simple check for admin permissions, returns True if admin"""
+    member = user if isinstance(user, discord.Member) else guild.get_member(user.id)
+    if not member:
+        return False
     admin_roles = [roles['admin'], roles['mod'], roles['app_admin']]
     if any([role in admin_roles for role in member.roles]):
         return True

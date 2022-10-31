@@ -105,10 +105,6 @@ class AllStrings(Enum):
 
     MATCH_CREATE = "{} Match created ID: {}"
     MATCH_INFO = "", match_info
-    MATCH_INVITED = "{} You've been invited to a match by {}, accept or decline below", None
-    MATCH_ACCEPT = "You have accepted the invite from {}, join {}."
-    MATCH_DECLINE = "You have decline the invite from {}."
-    MATCH_DECLINE_INFO = "{} has declined your match invitation."
     MATCH_JOIN = "{} has joined the match"
     MATCH_JOIN_2 = "{} has joined match {}."
     MATCH_LEAVE = "{} has left the match."
@@ -129,6 +125,12 @@ class AllStrings(Enum):
     MATCH_NO_ACCOUNT = "{} you are registered without a Jaeger Account and have yet to request one for this match!" \
                        "  If you have your own account please register it in {}," \
                        " otherwise request an account using the button above!"
+
+    INVITE_ACCEPT = "You have accepted the invite from {}, join {}."
+    INVITE_DECLINE = "You have declined the invite from {}."
+    INVITE_DECLINE_REASON = "Decline Reason:\n{}"
+    INVITE_DECLINE_INFO = "{} has declined your match invitation."
+    INVITE_DECLINE_INFO_REASON = "{} has declined your match invitation with reason:\n{}"
 
     RM_SCORES_EQUAL = "Submitted scores are equal!"
     RM_SCORES_WRONG = "Submitted scores don't match, both players should submit again!"

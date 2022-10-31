@@ -82,7 +82,7 @@ class InviteView(FSBotView):
         match = await self.lobby.accept_invite(self.owner, p)
 
         if match:
-            await disp.MATCH_ACCEPT.edit(inter.message, self.owner.mention, match.text_channel.mention)
+            await disp.INVITE_ACCEPT.edit(inter.message, self.owner.mention, match.text_channel.mention)
         else:
             await disp.DM_INVITE_INVALID.edit(inter.message)
 
@@ -95,9 +95,57 @@ class InviteView(FSBotView):
         self.stop()
 
         owner_mem = d_obj.guild.get_member(self.owner.id)
-        await disp.MATCH_DECLINE_INFO.send(owner_mem, p.mention)
+        await disp.INVITE_DECLINE_INFO.send(owner_mem, p.mention)
 
-        await disp.MATCH_DECLINE.edit(inter, self.owner.mention, view=False)
+        await disp.INVITE_DECLINE.edit(inter, self.owner.mention, view=False)
+
+    decline_reasons = {
+        "Skill Preference": "Skill level does not match preference",
+        "Faction Preference": "Faction choice does not match preference",
+        "Forgot Queue": "User forgot they were in queue!",
+        "Custom": "Enter a custom decline reason"
+    }
+
+    @discord.ui.select(placeholder="Give a reason for declining an invite",
+                       min_values=1, max_values=1,
+                       options=[discord.SelectOption(label=k, value=k, description=v) for k, v in
+                                decline_reasons.items()])
+    async def decline_select(self, select: discord.ui.Select, inter: discord.Interaction):
+        p: Player = Player.get(inter.user.id)
+        if not await d_obj.is_registered(inter, p):
+            return
+        self.lobby.decline_invite(self.owner, p)
+        self.stop()
+
+        owner_mem = d_obj.guild.get_member(self.owner.id)
+        reason = select.values[0]
+        await disp.INVITE_DECLINE.edit(inter, self.owner.mention, view=False)
+
+        if reason != "Custom":
+            await disp.INVITE_DECLINE_INFO_REASON.send(owner_mem, p.mention, self.decline_reasons[reason])
+            await disp.INVITE_DECLINE_REASON.send(inter, reason)
+        else:
+            await inter.response.send_modal(self.DeclineInviteModal(self))
+
+    class DeclineInviteModal(discord.ui.Modal):
+        def __init__(self, invite_view) -> None:
+            super().__init__(
+                discord.ui.InputText(
+                    label="Input Custom Decline Reason",
+                    placeholder="Your decline reason here...",
+                    style=discord.InputTextStyle.short,
+                    min_length=1,
+                    max_length=200
+                ),
+                title="Custom Invite Decline Reason")
+            self.invite_view = invite_view
+
+        async def callback(self, inter: discord.Interaction):
+            reason = self.children[0].value
+            await inter.response.defer()
+            owner_mem = d_obj.guild.get_member(self.invite_view.owner.id)
+            await disp.INVITE_DECLINE_INFO_REASON.send(owner_mem, self.invite_view.player.mention, reason)
+            await disp.INVITE_DECLINE_REASON.send(inter, reason)
 
     async def on_timeout(self) -> None:
         # Show player invite as expired

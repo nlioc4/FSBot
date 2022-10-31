@@ -234,6 +234,9 @@ class AdminCog(commands.Cog):
         """
         await ctx.defer(ephemeral=True)
 
+        if not d_obj.is_admin(ctx.user):
+            return await disp.CANT_USE.send_priv(ctx)
+
         p = Player.get(message.author.id)
         if not p:  # if not a player
             await disp.NOT_PLAYER_2.send_priv(ctx, message.author.mention)
