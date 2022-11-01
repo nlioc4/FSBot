@@ -462,7 +462,7 @@ class Player:
         # if only one char name, add suffixes.
         if len(char_list) == 1:
             char_name = char_list[0]
-            if char_name[-2].lower() in ['vs', 'nc', 'tr']:
+            if char_name[-2:].lower() in ['vs', 'nc', 'tr']:
                 char_name = char_name[:-2]
             char_list = [char_name + 'VS', char_name + 'NC', char_name + 'TR']
 

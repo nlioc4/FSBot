@@ -99,9 +99,11 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog"):
         if sent and owner.match:  # if sent, and invited to an existing match
             await disp.LOBBY_INVITED_MATCH.send_priv(ctx, owner.mention, invited.mention, owner.match.id_str)
             lobby.lobby_log(lobby.lobby_log(f'{owner.name} invited {invited.name} to Match: {owner.match.id_str}'))
+            await lobby.update_dashboard()
         elif sent:  # if sent, and invited to a new match
             await disp.LOBBY_INVITED.send_priv(ctx, owner.mention, invited.mention)
             lobby.lobby_log(lobby.lobby_log(f'{owner.name} invited {invited.name} to a match.'))
+            await lobby.update_dashboard()
         else:  # if couldn't send an invite to the player
             await disp.LOBBY_NO_DM.send_priv(ctx, invited.mention)
 

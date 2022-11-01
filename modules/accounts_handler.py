@@ -303,11 +303,10 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
         acc.terminate()  # if not already terminated
 
         # Send log-out message if logged in, adjust embed
-        user = d_obj.bot.get_user(player.id)
         if acc.message:
             # choose which message to send depending on whether the account is currently online
-            send_coro = disp.ACCOUNT_TERM_LOG.send(user, acc.online_name) if acc.online_id \
-                else disp.ACCOUNT_TERM.send(user)
+            send_coro = disp.ACCOUNT_TERM_LOG.send(acc.message, acc.online_name) if acc.online_id \
+                else disp.ACCOUNT_TERM.send(acc.message)
             for _ in range(3):
                 try:
                     if await send_coro:
