@@ -71,6 +71,11 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog"):
             return
         invited = Player.get(user.id)
         owner = Player.get(ctx.user.id)
+
+        # if the selected user or the owner is not a Player
+        if not invited or not owner:
+            return await disp.NOT_PLAYER_2.send_priv(ctx, "This user")
+
         # lobby is the owners lobby -> current channel lobby -> invited players lobby, in that order
         lobby = owner.lobby or Lobby.channel_to_lobby(ctx.channel) or invited.lobby
 

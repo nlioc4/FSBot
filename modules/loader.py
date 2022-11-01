@@ -1,6 +1,7 @@
 """Handles loading and unloading of bot, as well as locking the bots functionality"""
 
 from logging import getLogger
+import discord
 from discord import ExtensionAlreadyLoaded, ExtensionNotLoaded
 
 main_cogs = ["cogs.admin"]
@@ -26,19 +27,20 @@ def lock_all(client):
     __is_global_locked = True
 
 
-async def unlock_all(client):
+async def unlock_all(client: discord.Bot):
     for cog in standard_cogs:
         try:
-            if client.load_extension(cog):
-                log.info(f"Loaded {cog} successfully")
+            client.load_extension(cog)
         except ExtensionAlreadyLoaded as ex:
-            log.info(f"Error Loading {cog} because {ex}")
+            log.error(f"Error Loading {cog} because {ex}")
     global __is_global_locked
     __is_global_locked = False
 
-    await client.register_commands()
-
     log.info('Loaded Cogs: %s', list(client.cogs.keys()))
+
+    await client.sync_commands(delete_existing=False)
+
+    log.info('Synced %s Commands Successfully', len(client.application_commands))
 
 
 def is_all_locked():

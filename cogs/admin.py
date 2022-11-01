@@ -213,17 +213,19 @@ class AdminCog(commands.Cog):
                                                        choices=("Enable", "Disable", "Status"), required=True)
                                 ):
         """Accounts Watchtower Control"""
-
-        running = self.account_watchtower.is_running()
+        running = accounts.UNASSIGNED_ONLINE_WARN
+        changed = False
 
         if action == "Enable" and not running:
-            self.account_watchtower.start()
+            accounts.UNASSIGNED_ONLINE_WARN = True
+            changed = True
         elif action == "Disable" and running:
-            self.account_watchtower.cancel()
+            accounts.UNASSIGNED_ONLINE_WARN = False
+            changed = True
         string = f"Accounts watchtower was {'running' if running else 'stopped'}."
-        if running != self.account_watchtower.is_running() or self.account_watchtower.is_being_cancelled():
-            string += f" It is now {'started' if not running else 'stopping'}."
-        await d_obj.d_log(string)
+        if changed:
+            string += f" It is now {'started' if accounts.UNASSIGNED_ONLINE_WARN else 'stopped'}."
+            await d_obj.d_log(string)
         await ctx.respond(string, ephemeral=True)
 
     @commands.message_command(name="Assign Account")
@@ -435,15 +437,8 @@ class AdminCog(commands.Cog):
         #  Wait until the bot is ready before starting loops, ensure account_handler has finished init
         await asyncio.sleep(5)
         self.account_sheet_reload.start()
-        # self.census_watchtower.start()
-        if not cfg.TEST:  # disable account watchtower if bot in testing mode
-            self.account_watchtower.start()
         self.census_rest.start()
         self.census_watchtower = self.bot.loop.create_task(census.online_status_updater(Player.map_chars_to_players))
-
-    # @tasks.loop(count=1)
-    # async def census_watchtower(self):
-    #     await census.online_status_updater(Player.map_chars_to_players)
 
     @tasks.loop(seconds=15)
     async def census_rest(self):
@@ -465,35 +460,6 @@ class AdminCog(commands.Cog):
     async def account_sheet_reload(self):
         log.info("Reinitialized Account Sheet and Account Characters")
         await accounts.init(cfg.GAPI_SERVICE)
-
-    @tasks.loop(seconds=10)
-    async def account_watchtower(self):
-        # create list of accounts with online chars and no player assigned
-        unassigned_online = set()
-        for acc in accounts.all_accounts.values():
-            if acc.online_id and not acc.a_player:
-                unassigned_online.add(acc)
-
-            #  account session over 3 hours
-            elif acc.is_validated and not acc.is_terminated:
-                if acc.last_usage['start_time'] < tools.timestamp_now() - 3 * 60 * 60:
-                    await accounts.terminate(acc)
-
-            #  account terminated but user still online 10 minutes later
-            elif acc.online_id and acc.is_terminated:
-                if acc.last_usage['end_time'] < tools.timestamp_now() - 5 * 60:
-                    await d_obj.d_log(f'User: {acc.a_player.mention} has not logged out of their Jaeger account'
-                                      f' 5 minutes after their session ended.  Force cleaning account...')
-                    await accounts.clean_account(acc)
-
-        # compare to cache to see if logins are new. Ping only if new login.
-        new_online = unassigned_online - self.online_cache
-        if new_online:
-            await disp.UNASSIGNED_ONLINE.send(d_obj.channels['logs'],
-                                              d_obj.roles['app_admin'].mention,
-                                              online=unassigned_online)
-        # Cache Online Accounts
-        self.online_cache = unassigned_online
 
 
 def setup(client):

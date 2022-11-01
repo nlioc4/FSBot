@@ -20,7 +20,7 @@ class AllStrings(Enum):
     LOADING = "Loading..."
     NOT_REGISTERED = "You are not registered {}, please go to {} first!"
     NOT_PLAYER = "You are not a player {}, please go to {} first!"
-    NOT_PLAYER_2 = "{} is not a player"
+    NOT_PLAYER_2 = "{} is not a player!"
     CANT_USE = "You can't use this!"
     STOP_SPAM = "{}: Please stop spamming!"
     ALL_LOCKED = "FSBot is currently disabled, please try again later!"
@@ -152,6 +152,7 @@ class AllStrings(Enum):
     ACCOUNT_SENT_2 = "{} has been sent account ID: {}."
     ACCOUNT_TERM_LOG = "Your FSBot Account session has ended, please log out of {}!"
     ACCOUNT_TERM = "Your FSBot Account session has ended!"
+    ACCOUNT_LOGOUT_WARN = "{} this session has ended, please log out of {} now!"
     ACCOUNT_TOKEN_EXPIRED = "After 5 minutes this account token has expired, please request another" \
                             " if you still need an account."
     ACCOUNT_NO_DMS = "You must allow the bot to send you DM's in order to receive an account!"

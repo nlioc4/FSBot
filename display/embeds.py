@@ -109,7 +109,7 @@ def accountcheck(num_available, num_used, assigned, online) -> Embed:
     return fs_author(embed)
 
 
-def account_online_check(online) -> Embed:
+def account_online_check(online, new) -> Embed:
     """Automatic Online Check Embed
     """
     embed = Embed(
@@ -127,7 +127,8 @@ def account_online_check(online) -> Embed:
             player_ment = f"User not found for ID {acc.last_user_id}"
         else:
             player_ment = f"{last_player.mention}({last_player.name})"
-        string = string + f'{char_name} : {player_ment}\n'
+        bold = "**" if acc == new else ""
+        string = string + f'{bold}{char_name}{bold} : {player_ment}\n'
 
     embed.add_field(name='Currently Online Accounts',
                     value=string,

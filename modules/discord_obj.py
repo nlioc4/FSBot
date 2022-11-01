@@ -112,7 +112,7 @@ async def d_log(message: str = '', source: str = '', error=None) -> bool:
     if error:
         log.error(f"{source + ': ' if source else ''}{message}", exc_info=error)
         return True if await disp.LOG_ERROR.send(channels['logs'], source, message, error) else False
-    log.warning(f"{source + ': ' if source else ''}{message}")
+    log.info(f"{source + ': ' if source else ''}{message}")
     return await disp.LOG_GENERAL.send(channels['logs'], message, error)
 
 

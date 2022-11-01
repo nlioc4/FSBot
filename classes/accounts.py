@@ -19,6 +19,8 @@ class Account:
         self.__last_usage = {"account_id": self.id}
         self.__unique_usages = unique_usages
         self.message = None
+        self.timeout_coro = None
+        self.logout_reminders = 0
         self.__validated = False
         self.__terminated = False
 
@@ -98,11 +100,16 @@ class Account:
         self.__last_usage = {"account_id": self.id}
         self.__validated = False
         self.__terminated = False
+        self.logout_reminders = 0
+        if self.timeout_coro:
+            self.timeout_coro.cancel()
+            self.timeout_coro = None
 
     def add_usage(self, player):
         self.a_player = player
         self.__last_usage.update({"user_id": self.a_player.id,
-                                  "match_id": self.a_player.match.id if self.a_player.match else 0})
+                                  "match_id": self.a_player.match.id if self.a_player.match else 0,
+                                  "character_usage": []})
 
     def validate(self):
         if self.__validated:
@@ -116,5 +123,10 @@ class Account:
         self.__terminated = True
         self.__last_usage['end_time'] = tools.timestamp_now()
 
+    def login(self):
+        if self.a_player:
+            self.last_usage['character_usage'].append(f"Login:{self.online_name}:{tools.timestamp_now()}")
+
     def logout(self):
-        self.__last_usage['logout_time'] = tools.timestamp_now()
+        if self.a_player:
+            self.last_usage['character_usage'].append(f"Logout:{self.online_name}:{tools.timestamp_now()}")

@@ -113,8 +113,13 @@ async def _login(char_id, acc_char_ids, player_char_ids):
         acc = acc_char_ids[char_id]
         if acc.online_id != char_id:  # if not already online
             acc.online_id = char_id
-            if acc.a_player and acc.a_player.match:
+            acc.login()
+            if acc.a_player and acc.a_player.match:  # Match Login Event
                 await acc.a_player.match.char_login(user=acc.a_player)
+
+            if not acc.a_player:  # Unassigned Login
+                await accounts.unassigned_online(acc)
+
             log.info(f'Login detected: {char_id}: {acc.online_name}')
         return acc.ig_ids
 
@@ -140,6 +145,7 @@ async def _logout(char_id, acc_char_ids, player_char_ids):
             await acc.a_player.match.char_logout(user=acc.a_player, char_name=acc.online_name)
 
         log.info(f'Logout detected: {char_id}: {acc.online_name}')
+        acc.logout()
         acc.online_id = None
 
         if acc.is_terminated:  # last to avoid issues with unassigned login detection

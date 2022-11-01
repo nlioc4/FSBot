@@ -110,7 +110,7 @@ async def on_ready():
     log.info(f"Logged in as {bot.user} (ID: {bot.user.id})")
     modules.signal.init(bot)
     d_obj.init(bot)
-    await modules.accounts_handler.init(cfg.GAPI_SERVICE)
+    await modules.accounts_handler.init(cfg.GAPI_SERVICE, cfg.TEST)
     await loader.unlock_all(bot)
 
 
@@ -163,7 +163,7 @@ async def on_application_command_error(context, exception):
         await display.AllStrings.DISABLED_PLAYER.send_priv(context)
     elif isinstance(exception, discord.ext.commands.PrivateMessageOnly):
         await display.AllStrings.DM_ONLY.send(context)
-    elif isinstance(exception, discord.CheckFailure):
+    elif isinstance(exception, discord.CheckFailure) and not d_obj.is_timeout(context.user):
         await display.AllStrings.CHECK_FAILURE.send_priv(context)
     else:
         try:

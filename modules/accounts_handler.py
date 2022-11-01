@@ -28,6 +28,9 @@ _available_accounts = dict()
 all_accounts = None
 account_char_ids = dict()  # maps to account objects, consider mapping directly to char_names
 
+UNASSIGNED_ONLINE_WARN = True
+MAX_TIME = 10800  # Maximum time for account assignments (limit is ignored if user is in a match)
+
 # Sheet Offsets
 Y_OFFSET = 2
 X_OFFSET = 1
@@ -37,7 +40,11 @@ USAGE_OFFSET = 7
 log = getLogger('fs_bot')
 
 
-async def init(service_account_path: str):
+async def init(service_account_path: str, test=False):
+    if test:  # Disable Unassigned Online Warnings if bot in test mode
+        global UNASSIGNED_ONLINE_WARN
+        UNASSIGNED_ONLINE_WARN = False
+
     # open/store google sheet
     gc = service_account(service_account_path)
     sh = gc.open_by_key(cfg.database["accounts_id"])
@@ -108,6 +115,8 @@ async def init(service_account_path: str):
     # execute delete list
     for acc_id in to_drop:
         del all_accounts[acc_id]
+
+    await unassigned_online(None)  # Run check to ensure no accounts are online on startup.
 
     log.info('Initialized Accounts: %s', len(all_accounts))
 
@@ -272,10 +281,14 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
             ws.update_cells(cells_list, 'USER_ENTERED')
             return True
         raise e
+
+    acc.timeout_coro = asyncio.create_task(account_timeout(player, acc))
+
     return True
 
 
-async def terminate(acc: classes.Account = None, player: classes.Player = None, view: discord.ui.View | bool = False):
+async def terminate(acc: classes.Account = None, player: classes.Player = None, view: discord.ui.View | bool = False,
+                    force_clean=False):
     """Terminates account and sends message to log off, provide either account or player"""
     if not acc:
         acc = player.account
@@ -304,21 +317,22 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
 
     await disp.ACCOUNT_EMBED.edit(acc.message, acc=acc, view=view)  # use acc.message context to edit
 
-    # Clean if already offline
-    if not acc.online_id:
+    # Clean if already offline or forced
+    if not acc.online_id or force_clean:
         await clean_account(acc)
+    else:
+        asyncio.create_task(logout_reminder(acc))
 
 
 async def terminate_all():
     """Terminates all currently assigned accounts"""
-    terminate_coroutines = [terminate(acc) for acc in _busy_accounts.values()]
+    terminate_coroutines = [terminate(acc, force_clean=True) for acc in _busy_accounts.values()]
     await asyncio.gather(*terminate_coroutines)
 
 
 async def clean_account(acc):
     if acc.is_validated:
         # Update DB Usage, only if account was actually used
-        acc.logout()
         await db.async_db_call(db.add_element, 'account_usages', acc.last_usage)
 
     # Adjust player & account objects, return to available directory.
@@ -326,6 +340,52 @@ async def clean_account(acc):
     acc.clean()
     del _busy_accounts[acc.id]
     _available_accounts[acc.id] = acc
+
+
+async def unassigned_online(newest_login):
+    """Send alert that an unassigned account has logged in"""
+    if not UNASSIGNED_ONLINE_WARN:  # Disable if needed
+        return
+
+    online = [acc for acc in _available_accounts.values() if acc.online_name]
+
+    if online:
+        await disp.UNASSIGNED_ONLINE.send(d_obj.channels['logs'],
+                                          d_obj.roles['app_admin'].mention,
+                                          online=online,
+                                          new=newest_login)
+
+
+async def account_timeout(player: classes.Player, acc: classes.Account):
+    """Coroutine to terminate an account if max time is exceeded, unless player is in a match."""
+    try:
+        await asyncio.sleep(MAX_TIME)  # Wait for assign length
+        if not player.match and acc.a_player == player:
+            await terminate(acc, player)
+
+        acc.timeout_coro = None
+
+    except asyncio.CancelledError:
+        pass
+
+
+async def logout_reminder(acc: classes.Account):
+    """Looping coroutine to remind a player to logout of an account after it is terminated.
+    Sends warning to log channel if players continue to stay on account."""
+
+    await asyncio.sleep(60)
+
+    if acc.online_id:
+        await disp.ACCOUNT_LOGOUT_WARN.send(acc.message, acc.a_player.mention, acc.online_name)
+
+        acc.logout_reminders += 1
+        if acc.logout_reminders % 5 != 0:
+            await d_obj.d_log(f'User: {acc.a_player.mention} has not logged out of their Jaeger account'
+                              f' {acc.logout_reminders} minutes after their session ended!')
+
+        asyncio.create_task(logout_reminder(acc))
+    else:
+        pass
 
 
 def has_account(a_player):

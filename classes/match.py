@@ -316,7 +316,7 @@ class BaseMatch:
             await self._clear_voice()
             await disp.MATCH_LEAVE.send(self.text_channel, player.mention)
 
-        #  Object cleanup
+        #  If Player was assigned an account, terminate
         if player.account:
             await accounts.terminate(player=player.player)
 
