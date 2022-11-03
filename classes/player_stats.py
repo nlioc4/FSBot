@@ -13,6 +13,8 @@ class PlayerStats:
 
     @classmethod
     async def get_from_db(cls, p_id, p_name):
+        """Retrieve data for PlayerStats object from database.
+        If no data exists, creates new PlayerStats object."""
         data = await db.async_db_call(db.get_element, 'player_stats', p_id)
         return cls(p_id, p_name, data=data)
 
@@ -27,20 +29,21 @@ class PlayerStats:
             self.__match_losses = data['match_losses']
 
         else:
-            self.__match_ids = list()
+            self.__match_ids = list()  # list of Int match ID's
             self.__elo_history = dict()  # Dict of elo changes, by match_id: eloDelta
-            self.__elo = 1000
-            self.__match_wins = 0
-            self.__match_losses = 0
+            self.__elo = 1000  # Players Elo
+            self.__match_wins = 0  # Number of Matches Won
+            self.__match_losses = 0  # Number of matches lost
 
     def get_data(self):
-        data = dict()
-        data['_id'] = self.__id
-        data['matches'] = self.__match_ids
-        data['elo_history'] = self.__elo_history
-        data['elo'] = self.__elo
-        data['match_wins'] = self.__match_wins
-        data['match_losses'] = self.__match_losses
+        data = {
+            '_id': self.__id,
+            'matches': self.__match_ids,
+            'elo_history': self.__elo_history,
+            'elo': self.__elo,
+            'match_wins': self.__match_wins,
+            'match_losses': self.__match_losses,
+        }
         return data
 
     async def push_to_db(self):
@@ -83,9 +86,3 @@ class PlayerStats:
             self.__match_wins += 1
         else:
             self.__match_losses += 1
-
-
-
-
-
-

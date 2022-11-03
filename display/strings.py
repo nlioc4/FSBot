@@ -126,6 +126,11 @@ class AllStrings(Enum):
                        "  If you have your own account please register it in {}," \
                        " otherwise request an account using the button above!"
 
+    RMATCH_FACTION_PICK = "{} pick which faction you will play first below!"
+    RMATCH_FACTION_PICKED = "{} chose to play {} first.\n {} has been assigned {}!"
+    RMATCH_FACTION_SWITCH = ""
+    RMATCH_FACTION_NOT_PICK = "It's not your turn to pick faction!"
+
     INVITE_ACCEPT = "You have accepted the invite from {}, join {}."
     INVITE_DECLINE = "You have declined the invite from {}."
     INVITE_DECLINE_REASON = "Decline Reason:\n{}"

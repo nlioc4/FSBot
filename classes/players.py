@@ -513,6 +513,15 @@ class ActivePlayer:
     Called after a player starts a match
     """
 
+    @classmethod
+    async def get(cls, p_id):
+        """Returns a Players ActivePlayer instance from ID.
+        Returns none if player is not active or player doesn't exist"""
+        p = Player.get(p_id)
+        if p:
+            return p.active
+        return None
+
     def __init__(self, player: Player):
         self.__player = player
         self.online_id = player.online_id

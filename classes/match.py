@@ -8,6 +8,7 @@ from typing import Coroutine
 
 # Internal Imports
 import modules.discord_obj as d_obj
+import modules.config as cfg
 from display import AllStrings as disp, embeds, views
 import modules.tools as tools
 from classes.players import Player, ActivePlayer
@@ -24,9 +25,11 @@ _match_id_counter = 0
 
 class MatchState(Enum):
     INVITING = "Waiting for players to join the match..."
+    PICKING_FACTIONS = "Waiting for players to pick factions..."
     LOGGING_IN = "Waiting for players to log in..."
     GETTING_READY = "Waiting for players to be ready..."
     PLAYING = "Currently playing..."
+    SWITCHING_SIDES = "Waiting for players to switch factions..."
     SUBMITTING = "Submitting scores..."
     ENDED = "Match ended..."
 
@@ -199,11 +202,14 @@ class BaseMatch:
 
     @classmethod
     async def create(cls, owner: Player, invited: Player):
-        global _match_id_counter  # init _match_id_counter if first match created
+        # init _match_id_counter if first match created
+        global _match_id_counter
         if not _match_id_counter:
             last_match = await db.async_db_call(db.get_last_element, 'matches')
             if last_match:
                 _match_id_counter = last_match['_id']
+
+        # Create Match Object, init channels + first update
         obj = cls(owner, invited)
         obj.log(f'{owner.name} created the match with {invited.name}')
 
@@ -412,7 +418,7 @@ class BaseMatch:
         no_acc = []
         for p in self.__players:
             if not p.has_own_account and not p.account:
-              no_acc.append(p)
+                no_acc.append(p)
         if no_acc:
             await disp.MATCH_NO_ACCOUNT.send(self.text_channel,
                                              ''.join([p.mention for p in no_acc]),
@@ -502,7 +508,6 @@ class BaseMatch:
         """Task wrapper around update call"""
         await asyncio.sleep(self.UPDATE_DELAY)
         await self.update()
-
 
     def _schedule_update_task(self):
         """Schedule next update of the match, cancel currently scheduled update."""
@@ -616,6 +621,7 @@ class RankedMatch(BaseMatch):
         def __init__(self, match: 'RankedMatch'):
             super().__init__(match)
             self.match = match
+            ## TODO Set conditions for enabling/disabling round buttons etc.
 
         @discord.ui.button(label="Round Won", style=discord.ButtonStyle.green, row=1)
         async def round_won_button(self, button: discord.Button, inter: discord.Interaction):
@@ -630,24 +636,118 @@ class RankedMatch(BaseMatch):
 
         @discord.ui.button(label="Round Lost", style=discord.ButtonStyle.green, row=1)
         async def round_lost_button(self, button: discord.Button, inter: discord.Interaction):
-            pass
+            p = Player.get(inter.user.id)
+            self.match.submit_score(p, -1)
 
-        @discord.ui.button(label="Dispute", style=discord.ButtonStyle.red)
-        async def dispute_round_button(self, button: discord.Button, inter: discord.Interaction):
+            if self.match._check_scores_submitted:
+                if self.match._check_scores_equal():
+                    button.disabled = True
+
             pass
 
     def __init__(self, owner: Player, invited: Player):
         super().__init__(owner, invited)
+
+        # Player Objects
+        self.player1 = owner.on_playing(self)
+        self.player2 = invited.on_playing(self)
+        self.__player1_stats: PlayerStats | None = None
+        self.__player2_stats: PlayerStats | None = None
+        self.first_pick = self._first_faction_pick()
+
+        # Round Variables
         self.__round_counter = 0
         self.__round_wrong_scores_counter = 0
         self.__round_winner = None
-        self.__player1 = owner.on_playing(self)
-        self.__player2 = invited.on_playing(self)
-        self.__player1_stats = PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
-        self.__player2_stats = PlayerStats.get_from_db(p_id=invited.id, p_name=invited.name)
         self.__p1_submitted_score = None
         self.__p2_submitted_score = None
+
+        # Display Objects
         self.__view_class = self.RankedMatchView
+
+    @classmethod
+    async def create(cls, owner: Player, invited: Player):
+        obj = await super().create(owner, invited)
+
+        # Retrieve Stats PlayerStats
+        obj.__player1_stats = await PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
+        obj.__player2_stats = await PlayerStats.get_from_db(p_id=invited.id, p_name=invited.name)
+
+        # Set Initial Status
+        obj.status = MatchState.PICKING_FACTIONS
+
+    def get_player(self, inter: discord.Interaction):
+        """Utility method to get the Player object from a Discord Interaction for a match.
+        Returns False if player is not in the match"""
+        p_id = inter.user.id
+        if p_id == self.player1.id:
+            return self.player1
+        elif p_id == self.player2.id:
+            return self.player2
+        else:
+            return False
+
+    # Faction Picks
+    class FactionPickView(views.FSBotView):
+
+        def __init__(self, match: 'RankedMatch'):
+            super().__init__()
+            self.match = match
+
+        async def picked_fac(self, faction_id, inter):
+            """Executes all logic for faction pick buttons, as well as handling response."""
+            if not (p := self.match.get_player(inter)):
+                return disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
+
+            if not p == self.match.first_pick:
+                return disp.RMATCH_FACTION_NOT_PICK.send_priv(inter)
+
+            # Set the unpicked faction, build vars
+            faction_str = cfg.factions[faction_id]
+            other_faction_id = 2 if faction_id == 3 else 3
+            other_faction_str = cfg.factions[other_faction_id]
+
+            # Set Player Factions in Player Objects
+            p.chosen_faction = 2  # Set Chosen faction var, 2 == NC
+            if p == self.match.player1:
+                other_p = self.match.player2
+                self.match.player2.chosen_faction = 3
+            else:
+                other_p = self.match.player1
+                self.match.player1.chosen_faction = 3
+
+
+            self.match.log(f"{p.name} picked {faction_str}, {other_p} has been assigned {other_faction_str}!")
+            return await disp.RMATCH_FACTION_PICKED.send(inter,
+                                                         p.mention,
+                                                         faction_str + cfg.emojis[faction_str],
+                                                         other_p.mention,
+                                                         other_faction_str + cfg.emojis[other_faction_str])
+
+        @discord.ui.button(label="NC", style=discord.ButtonStyle.blurple, emoji=cfg.emojis['NC'])
+        async def nc_pick_button(self, button: discord.Button, inter: discord.Interaction):
+            self.tr_pick_button.style = discord.ButtonStyle.grey
+            self.disable_all_items()
+            await disp.NONE.edit(self.msg, view=self)
+            await self.picked_fac(2, inter)
+
+        @discord.ui.button(label="TR", style=discord.ButtonStyle.red, emoji=cfg.emojis['TR'])
+        async def tr_pick_button(self, button: discord.Button, inter: discord.Interaction):
+            self.nc_pick_button.style = discord.ButtonStyle.grey
+            self.disable_all_items()
+            await disp.NONE.edit(self.msg, view=self)
+            await self.picked_fac(3, inter)
+
+    def _first_faction_pick(self):
+        """Determine which player picks faction first.  Player with lower elo, or if elo is identical Owner."""
+        if self.__player1_stats.elo >= self.__player2_stats.elo:
+            return self.player1
+        elif self.__player1_stats.elo < self.__player2_stats.elo:
+            return self.player2
+        else:
+            raise tools.UnexpectedError("No first pick chosen!")
+
+    # Round Scores Section
 
     def _check_scores_submitted(self):
         if self.__p1_submitted_score and self.__p2_submitted_score:
@@ -662,22 +762,30 @@ class RankedMatch(BaseMatch):
 
     def _check_round_winner(self):
         if self.__p1_submitted_score == -self.__p2_submitted_score == 1:
-            self.__round_winner = self.__player1
+            self.__round_winner = self.player1
             return self.__round_winner
         elif self.__p1_submitted_score == -self.__p2_submitted_score == -1:
-            self.__round_winner = self.__player2
+            self.__round_winner = self.player2
             return self.__round_winner
         else:
             raise tools.UnexpectedError("Error determining round winner!")
 
     def submit_score(self, player, score):
         """submits scores, returns player"""
-        if player == self.__player1:
+        if player == self.player1:
             self.__p1_submitted_score = score
-        if player == self.__player2:
+        if player == self.player2:
             self.__p2_submitted_score = score
 
+    #  Round Progress Loop
+
     async def _progress_round(self):
+
+        # Determine Valid Round.  Check scores submitted, check scores match
+
+        # Determine next steps: end match, next round, switch sides?
+
+        # Set up next round: reset vars, change sides etc.
 
         self._check_round_winner()
         self.__round_counter += 1
@@ -688,5 +796,4 @@ class RankedMatch(BaseMatch):
         #  Reset score variables
         self.__round_wrong_scores_counter = 0
         self.__round_winner = None
-        self.__p1_submitted_score = None
-        self.__p2_submitted_score = None
+        self.__p1_submitted_score, self.__p2_submitted_score = None, None
