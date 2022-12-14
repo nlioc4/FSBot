@@ -48,6 +48,7 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog"):
 
     @dashboard_loop.before_loop
     async def before_lobby_loop(self):
+        await self.bot.wait_until_ready()
         if Lobby.all_lobbies.get("casual"):
             return
         casual_lobby = await Lobby.create_lobby("casual", d_obj.channels['dashboard'])
@@ -79,7 +80,7 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog"):
         # lobby is the owners lobby -> current channel lobby -> invited players lobby, in that order
         lobby = owner.lobby or Lobby.channel_to_lobby(ctx.channel) or invited.lobby
 
-        # returnif no lobby found in any case above
+        # return if no lobby found in any case above
         if not lobby:
             await disp.LOBBY_CANT_INVITE.send_priv(ctx)
             return

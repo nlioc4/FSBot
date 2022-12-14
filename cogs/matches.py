@@ -24,10 +24,9 @@ log = getLogger('fs_bot')
 class MatchesCog(commands.Cog, name="MatchesCog",
                  command_attrs=dict(guild_ids=cfg.general['guild_id'], default_permission=True)):
 
-    def __init__(self, bot):
+    def __init__(self, bot: discord.Bot):
         self.bot = bot
         self.matches_init.start()
-        # self.matches_loop.start()
 
     @tasks.loop(count=1)
     async def matches_init(self):
@@ -42,6 +41,10 @@ class MatchesCog(commands.Cog, name="MatchesCog",
             if channel.name.startswith('Casual'):
                 channels_to_delete.append(channel.delete())
         await asyncio.gather(*channels_to_delete)
+
+    @matches_init.before_loop
+    async def before_matches_init(self):
+        await self.bot.wait_until_ready()
 
     @commands.Cog.listener('on_message')
     async def matches_message_listener(self, message: discord.Message):

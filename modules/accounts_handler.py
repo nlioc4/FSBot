@@ -334,6 +334,9 @@ async def clean_account(acc):
         # Update DB Usage, only if account was actually used
         await db.async_db_call(db.add_element, 'account_usages', acc.last_usage)
 
+    if acc.is_clean:  # Check if account is already clean
+        return
+
     # Adjust player & account objects, return to available directory.
     acc.a_player.set_account(None)
     acc.clean()

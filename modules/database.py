@@ -71,7 +71,6 @@ async def async_db_call(call: Callable, *args, **kwargs):
     return await loop.run_in_executor(None, lambda: call(*args, **kwargs))
 
 
-
 def force_update(collection: str, elements):
     """
     This is typically called from external scripts for db maintenance.

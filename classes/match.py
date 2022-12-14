@@ -158,6 +158,7 @@ class BaseMatch:
         self.timeout_warned = False
         self.was_timeout = False
         self.status = MatchState.LOGGING_IN
+        self.last_status = MatchState.LOGGING_IN
         self.__public_voice = False
         self.__ended = False
         self.__update_lock = asyncio.Lock()
@@ -201,7 +202,7 @@ class BaseMatch:
         await asyncio.gather(*end_coros)
 
     @classmethod
-    async def create(cls, owner: Player, invited: Player):
+    async def create(cls, owner: Player, invited: Player, base_class=None):
         # init _match_id_counter if first match created
         global _match_id_counter
         if not _match_id_counter:
@@ -210,13 +211,14 @@ class BaseMatch:
                 _match_id_counter = last_match['_id']
 
         # Create Match Object, init channels + first update
-        obj = cls(owner, invited)
+        base_class = base_class or cls
+        obj = base_class(owner, invited)
         obj.log(f'{owner.name} created the match with {invited.name}')
 
         await obj._make_channels()
 
         await obj.update()
-        asyncio.create_task(obj._check_accounts_delay())
+        asyncio.create_task(obj._check_accounts_delay(*obj.players))
 
         return obj
 
@@ -299,6 +301,7 @@ class BaseMatch:
         await self._channel_update(player, True)
         await disp.MATCH_JOIN.send(self.text_channel, player.mention)
         self.log(f'{player.name} joined the match')
+        asyncio.create_task(self._check_accounts_delay(player))
         await self.update()
         return True
 
@@ -413,10 +416,10 @@ class BaseMatch:
         self.info_message = await disp.MATCH_INFO.send(self.text_channel, embed=self.embed_cache, view=self.view())
         await self.info_message.pin()
 
-    async def _check_accounts_delay(self):
+    async def _check_accounts_delay(self, *players_to_check):
         await asyncio.sleep(300)  # run check after 5 minutes
         no_acc = []
-        for p in self.__players:
+        for p in players_to_check:
             if not p.has_own_account and not p.account:
                 no_acc.append(p)
         if no_acc:
@@ -482,7 +485,7 @@ class BaseMatch:
                     self.text_channel, self.all_mentions,
                     tools.format_time_from_stamp(self.timeout_at, 'R'))
 
-    async def update(self):
+    async def update(self, status_update=False):
         """Update the match object:  updates timeout, match status, and the embed if required"""
         # ensure exclusive access to update
         try:
@@ -493,8 +496,9 @@ class BaseMatch:
                 # Check if the match should be warned / timed out
                 await self.update_timeout()
 
-                # Updated Match Status
-                self.update_status()
+                # Updated Match Status.  May be disabled for use in subclasses
+                if status_update:
+                    self.update_status()
 
                 # Reflect match embed with updated match attributes, also updates match view
                 await self.update_embed()
@@ -666,8 +670,8 @@ class RankedMatch(BaseMatch):
         self.__view_class = self.RankedMatchView
 
     @classmethod
-    async def create(cls, owner: Player, invited: Player):
-        obj = await super().create(owner, invited)
+    async def create(cls, owner: Player, invited: Player, base_class=None):
+        obj = await super().create(owner, invited, base_class=cls)  # BaseMatch create
 
         # Retrieve Stats PlayerStats
         obj.__player1_stats = await PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
@@ -675,6 +679,11 @@ class RankedMatch(BaseMatch):
 
         # Set Initial Status
         obj.status = MatchState.PICKING_FACTIONS
+
+        # Start Faction Picker
+        await disp.RMATCH_FACTION_PICK.send(obj.text_channel, obj.first_pick.mention)
+
+        return obj
 
     def get_player(self, inter: discord.Interaction):
         """Utility method to get the Player object from a Discord Interaction for a match.
@@ -697,10 +706,12 @@ class RankedMatch(BaseMatch):
         async def picked_fac(self, faction_id, inter):
             """Executes all logic for faction pick buttons, as well as handling response."""
             if not (p := self.match.get_player(inter)):
-                return disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
+                await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
+                return False
 
             if not p == self.match.first_pick:
-                return disp.RMATCH_FACTION_NOT_PICK.send_priv(inter)
+                await disp.RMATCH_FACTION_NOT_PICK.send_priv(inter)
+                return False
 
             # Set the unpicked faction, build vars
             faction_str = cfg.factions[faction_id]
@@ -708,16 +719,14 @@ class RankedMatch(BaseMatch):
             other_faction_str = cfg.factions[other_faction_id]
 
             # Set Player Factions in Player Objects
-            p.chosen_faction = 2  # Set Chosen faction var, 2 == NC
             if p == self.match.player1:
                 other_p = self.match.player2
-                self.match.player2.chosen_faction = 3
             else:
                 other_p = self.match.player1
-                self.match.player1.chosen_faction = 3
+            p.chosen_faction = faction_id  # Set Chosen faction var for each player
+            other_p.chosen_faction = other_faction_id
 
-
-            self.match.log(f"{p.name} picked {faction_str}, {other_p} has been assigned {other_faction_str}!")
+            self.match.log(f"{p.name} picked {faction_str}, {other_p.name} has been assigned {other_faction_str}!")
             return await disp.RMATCH_FACTION_PICKED.send(inter,
                                                          p.mention,
                                                          faction_str + cfg.emojis[faction_str],
@@ -726,17 +735,17 @@ class RankedMatch(BaseMatch):
 
         @discord.ui.button(label="NC", style=discord.ButtonStyle.blurple, emoji=cfg.emojis['NC'])
         async def nc_pick_button(self, button: discord.Button, inter: discord.Interaction):
-            self.tr_pick_button.style = discord.ButtonStyle.grey
-            self.disable_all_items()
-            await disp.NONE.edit(self.msg, view=self)
-            await self.picked_fac(2, inter)
+            if await self.picked_fac(2, inter):  # Only disable button if successful faction pick
+                self.tr_pick_button.style = discord.ButtonStyle.grey
+                self.disable_all_items()
+                await disp.NONE.edit(self.msg, view=self)
 
         @discord.ui.button(label="TR", style=discord.ButtonStyle.red, emoji=cfg.emojis['TR'])
         async def tr_pick_button(self, button: discord.Button, inter: discord.Interaction):
-            self.nc_pick_button.style = discord.ButtonStyle.grey
-            self.disable_all_items()
-            await disp.NONE.edit(self.msg, view=self)
-            await self.picked_fac(3, inter)
+            if await self.picked_fac(3, inter):  # Only disable button if successful faction pick
+                self.nc_pick_button.style = discord.ButtonStyle.grey
+                self.disable_all_items()
+                await disp.NONE.edit(self.msg, view=self)
 
     def _first_faction_pick(self):
         """Determine which player picks faction first.  Player with lower elo, or if elo is identical Owner."""
@@ -746,6 +755,10 @@ class RankedMatch(BaseMatch):
             return self.player2
         else:
             raise tools.UnexpectedError("No first pick chosen!")
+
+    def _factions_picked(self):
+        """Check whether factions have been picked for the match"""
+        return self.player1.chosen_faction and self.player2.chosen_faction
 
     # Round Scores Section
 
@@ -779,6 +792,35 @@ class RankedMatch(BaseMatch):
 
     #  Round Progress Loop
 
+    async def update(self, status_update=False):
+        """Custom overwrite of original BaseMatch.update method, for additional functionality in RankedMatch.
+        Must handle checking round status, match status, pick status etc.  Must always call original update method
+        for update scheduling, and to ensure embed is updated"""
+
+        self.update_status()  # Update status first, to check which loops should be run
+        # logic goes here
+
+        # run on status change
+        if self.status != self.last_status:
+            match self.status:
+                case MatchState.LOGGING_IN:
+                    pass
+
+        await super().update()
+
+    def update_status(self):
+        """Overwrite of BaseMatch.update_status(), used for custom match_status in RankedMatch"""
+        self.last_status = self.status
+
+        if not self._factions_picked():
+            self.status = MatchState.PICKING_FACTIONS
+            return
+
+        if len(self.online_players) < 2 and self.status != MatchState.SWITCHING_SIDES:
+            self.status = MatchState.LOGGING_IN
+            return
+
+
     async def _progress_round(self):
 
         # Determine Valid Round.  Check scores submitted, check scores match
@@ -790,7 +832,7 @@ class RankedMatch(BaseMatch):
         self._check_round_winner()
         self.__round_counter += 1
         if self.__round_counter >= self.MATCH_LENGTH:
-            await self.end_match()  ## todo, subclass end_match or add more functionality to successful match end
+            await self.end_match()  # todo, subclass end_match or add more functionality to successful match end
             return
 
         #  Reset score variables

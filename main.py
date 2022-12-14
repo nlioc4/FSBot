@@ -111,7 +111,7 @@ async def on_ready():
     modules.signal.init(bot)
     d_obj.init(bot)
     await modules.accounts_handler.init(cfg.GAPI_SERVICE, cfg.TEST)
-    await loader.unlock_all(bot)
+    loader.unlock_all()
 
 
 #  Global Bot Interaction Check
@@ -127,6 +127,7 @@ async def global_interaction_check(ctx):
     if await spam.is_spam(ctx):
         return False
 
+    # Only allow timed out users to use /freeme command
     if await d_obj.is_timeout_check(ctx) and not ctx.command.full_parent_name == "freeme":
         return False
 
@@ -192,4 +193,5 @@ log.info("Loaded Players from Database: %s", len(classes.Player.get_all_players(
 
 
 loader.init(bot)
+loader.load_secondary(bot)
 bot.run(cfg.general['token'])

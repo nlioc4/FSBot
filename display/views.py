@@ -58,7 +58,7 @@ class FSBotView(discord.ui.View):
         try:
             await disp.NONE.edit(self.msg, view=self)
         except (discord.errors.NotFound, discord.errors.HTTPException, tools.UnexpectedError):
-            log.warning(f'View {repr(self)} timed out with no self.msg')
+            log.debug(f'View {repr(self)} timed out with no self.msg')
 
     async def _scheduled_task(self, item: discord.ui.Item, interaction: discord.Interaction):
         """Subclassed scheduled task to unlock users from spam filter after callbacks finish"""

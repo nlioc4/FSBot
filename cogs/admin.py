@@ -36,23 +36,17 @@ class AdminCog(commands.Cog):
         guild_ids=[cfg.general['guild_id']]
     )
 
-    # TODO Fix, currently doesn't unload/reload lobbies correctly
     @admin.command()
     async def loader(self, ctx: discord.ApplicationContext,
-                     action: discord.Option(str, "Lock or Unlock FSBot", choices=("Unlock", "Lock", "Reload"),
+                     action: discord.Option(str, "Lock or Unlock FSBot", choices=("Unlock", "Lock"),
                                             required=True)):
-        """Unlock, Lock or Reload all bot extensions other than the Admin cog."""
+        """Unlock or Lock bot.  Only admins will be able to use any features."""
         match action:
             case "Unlock":
-                await loader.unlock_all(self.bot)
+                loader.unlock_all()
                 await disp.LOADER_TOGGLE.send_priv(ctx, action)
             case "Lock":
-                loader.lock_all(self.bot)
-                await disp.LOADER_TOGGLE.send_priv(ctx, action)
-            case "Reload":
-                loader.lock_all(self.bot)
-                await asyncio.sleep(1)
-                await loader.unlock_all(self.bot)
+                loader.lock_all()
                 await disp.LOADER_TOGGLE.send_priv(ctx, action)
 
     @admin.command()
@@ -76,7 +70,7 @@ class AdminCog(commands.Cog):
         ran = await self.census_rest()
         await disp.MANUAL_CENSUS.send_priv(ctx, "successful." if ran else "failed.")
 
-    @admin.command(name="rulesinit", )
+    @admin.command(name="rulesinit")
     async def rulesinit(self, ctx: discord.ApplicationContext,
                         message_id: discord.Option(str, "Existing FSBot Rules message", required=False)):
         """Posts Rules Message in current channel or replaces message at given ID"""

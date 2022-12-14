@@ -23,6 +23,7 @@ class Account:
         self.logout_reminders = 0
         self.__validated = False
         self.__terminated = False
+        self.__cleaned = True
 
     def update(self, username, password):
         self.__username = username
@@ -95,6 +96,10 @@ class Account:
     def is_terminated(self):
         return self.__terminated
 
+    @property
+    def is_clean(self):
+        return self.__cleaned
+
     def clean(self):
         self.a_player = None
         self.__last_usage = {"account_id": self.id}
@@ -104,8 +109,10 @@ class Account:
         if self.timeout_coro:
             self.timeout_coro.cancel()
             self.timeout_coro = None
+        self.__cleaned = True
 
     def add_usage(self, player):
+        self.__cleaned = False
         self.a_player = player
         self.__last_usage.update({"user_id": self.a_player.id,
                                   "match_id": self.a_player.match.id if self.a_player.match else 0,

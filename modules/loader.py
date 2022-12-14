@@ -4,9 +4,9 @@ from logging import getLogger
 import discord
 from discord import ExtensionAlreadyLoaded, ExtensionNotLoaded
 
-main_cogs = ["cogs.admin"]
+main_cogs = ['cogs.admin', 'cogs.general']
 standard_cogs = ['cogs.contentplug', 'cogs.duel_lobby', 'cogs.matches',
-                 'cogs.register', 'cogs.direct_messages', 'cogs.general']
+                 'cogs.register', 'cogs.direct_messages']
 __is_global_locked = True
 
 log = getLogger('fs_bot')
@@ -17,30 +17,41 @@ def init(client):
         client.load_extension(cog)
 
 
-def lock_all(client):
+def load_secondary(client):
     for cog in standard_cogs:
-        try:
-            client.unload_extension(cog)
-        except ExtensionNotLoaded:
-            pass
+        client.load_extension(cog)
+    log.info('Loaded Cogs: %s', list(client.cogs.keys()))
+
+def lock_all():
     global __is_global_locked
     __is_global_locked = True
 
 
-async def unlock_all(client: discord.Bot):
+def unlock_all():
+    global __is_global_locked
+    __is_global_locked = False
+
+
+async def load_all(client):
     for cog in standard_cogs:
         try:
             client.load_extension(cog)
         except ExtensionAlreadyLoaded as ex:
             log.error(f"Error Loading {cog} because {ex}")
-    global __is_global_locked
-    __is_global_locked = False
 
     log.info('Loaded Cogs: %s', list(client.cogs.keys()))
 
     await client.sync_commands(delete_existing=False)
 
     log.info('Synced %s Commands Successfully', len(client.application_commands))
+
+
+def unload_all(client):
+    for cog in standard_cogs:
+        try:
+            client.unload_extension(cog)
+        except ExtensionNotLoaded:
+            pass
 
 
 def is_all_locked():

@@ -21,6 +21,9 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
 
     def __init__(self, client):
         self.bot: discord.Bot = client
+
+    @commands.Cog.listener(name='on_ready')
+    async def on_ready(self):
         self.bot.add_view(views.RemoveTimeoutView())
         self.activity_update.start()
 

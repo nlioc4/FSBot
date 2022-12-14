@@ -235,10 +235,10 @@ def player_info(player) -> Embed:
 
     if player.lobby:
         embed.add_field(name="Player Lobby",
-                        value=f"Current Lobby: ``{player.lobby.channel.mention}``")
+                        value=f"Current Lobby: {player.lobby.channel.mention}")
     if player.match:
         embed.add_field(name="Player Match",
-                        value=f"Current Match: ``[{player.match.id_str}]({player.match.text_channel.mention})\n``")
+                        value=f"Current Match: [{player.match.id_str}]({player.match.text_channel.mention})\n")
 
     pref_fac_str = ''.join([cfg.emojis[fac] for fac in player.pref_factions]) if player.pref_factions else 'Any'
     pref_level_str = ' '.join(
