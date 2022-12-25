@@ -525,7 +525,7 @@ class ActivePlayer:
     def __init__(self, player: Player):
         self.__player = player
         self.online_id = player.online_id
-        self.chosen_faction = None
+        self.assigned_faction = None
         self.round_wins = 0
         self.round_losses = 0
         self.match_win = None

@@ -4,7 +4,7 @@ import discord
 import asyncio
 from logging import getLogger
 from enum import Enum
-from typing import Coroutine
+from typing import Coroutine, Union
 
 # Internal Imports
 import modules.discord_obj as d_obj
@@ -202,7 +202,7 @@ class BaseMatch:
         await asyncio.gather(*end_coros)
 
     @classmethod
-    async def create(cls, owner: Player, invited: Player, base_class=None):
+    async def create(cls, owner: Player, invited: Player, base_class=None) -> Union['BaseMatch', 'RankedMatch']:
         # init _match_id_counter if first match created
         global _match_id_counter
         if not _match_id_counter:
@@ -417,14 +417,14 @@ class BaseMatch:
         await self.info_message.pin()
 
     async def _check_accounts_delay(self, *players_to_check):
+        """Check for players that have no personal account, and are yet to send a request for a temp account"""
         await asyncio.sleep(300)  # run check after 5 minutes
         no_acc = []
         for p in players_to_check:
             if not p.has_own_account and not p.account:
                 no_acc.append(p)
         if no_acc:
-            await disp.MATCH_NO_ACCOUNT.send(self.text_channel,
-                                             ''.join([p.mention for p in no_acc]),
+            await disp.MATCH_NO_ACCOUNT.send(self.text_channel, ''.join([p.mention for p in no_acc]),
                                              d_obj.channels['register'].mention)
 
     async def update_embed(self):
@@ -626,6 +626,7 @@ class RankedMatch(BaseMatch):
             super().__init__(match)
             self.match = match
             ## TODO Set conditions for enabling/disabling round buttons etc.
+            ## TODO move won/lost buttons to their own view
 
         @discord.ui.button(label="Round Won", style=discord.ButtonStyle.green, row=1)
         async def round_won_button(self, button: discord.Button, inter: discord.Interaction):
@@ -667,11 +668,15 @@ class RankedMatch(BaseMatch):
         self.__p2_submitted_score = None
 
         # Display Objects
+        self.__round_view_class = None  # Replace with round_view
+        self.__round_view: discord.ui.View | None = None
+        self.__round_message: discord.Message | None = None
+
         self.__view_class = self.RankedMatchView
 
     @classmethod
-    async def create(cls, owner: Player, invited: Player, base_class=None):
-        obj = await super().create(owner, invited, base_class=cls)  # BaseMatch create
+    async def create(cls, owner: Player, invited: Player, base_class=None) -> 'RankedMatch':
+        obj = await super().create(owner, invited, base_class=cls)  # RankedMatch create
 
         # Retrieve Stats PlayerStats
         obj.__player1_stats = await PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
@@ -681,6 +686,7 @@ class RankedMatch(BaseMatch):
         obj.status = MatchState.PICKING_FACTIONS
 
         # Start Faction Picker
+        # Todo Start Ranked loop here instead, move faction picker to ranked loop
         await disp.RMATCH_FACTION_PICK.send(obj.text_channel, obj.first_pick.mention)
 
         return obj
@@ -724,7 +730,7 @@ class RankedMatch(BaseMatch):
             else:
                 other_p = self.match.player1
             p.chosen_faction = faction_id  # Set Chosen faction var for each player
-            other_p.chosen_faction = other_faction_id
+            other_p.assigned_faction = other_faction_id
 
             self.match.log(f"{p.name} picked {faction_str}, {other_p.name} has been assigned {other_faction_str}!")
             return await disp.RMATCH_FACTION_PICKED.send(inter,
@@ -758,7 +764,7 @@ class RankedMatch(BaseMatch):
 
     def _factions_picked(self):
         """Check whether factions have been picked for the match"""
-        return self.player1.chosen_faction and self.player2.chosen_faction
+        return self.player1.assigned_faction and self.player2.assigned_faction
 
     # Round Scores Section
 
@@ -773,7 +779,7 @@ class RankedMatch(BaseMatch):
             return True
         return False
 
-    def _check_round_winner(self):
+    def _decide_round_winner(self):
         if self.__p1_submitted_score == -self.__p2_submitted_score == 1:
             self.__round_winner = self.player1
             return self.__round_winner
@@ -784,7 +790,7 @@ class RankedMatch(BaseMatch):
             raise tools.UnexpectedError("Error determining round winner!")
 
     def submit_score(self, player, score):
-        """submits scores, returns player"""
+        """submits scores for given player"""
         if player == self.player1:
             self.__p1_submitted_score = score
         if player == self.player2:
@@ -829,7 +835,7 @@ class RankedMatch(BaseMatch):
 
         # Set up next round: reset vars, change sides etc.
 
-        self._check_round_winner()
+        self._decide_round_winner()
         self.__round_counter += 1
         if self.__round_counter >= self.MATCH_LENGTH:
             await self.end_match()  # todo, subclass end_match or add more functionality to successful match end
