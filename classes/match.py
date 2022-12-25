@@ -616,6 +616,25 @@ class BaseMatch:
 
 
 class RankedMatch(BaseMatch):
+    '''
+    picking factions -> logging in
+    (player1 faction, blayer2 faction)
+    logging in -> playing
+    (player1 logged in player2 logged in)
+    playing
+    (player1 logged in, player2 logged in, scores not submitted)
+        -> log in (log out by accident)
+        -> submitting (round ends)
+    submitting
+    (only one score submitted)
+        -> log in (need to switch sides)
+        -> match ends (winner declared)
+        -> playing
+        -> conflicting scores
+            -> appeal
+            -> submitting
+
+    '''
     MATCH_LENGTH = 7
     MAX_PLAYERS = 2
     TYPE = 'Ranked'
@@ -803,8 +822,11 @@ class RankedMatch(BaseMatch):
         Must handle checking round status, match status, pick status etc.  Must always call original update method
         for update scheduling, and to ensure embed is updated"""
 
-        self.update_status()  # Update status first, to check which loops should be run
+        # self.update_status()  # Update status first, to check which loops should be run
         # logic goes here
+        status_update
+        match self.status:
+            case
 
         # run on status change
         if self.status != self.last_status:
