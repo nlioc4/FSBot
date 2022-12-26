@@ -525,7 +525,7 @@ class ActivePlayer:
     def __init__(self, player: Player):
         self.__player = player
         self.online_id = player.online_id
-        self.assigned_faction = None
+        self.assigned_faction_id = None
         self.round_wins = 0
         self.round_losses = 0
         self.match_win = None
@@ -587,6 +587,26 @@ class ActivePlayer:
     @property
     def current_faction(self):
         return self.player.current_faction
+
+    @property
+    def on_assigned_faction(self):
+        return self.current_faction == self.assigned_faction_abv
+
+    @property
+    def assigned_faction_abv(self):
+        return cfg.factions[self.assigned_faction_id]
+
+    @property
+    def assigned_faction_char(self):
+        return self.ig_names[self.assigned_faction_id - 1]
+
+    @property
+    def assigned_faction_display(self):
+        """Returns string of Player Name / Faction String / Faction Emoji / Assigned Faction string"""
+        if not self.assigned_faction_id:
+            return f"{self.name} has o Faction Assigned!"
+        return f"{self.name}({self.assigned_faction_abv}" \
+               f"{cfg.emojis[self.assigned_faction_abv]}{self.assigned_faction_char})"
 
     def on_quit(self):
         return self.player.on_quit()

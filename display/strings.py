@@ -30,6 +30,7 @@ class AllStrings(Enum):
     GUILD_ONLY = "This can only be used in the Flight School Discord!"
 
     CHECK_FAILURE = "You have failed a check to run this command!"
+    INVALID_INTERACTION = "This interaction shouldn't have been allowed!"
     UNASSIGNED_ONLINE = "{} Unassigned Login", account_online_check
     LOADER_TOGGLE = "FSBot {}ed"
     HELLO = "Hello there {}"
@@ -126,10 +127,19 @@ class AllStrings(Enum):
                        "  If you have your own account please register it in {}," \
                        " otherwise request an account using the button above!"
 
-    RMATCH_FACTION_PICK = "{} pick which faction you will play first below!"
-    RMATCH_FACTION_PICKED = "{} chose to play {} first.\n {} has been assigned {}!"
-    RMATCH_FACTION_SWITCH = ""
-    RMATCH_FACTION_NOT_PICK = "It's not your turn to pick faction!"
+    RM_FACTION_PICK = "{} pick which faction you will play first below!"
+    RM_FACTION_PICKED = "{} chose to play {} first.\n {} has been assigned {}!"
+    RM_FACTION_SWITCH = ""
+    RM_FACTION_NOT_PICK = "It's not your turn to pick faction!"
+    RM_SCORES_EQUAL = "Submitted scores are equal!"
+    RM_SCORES_WRONG = "Submitted scores don't match, both players should submit again!"
+    RM_SCORES_WRONG_2 = "Couldn't resolve scores, ending match and reporting..."
+    RM_ROUND_MESSAGE = "Round: {}\n" \
+                       "Player 1: {}\n" \
+                       "Player 2: {}\n"
+
+    RM_SCORE_SUBMITTED = "Score Submitted: {}"
+    RM_ROUND_WINNER = "{} won round {}!"
 
     INVITE_ACCEPT = "You have accepted the invite from {}, join {}."
     INVITE_DECLINE = "You have declined the invite from {}."
@@ -137,9 +147,6 @@ class AllStrings(Enum):
     INVITE_DECLINE_INFO = "{} has declined your match invitation."
     INVITE_DECLINE_INFO_REASON = "{} has declined your match invitation with reason:\n{}"
 
-    RM_SCORES_EQUAL = "Submitted scores are equal!"
-    RM_SCORES_WRONG = "Submitted scores don't match, both players should submit again!"
-    RM_SCORES_WRONG_2 = "Couldn't resolve scores, ending match and reporting..."
 
     REGISTER_NEW_PLAYER = "Welcome {}, you have accepted the rules." \
                           "  Set up your preferences in {} before dueling in {}!"

@@ -1,11 +1,14 @@
 """Holds main match classes"""
+from dataclasses import dataclass
+
 # External Imports
 import discord
 import asyncio
 from logging import getLogger
 from enum import Enum
-from typing import Coroutine, Union
+from typing import Coroutine, Union, NamedTuple
 
+import display.views
 # Internal Imports
 import modules.discord_obj as d_obj
 import modules.config as cfg
@@ -23,6 +26,11 @@ MATCH_WARN_TIME = 600
 _match_id_counter = 0
 
 
+class Round(NamedTuple):
+    p1_faction: str
+    p2_faction: str
+    winner: int
+
 class MatchState(Enum):
     INVITING = "Waiting for players to join the match..."
     PICKING_FACTIONS = "Waiting for players to pick factions..."
@@ -32,6 +40,12 @@ class MatchState(Enum):
     SWITCHING_SIDES = "Waiting for players to switch factions..."
     SUBMITTING = "Submitting scores..."
     ENDED = "Match ended..."
+
+
+class EndCondition(Enum):
+    COMPLETED = "The match was completed successfully..."
+    APPEALED = "The match outcome was appealed by one of the participants..."
+    TOO_MANY_CONFLICTS = "The players tried to submit too many conflicting result..."
 
 
 class BaseMatch:
@@ -157,10 +171,9 @@ class BaseMatch:
         self.timeout_stamp = None
         self.timeout_warned = False
         self.was_timeout = False
+        self.was_conflict = False
         self.status = MatchState.LOGGING_IN
-        self.last_status = MatchState.LOGGING_IN
         self.__public_voice = False
-        self.__ended = False
         self.__update_lock = asyncio.Lock()
         self.__next_update_task: asyncio.Task | None = None  # store asyncio.Handle for next update call
         self.__next_update: Coroutine = None
@@ -346,15 +359,13 @@ class BaseMatch:
         await self.update()
         return player
 
-    async def end_match(self):
+    async def end_match(self, end_result: EndCondition, details=None):
         if self.is_ended:
             return
         async with self.__update_lock:
-
             # Update vars, cancel next scheduled update
             self.end_stamp = tools.timestamp_now()
             self.status = MatchState.ENDED
-            self.__ended = True
             self.log('Match Ended')
             self._cancel_update()
 
@@ -574,7 +585,7 @@ class BaseMatch:
 
     @property
     def is_ended(self):
-        return self.__ended
+        return self.status == Ma
 
     @property
     def online_players(self):
@@ -616,7 +627,7 @@ class BaseMatch:
 
 
 class RankedMatch(BaseMatch):
-    '''
+    """
     picking factions -> logging in
     (player1 faction, blayer2 faction)
     logging in -> playing
@@ -633,10 +644,10 @@ class RankedMatch(BaseMatch):
         -> conflicting scores
             -> appeal
             -> submitting
-
-    '''
-    MATCH_LENGTH = 7
+    """
+    MATCH_LENGTH = 8
     MAX_PLAYERS = 2
+    WRONG_SCORE_LIMIT = 3
     TYPE = 'Ranked'
 
     class RankedMatchView(BaseMatch.MatchInfoView):
@@ -644,30 +655,42 @@ class RankedMatch(BaseMatch):
         def __init__(self, match: 'RankedMatch'):
             super().__init__(match)
             self.match = match
-            ## TODO Set conditions for enabling/disabling round buttons etc.
-            ## TODO move won/lost buttons to their own view
 
-        @discord.ui.button(label="Round Won", style=discord.ButtonStyle.green, row=1)
+    class RankedRoundView(display.views.FSBotView):
+
+        def __init__(self, match: 'RankedMatch'):
+            super().__init__(timeout=None)
+            self.match = match
+
+        @discord.ui.button(label="Round Won", style=discord.ButtonStyle.green)
         async def round_won_button(self, button: discord.Button, inter: discord.Interaction):
+            await self.match.update()
+            if self.match.status != MatchState.PLAYING:
+                return await disp.INVALID_INTERACTION.send_priv(inter)
+
             p = Player.get(inter.user.id)
             self.match.submit_score(p, 1)
 
-            if self.match._check_scores_submitted:
-                if self.match._check_scores_equal():
-                    button.disabled = True
+            await disp.RM_SCORE_SUBMITTED.send_priv(inter, "Round Won")
 
-            pass
-
-        @discord.ui.button(label="Round Lost", style=discord.ButtonStyle.green, row=1)
+        @discord.ui.button(label="Round Lost", style=discord.ButtonStyle.green)
         async def round_lost_button(self, button: discord.Button, inter: discord.Interaction):
+            await self.match.update()
+            if self.match.status != MatchState.PLAYING:
+                return await disp.INVALID_INTERACTION.send_priv(inter)
+
             p = Player.get(inter.user.id)
             self.match.submit_score(p, -1)
 
-            if self.match._check_scores_submitted:
-                if self.match._check_scores_equal():
-                    button.disabled = True
+            await disp.RM_SCORE_SUBMITTED.send_priv(inter, "Round Lost")
 
-            pass
+        @discord.ui.button(label="Appeal", style=discord.ButtonStyle.green, row=1)
+        async def appeal_button(self, button: discord.Button, inter: discord.Interaction):
+            await self.match.update()
+            if self.match.status != MatchState.SUBMITTING:
+                return await disp.INVALID_INTERACTION.send_priv(inter)
+            p = Player.get(inter.user.id)
+            await self.match.end_match(conflict=True)
 
     def __init__(self, owner: Player, invited: Player):
         super().__init__(owner, invited)
@@ -679,8 +702,11 @@ class RankedMatch(BaseMatch):
         self.__player2_stats: PlayerStats | None = None
         self.first_pick = self._first_faction_pick()
 
+        # Match Variables
+        self.__round_history = []
+        self.__match_winner = None
+
         # Round Variables
-        self.__round_counter = 0
         self.__round_wrong_scores_counter = 0
         self.__round_winner = None
         self.__p1_submitted_score = None
@@ -706,7 +732,7 @@ class RankedMatch(BaseMatch):
 
         # Start Faction Picker
         # Todo Start Ranked loop here instead, move faction picker to ranked loop
-        await disp.RMATCH_FACTION_PICK.send(obj.text_channel, obj.first_pick.mention)
+        await disp.RM_FACTION_PICK.send(obj.text_channel, obj.first_pick.mention)
 
         return obj
 
@@ -735,7 +761,7 @@ class RankedMatch(BaseMatch):
                 return False
 
             if not p == self.match.first_pick:
-                await disp.RMATCH_FACTION_NOT_PICK.send_priv(inter)
+                await disp.RM_FACTION_NOT_PICK.send_priv(inter)
                 return False
 
             # Set the unpicked faction, build vars
@@ -748,15 +774,15 @@ class RankedMatch(BaseMatch):
                 other_p = self.match.player2
             else:
                 other_p = self.match.player1
-            p.chosen_faction = faction_id  # Set Chosen faction var for each player
-            other_p.assigned_faction = other_faction_id
+            p.assigned_faction = faction_id  # Set Chosen faction var for each player
+            other_p.assigned_faction_id = other_faction_id
 
             self.match.log(f"{p.name} picked {faction_str}, {other_p.name} has been assigned {other_faction_str}!")
-            return await disp.RMATCH_FACTION_PICKED.send(inter,
-                                                         p.mention,
-                                                         faction_str + cfg.emojis[faction_str],
-                                                         other_p.mention,
-                                                         other_faction_str + cfg.emojis[other_faction_str])
+            return await disp.RM_FACTION_PICKED.send(inter,
+                                                     p.mention,
+                                                     faction_str + cfg.emojis[faction_str],
+                                                     other_p.mention,
+                                                     other_faction_str + cfg.emojis[other_faction_str])
 
         @discord.ui.button(label="NC", style=discord.ButtonStyle.blurple, emoji=cfg.emojis['NC'])
         async def nc_pick_button(self, button: discord.Button, inter: discord.Interaction):
@@ -783,20 +809,45 @@ class RankedMatch(BaseMatch):
 
     def _factions_picked(self):
         """Check whether factions have been picked for the match"""
-        return self.player1.assigned_faction and self.player2.assigned_faction
+        return self.player1.assigned_faction_id and self.player2.assigned_faction_id
 
     # Round Scores Section
 
-    def _check_scores_submitted(self):
-        if self.__p1_submitted_score and self.__p2_submitted_score:
+    @property
+    def _ready_to_play(self):
+        # Checks both players online on correct factions
+        return self.player1.current_faction == self.player1.assigned_faction_abv \
+            and self.player2.current_faction == self.player2.assigned_faction_abv
+
+    @property
+    def _both_online(self):
+        return self.player1.online_id and self.player1.online_id
+
+    @property
+    def _one_online(self):
+        if self._both_online:
+            return False
+        if self.player1.online_id or self.player2.online_id:
             return True
+        return False
+
+    def _check_one_score_submitted(self):
+        if self._check_one_score_submitted(): return False
+        return self.__p1_submitted_score or self.__p2_submitted_score
+
+    def _check_scores_submitted(self):
+        return self.__p1_submitted_score and self.__p2_submitted_score
 
     def _check_scores_equal(self):
         if not self._check_scores_submitted():
-            raise tools.UnexpectedError("Both scores haven't been submitted yet!")
+            return False
         if self.__p1_submitted_score == -self.__p2_submitted_score:
             return True
         return False
+
+    @property
+    def round_counter(self):
+        return len(self.__round_history)
 
     def _decide_round_winner(self):
         if self.__p1_submitted_score == -self.__p2_submitted_score == 1:
@@ -815,26 +866,75 @@ class RankedMatch(BaseMatch):
         if player == self.player2:
             self.__p2_submitted_score = score
 
-    #  Round Progress Loop
-
     async def update(self, status_update=False):
         """Custom overwrite of original BaseMatch.update method, for additional functionality in RankedMatch.
         Must handle checking round status, match status, pick status etc.  Must always call original update method
         for update scheduling, and to ensure embed is updated"""
 
-        # self.update_status()  # Update status first, to check which loops should be run
-        # logic goes here
-        status_update
-        match self.status:
-            case
+        # ensure exclusive access to update
+        try:
+            async with self.__update_lock:
+                if self.is_ended:  # Quit update if match is ended
+                    return
 
-        # run on status change
-        if self.status != self.last_status:
-            match self.status:
-                case MatchState.LOGGING_IN:
-                    pass
+                # Check if the match should be warned / timed out
+                await self.update_timeout()
 
-        await super().update()
+                # Update Status and run transition specific logic
+                match self.status:
+                    case MatchState.LOGGING_IN if self._ready_to_play:
+                        # Initial Status Update, both players logged in
+                        self.status = MatchState.PLAYING
+                        await self._start_match()
+
+                    case MatchState.PLAYING if self._check_one_score_submitted():
+                        # Transition to submitting once at least one player has submitted score
+                        self.status = MatchState.SUBMITTING
+
+                    case MatchState.SUBMITTING:
+                        if self.__round_winner:
+                            self.status = MatchState.PLAYING
+                            await self._start_match()
+                        elif self._check_scores_equal():
+                            # if both scores submitted and equal
+                            if self.round_counter == (self.MATCH_LENGTH // 2):
+                                # if half-time
+                                self.status = MatchState.SWITCHING_SIDES
+                                self.player1.assigned_faction_id, self.player2.assigned_faction_id = \
+                                    self.player2.assigned_faction_id, self.player1.assigned_faction_id
+                                # Round progression here
+                            elif self.round_counter == self.MATCH_LENGTH:
+                                # if round has reached match length and should end
+                                await self._end_round()
+                                self.status = MatchState.ENDED
+                                # Match ending here
+                            elif self.round_counter < self.MATCH_LENGTH:
+
+                                # all other normal round progression
+                                await self._end_round()
+                                self.status = MatchState.PLAYING
+                                await self._start_match()
+                        elif self._check_scores_submitted():
+                            ## this case is handled in the view ()
+                            log.warning("if scores are submitted but don't match, this code should never run")
+                            pass
+
+                        elif self.__round_wrong_scores_counter >= self.WRONG_SCORE_LIMIT:
+                            # If too many wrong scores submitted
+                            self.log("Match was ended due to excessive score conflicts!")
+                            return await self.end_match(end_result=EndCondition.TOO_MANY_CONFLICTS)
+
+                    case MatchState.SWITCHING_SIDES if self._ready_to_play:
+                        self.status = MatchState.PLAYING
+                        await self._start_match()
+
+                # Reflect match embed with updated match attributes, also updates match view
+                await self.update_embed()
+        except asyncio.CancelledError:
+            pass
+        else:
+            # schedule next update
+            d_obj.bot.loop.call_later(0.1, self._schedule_update_task)
 
     def update_status(self):
         """Overwrite of BaseMatch.update_status(), used for custom match_status in RankedMatch"""
@@ -848,22 +948,34 @@ class RankedMatch(BaseMatch):
             self.status = MatchState.LOGGING_IN
             return
 
-
-    async def _progress_round(self):
-
-        # Determine Valid Round.  Check scores submitted, check scores match
-
-        # Determine next steps: end match, next round, switch sides?
-
-        # Set up next round: reset vars, change sides etc.
-
-        self._decide_round_winner()
-        self.__round_counter += 1
-        if self.__round_counter >= self.MATCH_LENGTH:
-            await self.end_match()  # todo, subclass end_match or add more functionality to successful match end
-            return
-
+    async def _start_round(self):
         #  Reset score variables
         self.__round_wrong_scores_counter = 0
         self.__round_winner = None
         self.__p1_submitted_score, self.__p2_submitted_score = None, None
+
+    async def _end_round(self):
+        self._decide_round_winner()
+
+        # Delete old round message
+        try:
+            await self.__round_message.delete()
+        except discord.NotFound:
+            pass
+
+        # Publish Round winner
+        await disp.RM_ROUND_WINNER.send(self.text_channel, self.__round_winner.mention, self.round_counter)
+        self.log(disp.RM_ROUND_WINNER(self.__round_winner.name, self.round_counter))
+
+        # Add round to round list
+        self.__round_history.append(self.__round_winner)
+
+    async def _start_match(self):
+
+        self.log(f"Round 1 Started: {self.player1.assigned_faction_display} vs {self.player2.assigned_faction_abv}")
+
+        # Send new round message
+        self.__round_message = await disp.RM_ROUND_MESSAGE.send(self.text_channel, self.round_counter,
+                                                                self.player1.assigned_faction_display,
+                                                                self.player2.assigned_faction_display,
+                                                                view=self.__round_view)
