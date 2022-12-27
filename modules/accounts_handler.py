@@ -187,7 +187,7 @@ class ValidateView(views.FSBotView):
 
     @discord.ui.button(label="Confirm Rules", style=discord.ButtonStyle.green)
     async def validate_button(self, button: discord.Button, inter: discord.Interaction):
-        await inter.response.defer()
+        # inter.response.defer() used to be here, moved to try to minimize random deferral errors?
         p = classes.Player.get(inter.user.id)
         try:
             await disp.ACCOUNT_EMBED_FETCH.edit(inter, acc=self.acc, view=self)
