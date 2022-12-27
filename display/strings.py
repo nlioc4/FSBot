@@ -140,6 +140,7 @@ class AllStrings(Enum):
 
     RM_SCORE_SUBMITTED = "Score Submitted: {}"
     RM_ROUND_WINNER = "{} won round {}!"
+    RM_MATCH_APPEALED = "You have submitted an appeal for Match {}, it will be reviewed as soon as possible!"
 
     INVITE_ACCEPT = "You have accepted the invite from {}, join {}."
     INVITE_DECLINE = "You have declined the invite from {}."

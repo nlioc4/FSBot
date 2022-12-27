@@ -602,7 +602,7 @@ class ActivePlayer:
 
     @property
     def assigned_faction_display(self):
-        """Returns string of Player Name / Faction String / Faction Emoji / Assigned Faction string"""
+        """Returns string of Player Name / Faction String / Faction Emoji / Assigned Character string"""
         if not self.assigned_faction_id:
             return f"{self.name} has o Faction Assigned!"
         return f"{self.name}({self.assigned_faction_abv}" \
