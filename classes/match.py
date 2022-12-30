@@ -33,12 +33,12 @@ class Round(NamedTuple):
 
 class MatchState(Enum):
     INVITING = "Waiting for players to join the match..."
-    PICKING_FACTIONS = "Waiting for players to pick factions..."
+    PICKING_FACTIONS = "Waiting for factions to be determined..."
     LOGGING_IN = "Waiting for players to log in..."
     GETTING_READY = "Waiting for players to be ready..."
     PLAYING = "Currently playing..."
     SWITCHING_SIDES = "Waiting for players to switch factions..."
-    SUBMITTING = "Submitting scores..."
+    SUBMITTING = "Waiting for players to submit scores..."
     ENDED = "Match ended..."
 
 
@@ -48,6 +48,7 @@ class EndCondition(Enum):
     TOO_MANY_CONFLICTS = "The players tried to submit too many conflicting result..."
     TIMEOUT = "The match was ended by timeout..."
     EXTERNAL = "The match was ended externally..."
+    ERROR = "The match was ended due to an internal error..."
 
 
 class BaseMatch:
@@ -328,6 +329,7 @@ class BaseMatch:
                 # if 3 or more players and new owner possible, assign new owner rather than ending the match
                 pass
             else:
+                # TODO Add conditions for match end if one player leaves early
                 await self.end_match()
                 return
 
@@ -346,7 +348,7 @@ class BaseMatch:
             await accounts.terminate(player=player.player)
 
         if not self.__players and not self.is_ended:  # if no players left, and match not already ended.
-            await self.end_match()  # Should only be called if match didn't end when owner left??
+            await self.end_match(EndCondition.COMPLETED)  # Should only be called if match didn't end when owner left??
 
     async def change_owner(self, player: None | ActivePlayer = None):
         """Set a new owner if player provided, otherwise pick a new owner from players.
@@ -665,29 +667,30 @@ class RankedMatch(BaseMatch):
 
         @discord.ui.button(label="Round Won", style=discord.ButtonStyle.green)
         async def round_won_button(self, button: discord.Button, inter: discord.Interaction):
-            await self.match.update()
-            if self.match.status != MatchState.PLAYING:
+            if self.match.status not in (MatchState.PLAYING, MatchState.SUBMITTING):
                 return await disp.INVALID_INTERACTION.send_priv(inter)
 
-            p = Player.get(inter.user.id)
-            self.match.submit_score(p, 1)
+            if not (p := self.match.get_player(inter)):
+                return await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
 
-            await disp.RM_SCORE_SUBMITTED.send_priv(inter, "Round Won")
+            self.match.submit_score(p, 1)
+            await disp.RM_SCORE_SUBMITTED.send_temp(inter, p.mention, "Round Won")
+            await self.match.update()
 
         @discord.ui.button(label="Round Lost", style=discord.ButtonStyle.green)
         async def round_lost_button(self, button: discord.Button, inter: discord.Interaction):
-            await self.match.update()
-            if self.match.status != MatchState.PLAYING:
+            if self.match.status not in (MatchState.PLAYING, MatchState.SUBMITTING):
                 return await disp.INVALID_INTERACTION.send_priv(inter)
 
-            p = Player.get(inter.user.id)
+            if not (p := self.match.get_player(inter)):
+                return await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
+
             self.match.submit_score(p, -1)
-
-            await disp.RM_SCORE_SUBMITTED.send_priv(inter, "Round Lost")
-
-        @discord.ui.button(label="Appeal", style=discord.ButtonStyle.green, row=1)
-        async def appeal_button(self, button: discord.Button, inter: discord.Interaction):
+            await disp.RM_SCORE_SUBMITTED.send_priv(inter, p.mention, "Round Lost")
             await self.match.update()
+
+        @discord.ui.button(label="Appeal", style=discord.ButtonStyle.red)
+        async def appeal_button(self, button: discord.Button, inter: discord.Interaction):
             if self.match.status != MatchState.SUBMITTING:
                 return await disp.INVALID_INTERACTION.send_priv(inter)
             p = Player.get(inter.user.id)
@@ -706,6 +709,9 @@ class RankedMatch(BaseMatch):
 
         # Match Variables
         self.__round_history: List[Round] = []
+        self.__match_outcome: str = ''
+        # TODO switch to tuple of (Player, int, int): (winner, player1_wins, player2_wins) ??
+
         # Round Variables
         self.__round_wrong_scores_counter = 0
 
@@ -731,7 +737,6 @@ class RankedMatch(BaseMatch):
         obj.status = MatchState.PICKING_FACTIONS
 
         # Start Faction Picker
-        # Todo Start Ranked loop here instead, move faction picker to ranked loop
         await disp.RM_FACTION_PICK.send(obj.text_channel, obj.first_pick.mention)
 
         return obj
@@ -850,7 +855,7 @@ class RankedMatch(BaseMatch):
 
     def _check_scores_equal(self):
         if not self._check_scores_submitted():
-            return False
+            raise tools.UnexpectedError("Scores not submitted on equal check!")
         if self.__p1_submitted_score == -self.__p2_submitted_score:
             return True
         return False
@@ -873,12 +878,28 @@ class RankedMatch(BaseMatch):
         else:
             raise tools.UnexpectedError("Error determining round winner!")
 
+    def get_num_round_wins(self, player: ActivePlayer):
+        """Return the number of round wins a player has"""
+        p_string = "player1" if player is self.player1 else "player2"
+        return len(sum(r for r in self.__round_history if r.winner == p_string))
+
     def submit_score(self, player, score):
-        """submits scores for given player"""
+        """submits scores for given player. Returns the opponents submitted score"""
         if player == self.player1:
             self.__p1_submitted_score = score
+            return self.__p2_submitted_score
         if player == self.player2:
             self.__p2_submitted_score = score
+            return self.__p1_submitted_score
+
+    async def score_mismatch(self):
+        """Display a score mismatch to the players, reset submitted scores, ask for new submission"""
+        self.__p1_submitted_score = None
+        self.__p2_submitted_score = None
+        self.__round_wrong_scores_counter += 1
+
+        await disp.RM_SCORES_WRONG.send_long(self.__round_message, ping=self.players)
+        self.log(disp.RM_SCORES_WRONG())
 
     async def update(self, status_update=False):
         """Custom overwrite of original BaseMatch.update method, for additional functionality in RankedMatch.
@@ -896,7 +917,7 @@ class RankedMatch(BaseMatch):
                 # Update Status and run transition specific logic
                 match self.status:
                     case MatchState.LOGGING_IN if self._ready_to_play:
-                        # Initial Status Update, both players logged in
+                        # Initial round start, both players logged in
                         self.status = MatchState.PLAYING
                         await self._start_round()
 
@@ -909,7 +930,7 @@ class RankedMatch(BaseMatch):
                             # State shouldn't be reached
                             self.status = MatchState.PLAYING
                             await self._start_round()
-                        elif self._check_scores_equal():
+                        elif self._check_scores_submitted() and self._check_scores_equal():
                             # if both scores submitted and equal
                             if self.rounds_complete == (self.MATCH_LENGTH // 2):
                                 # if half-time
@@ -917,32 +938,32 @@ class RankedMatch(BaseMatch):
                                 self.status = MatchState.SWITCHING_SIDES
                                 self.player1.assigned_faction_id, self.player2.assigned_faction_id = \
                                     self.player2.assigned_faction_id, self.player1.assigned_faction_id
-                                # TODO send notice to switch sides
+                                await disp.RM_FACTION_SWITCH.send(self.text_channel, ping=self.players)
+                                self.log(disp.RM_FACTION_SWITCH())
                                 # Round progression here
-                            elif self.rounds_complete == self.MATCH_LENGTH:
+                            elif self.current_round == self.MATCH_LENGTH:
                                 # if round has reached match length and should end
-                                # Shouldn't be reached
-                                await self.end_match(end_result=EndCondition.COMPLETED)
+                                await self._end_round()
+
+                                asyncio.create_task(self.end_match(end_result=EndCondition.COMPLETED))
                                 # Match ending here
                             elif self.rounds_complete < self.MATCH_LENGTH:
-
                                 # all other normal round progression
-                                await self._end_round()
+                                if not await self._end_round():  # check if match should end before starting next round
+                                    return
                                 self.status = MatchState.PLAYING
                                 await self._start_round()
                         elif self._check_scores_submitted():
-                            ## this case is handled in the view ()
-                            log.warning("if scores are submitted but don't match, this code should never run")
-                            pass
+                            await self.score_mismatch()
 
                         elif self.__round_wrong_scores_counter >= self.WRONG_SCORE_LIMIT:
                             # If too many wrong scores submitted
                             self.log("Match was ended due to excessive score conflicts!")
-                            return await self.end_match(end_result=EndCondition.TOO_MANY_CONFLICTS)
+                            asyncio.create_task(self.end_match(end_result=EndCondition.TOO_MANY_CONFLICTS))
 
                     case MatchState.SWITCHING_SIDES if self._ready_to_play:
                         self.status = MatchState.PLAYING
-                        await self._start_match()
+                        await self._start_round()
 
                 # Reflect match embed with updated match attributes, also updates match view
                 await self.update_embed()
@@ -965,9 +986,11 @@ class RankedMatch(BaseMatch):
         self.__round_message = await disp.RM_ROUND_MESSAGE.send(self.text_channel, self.rounds_complete,
                                                                 self.player1.assigned_faction_display,
                                                                 self.player2.assigned_faction_display,
-                                                                view=self.__round_view)
+                                                                view=self.__round_view,
+                                                                ping=self.players)
 
     async def _end_round(self):
+        """Ends current round, returns True if Match should also end"""
         winner = self._decide_round_winner()
 
         # Delete old round message
@@ -980,23 +1003,34 @@ class RankedMatch(BaseMatch):
         await disp.RM_ROUND_WINNER.send(self.text_channel, winner.mention, self.rounds_complete)
         self.log(disp.RM_ROUND_WINNER(winner.name, self.rounds_complete))
 
-        round = Round(self.player1.assigned_faction_abv, self.player2.assigned_faction_abv,
+        match_round = Round(self.player1.assigned_faction_abv, self.player2.assigned_faction_abv,
                       "player1" if winner is self.player1 else "player2")
 
         # add round to round list
-        self.__round_history.append(round)
-        if self.rounds_complete >= self.MATCH_LENGTH:
-            asyncio.create_task(self.end_match(end_result=EndCondition.COMPLETED))
+        self.__round_history.append(match_round)
 
+        # Check end conditions: Match length reached, or one player reaches win threshold
+        if self.rounds_complete >= self.MATCH_LENGTH or \
+                True in [self.get_num_round_wins(p) > self.MATCH_LENGTH // 2 for p in self.players]:
+            asyncio.create_task(self.end_match(end_result=EndCondition.COMPLETED))
+            return True
+        return False
 
     async def end_match(self, end_result: EndCondition, details=None):
-        p1_wins = len(sum(r for r in self.__round_history if r.winner == "player1"))
-        p2_wins = len(sum(r for r in self.__round_history if r.winner == "player2"))
-
-        self.__end_result
+        """Overwrite of original end_match function to add RankedMatch specific features"""
+        # Determine Match winner
+        p1_wins, p2_wins = self.get_num_round_wins(self.player1), self.get_num_round_wins(self.player2)
         if p1_wins == p2_wins:
             self.__match_outcome = "tie"
         elif p1_wins > p2_wins:
             self.__match_outcome = "player1Wins"
         else:
             self.__match_outcome = "player2Wins"
+
+        ##TODO REFACTOR AND finish
+
+
+    async def leave_match(self, player: ActivePlayer):
+        pass
+    # todo finish
+

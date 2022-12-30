@@ -52,12 +52,11 @@ class MatchesCog(commands.Cog, name="MatchesCog",
         if message.author == self.bot.user:
             return
 
-        match_channel_dict = BaseMatch.active_match_channel_ids()
-        if message.channel.id not in match_channel_dict:
+        if not (match := BaseMatch.active_match_channel_ids().get(message.channel.id)):
             return
 
         if p := Player.get(message.author.id):
-            match_channel_dict[message.channel.id].log(
+            match.log(
                 f'{p.name}: {message.clean_content}', public=False
             )
 

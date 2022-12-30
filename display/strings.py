@@ -129,16 +129,18 @@ class AllStrings(Enum):
 
     RM_FACTION_PICK = "{} pick which faction you will play first below!"
     RM_FACTION_PICKED = "{} chose to play {} first.\n {} has been assigned {}!"
-    RM_FACTION_SWITCH = ""
+    RM_FACTION_SWITCH = "Half time, please switch factions!" \
+                        "  The match will resume when both players have logged back in."
     RM_FACTION_NOT_PICK = "It's not your turn to pick faction!"
     RM_SCORES_EQUAL = "Submitted scores are equal!"
-    RM_SCORES_WRONG = "Submitted scores don't match, both players should submit again!"
+    RM_SCORES_WRONG = "Submitted scores don't match, both players should submit again!\n  If possible, use " \
+                      "retroactive video recording now to ensure match integrity."
     RM_SCORES_WRONG_2 = "Couldn't resolve scores, ending match and reporting..."
-    RM_ROUND_MESSAGE = "Round: {}\n" \
+    RM_ROUND_MESSAGE = "Round: [{}] Starting!\n" \
                        "Player 1: {}\n" \
                        "Player 2: {}\n"
 
-    RM_SCORE_SUBMITTED = "Score Submitted: {}"
+    RM_SCORE_SUBMITTED = "{} Score Submitted: {}"
     RM_ROUND_WINNER = "{} won round {}!"
     RM_MATCH_APPEALED = "You have submitted an appeal for Match {}, it will be reviewed as soon as possible!"
 
@@ -211,10 +213,13 @@ class AllStrings(Enum):
         if kwargs.get('clear_content'):
             args_dict['content'] = None
         elif ping := kwargs.get('ping'):  # elif so clear_content and ping are mutually exclusive
-            if type(ping) in [list, tuple]:
-                args_dict['content'] = ''.join([pingable.mention for pingable in ping]) + args_dict['content']
-            else:
-                args_dict['content'] = ping.mention + args_dict['content']
+            try:
+                if type(ping) in [list, tuple]:
+                    args_dict['content'] = ''.join([pingable.mention for pingable in ping]) + args_dict['content']
+                else:
+                    args_dict['content'] = ping.mention + args_dict['content']
+            except AttributeError as e:
+                log.error("_do-send received a non-mentionable object in ping argument", exc_info=e)
         if self.__embed and not kwargs.get('embed'):
             #  Checks if embed, then retrieves only the embed specific kwargs
             embed_sig = inspect.signature(self.__embed)

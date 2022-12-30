@@ -526,6 +526,7 @@ class ActivePlayer:
         self.__player = player
         self.online_id = player.online_id
         self.assigned_faction_id = None
+        # TODO None of the below are used, remove or refactor??
         self.round_wins = 0
         self.round_losses = 0
         self.match_win = None
@@ -604,7 +605,7 @@ class ActivePlayer:
     def assigned_faction_display(self):
         """Returns string of Player Name / Faction String / Faction Emoji / Assigned Character string"""
         if not self.assigned_faction_id:
-            return f"{self.name} has o Faction Assigned!"
+            return f"{self.name} has no Faction Assigned!"
         return f"{self.name}({self.assigned_faction_abv}" \
                f"{cfg.emojis[self.assigned_faction_abv]}{self.assigned_faction_char})"
 
