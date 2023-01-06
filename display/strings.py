@@ -17,6 +17,7 @@ log = getLogger('fs_bot')
 
 class AllStrings(Enum):
     NONE = None
+    ANY = '{}'
     LOADING = "Loading..."
     NOT_REGISTERED = "You are not registered {}, please go to {} first!"
     NOT_PLAYER = "You are not a player {}, please go to {} first!"
@@ -234,7 +235,7 @@ class AllStrings(Enum):
         if kwargs.get('files'):
             files = kwargs.get('files')
             if type(files) is not list:
-                files = list(files)
+                files = [files]
             args_dict['files'] = files
         if kwargs.get('delete_after'):
             args_dict['delete_after'] = kwargs.get('delete_after')

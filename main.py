@@ -111,6 +111,7 @@ async def on_ready():
     modules.signal.init(bot)
     d_obj.init(bot)
     await modules.accounts_handler.init(cfg.GAPI_SERVICE, cfg.TEST)
+    loader.load_secondary(bot)
     loader.unlock_all()
 
 
@@ -193,5 +194,4 @@ log.info("Loaded Players from Database: %s", len(classes.Player.get_all_players(
 
 
 loader.init(bot)
-loader.load_secondary(bot)
 bot.run(cfg.general['token'])
