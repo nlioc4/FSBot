@@ -487,8 +487,7 @@ class Lobby:
                 memb = d_obj.guild.get_member(invited.id)
                 view = views.InviteView(self, owner, invited)
                 name_str = f'{owner.mention}({owner.name})[{owner.skill_level.rank}]'
-                msg = await disp.DM_INVITED.send(memb, invited.mention, name_str, view=view)
-                view.msg = msg
+                await disp.DM_INVITED.send(memb, invited.mention, name_str, view=view)
                 return self.invite(owner, invited)
             except discord.Forbidden:
                 return False

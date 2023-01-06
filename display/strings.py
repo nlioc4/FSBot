@@ -249,54 +249,49 @@ class AllStrings(Enum):
         if kwargs.get('remove_embed'):
             args_dict['embed'] = None
 
-        msg = None
-
         match type(ctx):
             case discord.User | discord.Member | discord.TextChannel | discord.VoiceChannel | discord.Thread:
-                msg = await getattr(ctx, action)(**args_dict)
+                return await getattr(ctx, action)(**args_dict)
 
             case discord.Message:
                 if action == "send":
-                    msg = await getattr(ctx, "reply")(**args_dict)
+                    return await getattr(ctx, "reply")(**args_dict)
                 elif action == "edit":
-                    msg = await getattr(ctx, action)(**args_dict)
+                    return await getattr(ctx, action)(**args_dict)
 
             case discord.InteractionResponse:
                 if ctx.is_done():
                     ctx = ctx._parent
                     if action == 'send':
-                        msg = await getattr(ctx.followup, 'send')(**args_dict)
+                        return await getattr(ctx.followup, 'send')(**args_dict)
                     elif action == 'edit':
-                        msg = await getattr(ctx, 'edit_original_message')(**args_dict)
+                        return await getattr(ctx, 'edit_original_message')(**args_dict)
                 else:
-                    msg = await getattr(ctx, action + '_message')(**args_dict)
+                    return await getattr(ctx, action + '_message')(**args_dict)
 
             case discord.Webhook if ctx.type == discord.WebhookType.application:
                 if action == "send":
-                    msg = await getattr(ctx, 'send')(**args_dict)
+                    return await getattr(ctx, 'send')(**args_dict)
                 elif action == "edit":  # Probably (definitely) doesn't work
-                    msg = await getattr(await ctx.fetch_message(), 'edit_message')(**args_dict)
+                    return await getattr(await ctx.fetch_message(), 'edit_message')(**args_dict)
 
             case discord.Interaction:
                 if ctx.response.is_done():
                     if action == 'send':
-                        msg = await getattr(ctx.followup, 'send')(**args_dict)
+                        return await getattr(ctx.followup, 'send')(**args_dict)
                     elif action == 'edit':
-                        msg = await getattr(ctx, 'edit_original_message')(**args_dict)
+                        return await getattr(ctx, 'edit_original_message')(**args_dict)
                 else:
-                    msg = await getattr(ctx.response, action + '_message')(**args_dict)
+                    return await getattr(ctx.response, action + '_message')(**args_dict)
 
             case discord.ApplicationContext:
                 if action == "send":
-                    msg = await getattr(ctx, "respond")(**args_dict)
+                    return await getattr(ctx, "respond")(**args_dict)
                 elif action == "edit":
-                    msg = await getattr(ctx, action)(**args_dict)
+                    return await getattr(ctx, action)(**args_dict)
 
             case _:
                 raise UnexpectedError(f"Unrecognized Context, {type(ctx)}")
-        if hasattr(view := args_dict.get('view'), 'msg'):
-            view.msg = msg
-        return msg
 
     async def send(self, ctx, *args, **kwargs):
         return await self._do_send('send', ctx, *args, **kwargs)

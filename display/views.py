@@ -23,7 +23,7 @@ class FSBotView(discord.ui.View):
     """Base View for the bot, includes error handling and locked check"""
 
     def __init__(self, timeout=None):
-        super().__init__(timeout=timeout)
+        super().__init__(timeout=timeout, disable_on_timeout=True)
         self.msg = None
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -52,13 +52,6 @@ class FSBotView(discord.ui.View):
             await d_obj.d_log(source=interaction.user.name, message="Error on component interaction", error=error)
             # log.error("Error on component interaction", exc_info=error)
         # traceback.print_exception(error.__class__, error, error.__traceback__, file=sys.stderr)
-
-    async def on_timeout(self) -> None:
-        self.disable_all_items()
-        try:
-            await disp.NONE.edit(self.msg, view=self)
-        except (discord.errors.NotFound, discord.errors.HTTPException, tools.UnexpectedError):
-            log.debug(f'View {repr(self)} timed out with no self.msg')
 
     async def _scheduled_task(self, item: discord.ui.Item, interaction: discord.Interaction):
         """Subclassed scheduled task to unlock users from spam filter after callbacks finish"""
@@ -154,7 +147,7 @@ class InviteView(FSBotView):
     async def on_timeout(self) -> None:
         # Show player invite as expired
         self.disable_all_items()
-        await disp.DM_INVITE_EXPIRED.edit(self.msg, self.owner.mention, view=False)
+        await disp.DM_INVITE_EXPIRED.edit(self.message, self.owner.mention, view=False)
 
         # Show owner invite expired
         owner_mem = d_obj.guild.get_member(self.owner.id)
