@@ -219,7 +219,7 @@ class BaseMatch:
         await asyncio.gather(*end_coros)
 
     @classmethod
-    async def create(cls, owner: Player, invited: Player, base_class=None) -> Union['BaseMatch', 'RankedMatch']:
+    async def create(cls, owner: Player, invited: Player) -> 'BaseMatch':
         # init _match_id_counter if first match created
         global _match_id_counter
         if not _match_id_counter:
@@ -228,8 +228,7 @@ class BaseMatch:
                 _match_id_counter = last_match['_id']
 
         # Create Match Object, init channels + first update
-        base_class = base_class or cls
-        obj = base_class(owner, invited)
+        obj = cls(owner, invited)
         obj.log(f'{owner.name} created the match with {invited.name}')
 
         await obj._make_channels()
@@ -537,7 +536,7 @@ class BaseMatch:
 
     def _cancel_update(self):
         """Cancel the next upcoming update"""
-        if self.__next_update_task:
+        if self.__next_update_task and not self.__next_update_task.done():
             self.__next_update_task.cancel()
 
     def log(self, message, public=True):
@@ -726,8 +725,8 @@ class RankedMatch(BaseMatch):
         self.__view_class = self.RankedMatchView
 
     @classmethod
-    async def create(cls, owner: Player, invited: Player, base_class=None) -> 'RankedMatch':
-        obj = await super().create(owner, invited, base_class=cls)  # RankedMatch create
+    async def create(cls, owner: Player, invited: Player) -> 'RankedMatch':
+        obj = await super(RankedMatch, cls).create(owner, invited)  # RankedMatch create
 
         # Retrieve Stats PlayerStats
         obj.__player1_stats = await PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
@@ -826,13 +825,19 @@ class RankedMatch(BaseMatch):
         """Check whether factions have been picked for the match"""
         return self.player1.assigned_faction_id and self.player2.assigned_faction_id
 
+    async def _switch_factions(self):
+        """Sends message to switch factions, switches match variables"""
+        self.player1.assigned_faction_id, self.player2.assigned_faction_id = \
+            self.player2.assigned_faction_id, self.player1.assigned_faction_id
+        await disp.RM_FACTION_SWITCH.send(self.text_channel, ping=self.players)
+        self.log(disp.RM_FACTION_SWITCH())
+
     # Round Scores Section
 
     @property
     def _ready_to_play(self):
         # Checks both players online on correct factions
-        return self.player1.current_faction == self.player1.assigned_faction_abv \
-            and self.player2.current_faction == self.player2.assigned_faction_abv
+        return self.player1.on_assigned_faction and self.player2.on_assigned_faction
 
     @property
     def _both_online(self):
@@ -847,7 +852,6 @@ class RankedMatch(BaseMatch):
         return False
 
     def _check_one_score_submitted(self):
-        if self._check_one_score_submitted(): return False
         return self.__p1_submitted_score or self.__p2_submitted_score
 
     def _check_scores_submitted(self):
@@ -868,7 +872,7 @@ class RankedMatch(BaseMatch):
     def current_round(self):
         if self.status in (MatchState.PLAYING, MatchState.SUBMITTING):
             return len(self.__round_history) + 1
-        return None
+        return len(self.__round_history)
 
     def _decide_round_winner(self):
         if self.__p1_submitted_score == -self.__p2_submitted_score == 1:
@@ -904,7 +908,6 @@ class RankedMatch(BaseMatch):
     async def update(self, status_update=False):
         """Custom overwrite of original BaseMatch.update method, for additional functionality in RankedMatch.
         Must handle checking round status, match status, pick status etc.  Must schedule next update"""
-
         # ensure exclusive access to update
         try:
             async with self.__update_lock:
@@ -932,27 +935,21 @@ class RankedMatch(BaseMatch):
                             await self._start_round()
                         elif self._check_scores_submitted() and self._check_scores_equal():
                             # if both scores submitted and equal
-                            if self.rounds_complete == (self.MATCH_LENGTH // 2):
-                                # if half-time
-                                await self._end_round()
-                                self.status = MatchState.SWITCHING_SIDES
-                                self.player1.assigned_faction_id, self.player2.assigned_faction_id = \
-                                    self.player2.assigned_faction_id, self.player1.assigned_faction_id
-                                await disp.RM_FACTION_SWITCH.send(self.text_channel, ping=self.players)
-                                self.log(disp.RM_FACTION_SWITCH())
-                                # Round progression here
-                            elif self.current_round == self.MATCH_LENGTH:
-                                # if round has reached match length and should end
-                                await self._end_round()
 
-                                asyncio.create_task(self.end_match(end_result=EndCondition.COMPLETED))
-                                # Match ending here
+                            if self.current_round == (self.MATCH_LENGTH // 2):
+                                # if half-time
+                                if await self._end_round():  # check if match should end before starting next round
+                                    return  # This is future proofing, should never be called at halftime
+                                self.status = MatchState.SWITCHING_SIDES
+                                await self._switch_factions()
+
                             elif self.rounds_complete < self.MATCH_LENGTH:
                                 # all other normal round progression
-                                if not await self._end_round():  # check if match should end before starting next round
+                                if await self._end_round():  # check if match should end before starting next round
                                     return
                                 self.status = MatchState.PLAYING
                                 await self._start_round()
+
                         elif self._check_scores_submitted():
                             await self.score_mismatch()
 

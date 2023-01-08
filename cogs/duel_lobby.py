@@ -29,29 +29,20 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog"):
         self.dashboard_msg: discord.Message | None = None
         self.dashboard_embed = None
 
-        self.dashboard_loop.start()
         self.guild_ids = [cfg.general["guild_id"]]
+
+        asyncio.create_task(self.lobby_startup())
 
     def cog_check(self, ctx):
         player = Player.get(ctx.user.id)
         return True if player else False
 
-    @tasks.loop(seconds=10)
-    async def dashboard_loop(self):
-        """Loop to check lobby timeouts, also updates dashboard in-case preference changes are made"""
-        lobby_updates = []
-        for lobby in Lobby.all_lobbies.values():
-            lobby_updates.append(lobby.update())
-        await asyncio.gather(*lobby_updates)
-
-    dashboard_loop.add_exception_type(discord.errors.DiscordServerError)
-
-    @dashboard_loop.before_loop
-    async def before_lobby_loop(self):
-        await self.bot.wait_until_ready()
+    async def lobby_startup(self):
+        """Startup Task that creates lobby objects.  Waits until bot is ready to proceed"""
+        await d_obj.loaded.wait()
         if Lobby.all_lobbies.get("casual"):
             return
-        casual_lobby = await Lobby.create_lobby("casual", d_obj.channels['dashboard'])
+        casual_lobby = await Lobby.create_lobby("casual", d_obj.channels['dashboard'], timeout_minutes=1)
 
     @commands.Cog.listener('on_presence_update')
     async def lobby_timeout_updater(self, before, after):

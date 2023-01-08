@@ -116,7 +116,7 @@ class InviteView(FSBotView):
 
         owner_mem = d_obj.guild.get_member(self.owner.id)
         reason = select.values[0]
-        await disp.INVITE_DECLINE.edit(self.msg, self.owner.mention, view=False)
+        await disp.INVITE_DECLINE.edit(self.message, self.owner.mention, view=False)
 
         if reason != "Custom":
             await disp.INVITE_DECLINE_INFO_REASON.send(owner_mem, p.mention, self.decline_reasons[reason])

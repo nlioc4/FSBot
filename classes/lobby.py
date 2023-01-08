@@ -5,6 +5,7 @@ import asyncio
 import discord
 from datetime import datetime as dt, timedelta
 from logging import getLogger
+from typing import Coroutine
 
 # Internal Imports
 import modules.config as cfg
@@ -158,6 +159,7 @@ class DashboardView(views.FSBotView):
 
 class Lobby:
     all_lobbies = {}
+    UPDATE_DELAY = 10
 
     @classmethod
     async def create_lobby(cls, name, channel, match_type=BaseMatch, timeout_minutes=30):
@@ -166,7 +168,7 @@ class Lobby:
 
         obj = cls(name, channel, match_type, timeout_minutes)
         obj.dashboard_embed = embeds.duel_dashboard(obj)
-        await obj.update_dashboard()
+        await obj.update()
 
         return obj
 
@@ -189,6 +191,11 @@ class Lobby:
         self.__match_type = match_type
         self.timeout_minutes = timeout_minutes
         self.__disabled = False
+
+        # update
+        self.__update_lock = asyncio.Lock()
+        self.__next_update_task: asyncio.Task | None = None
+        self.__next_update: Coroutine | None = None
 
         #  Display
         self.dashboard_msg: discord.Message | None = None
@@ -356,7 +363,7 @@ class Lobby:
             if match.is_ended:
                 self.__matches.remove(match)
 
-    async def _update_pings(self, player):
+    async def _send_lobby_pings(self, player):
         """Gets list of players that could potentially be pinged, checks online status pursuant to preferences.
         Pings passing players, and marks them as pinged."""
 
@@ -386,10 +393,35 @@ class Lobby:
         await asyncio.gather(*ping_coros, return_exceptions=True)
 
     async def update(self):
-        """Runs all update methods"""
-        self.update_matches()
-        await self.update_timeouts()
-        await self.update_dashboard()
+        """Updates Lobby, including timeouts, displays and attached matches."""
+
+        try:
+            async with self.__update_lock:
+
+                self.update_matches()
+                await self.update_timeouts()
+                await self.update_dashboard()
+        except asyncio.CancelledError:
+            pass
+        else:
+            # schedule next update if update completes successfully
+            d_obj.bot.loop.call_later(0.1, self._schedule_update_task)
+
+    async def _update_task(self):
+        await asyncio.sleep(self.UPDATE_DELAY)
+        await self.update()
+
+    def _schedule_update_task(self):
+        """Schedules new update task, removes previous task"""
+        self._cancel_update()
+
+        self.__next_update_task = d_obj.bot.loop.create_task(self._update_task(), name=f"Lobby [{self.name}] Updater")
+
+    def _cancel_update(self):
+        """Cancel the next upcoming update, if it hasn't completed"""
+        if self.__next_update_task and not self.__next_update_task.done():
+            self.__next_update_task.cancel()
+
 
     async def disable(self):
         """Disable the Lobby"""
@@ -474,7 +506,7 @@ class Lobby:
             self.lobby_log(f'{player.name} joined the lobby.')
 
             # schedule update_pings call, so that lobby join doesn't have to wait for it to complete
-            asyncio.create_task(self._update_pings(player))
+            asyncio.create_task(self._send_lobby_pings(player))
 
             return True
         else:

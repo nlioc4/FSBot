@@ -23,6 +23,7 @@ log = getLogger('fs_bot')
 # Bot and guild global variables
 bot: discord.Bot | None = None
 guild: discord.Guild | None = None
+loaded: asyncio.Event = asyncio.Event()
 colin: discord.Member | None = None
 
 # Dicts containing role and channel objects
@@ -57,6 +58,7 @@ def init(client):
     colin = guild.get_member(123702146247032834)  # this should function as somewhat of a deadman's switch
     if not colin:
         sys.exit("No Colin Found")
+    loaded.set()
 
 
 def is_admin(user: discord.Member | discord.User) -> bool:

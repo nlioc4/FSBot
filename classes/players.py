@@ -595,7 +595,9 @@ class ActivePlayer:
 
     @property
     def assigned_faction_abv(self):
-        return cfg.factions[self.assigned_faction_id]
+        if self.assigned_faction_id:
+            return cfg.factions[self.assigned_faction_id]
+        return "N/A"
 
     @property
     def assigned_faction_char(self):
