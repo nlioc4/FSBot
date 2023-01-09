@@ -13,6 +13,7 @@ from logging import getLogger
 import modules.config as cfg
 import modules.discord_obj as d_obj
 from classes.lobby import Lobby
+from classes.match import RankedMatch
 from classes.players import Player
 from display import AllStrings as disp
 from modules import tools
@@ -43,6 +44,9 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog"):
         if Lobby.all_lobbies.get("casual"):
             return
         casual_lobby = await Lobby.create_lobby("casual", d_obj.channels['dashboard'], timeout_minutes=30)
+
+        ranked_lobby = await Lobby.create_lobby("ranked", d_obj.guild.get_channel(1061989011092144138),
+                                                timeout_minutes=30, match_type=RankedMatch)
 
     # @commands.Cog.listener('on_presence_update')
     # async def lobby_timeout_updater(self, before, after):

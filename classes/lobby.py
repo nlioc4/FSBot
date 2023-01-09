@@ -159,7 +159,7 @@ class DashboardView(views.FSBotView):
 
 class Lobby:
     all_lobbies = {}
-    UPDATE_DELAY = 10
+    UPDATE_DELAY = 10  # seconds to wait between automatic updates
 
     @classmethod
     async def create_lobby(cls, name, channel, match_type=BaseMatch, timeout_minutes=30):
@@ -558,7 +558,7 @@ class Lobby:
             return False
         else:
 
-            match = await BaseMatch.create(owner, player)
+            match = await self.__match_type.create(owner, player)
             self.__matches.append(match)
 
             await disp.MATCH_JOIN.send_temp(match.text_channel, f'{owner.mention}{player.mention}')

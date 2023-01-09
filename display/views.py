@@ -58,6 +58,14 @@ class FSBotView(discord.ui.View):
         await super()._scheduled_task(item, interaction)
         unlock(interaction.user.id)
 
+    async def disable_and_stop(self):
+        self.disable_all_items()
+        self.stop()
+        try:
+            await self.message.edit(view=self)
+        except discord.NotFound:
+            pass
+
 
 class InviteView(FSBotView):
     """View to handle accepting or declining match invites"""
@@ -229,3 +237,51 @@ class RemoveTimeoutView(FSBotView):
             return await disp.TIMEOUT_STILL.send_priv(inter, tools.format_time_from_stamp(p.timeout_until, "R"))
 
         await d_obj.timeout_player(p=p, stamp=0)
+
+
+class ConfirmView(FSBotView):
+    def __init__(self, timeout=60, response="Action", coroutine=None):
+        super().__init__(timeout=timeout)
+        self.response = response
+        self.coroutine = coroutine
+        self.confirmed = asyncio.Future()
+
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
+    async def confirm_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        self.confirmed.set_result(True)
+        self.stop()
+        self.disable_all_items()
+        self.cancel_button.style = discord.ButtonStyle.grey
+        await disp.CONFIRMED.send_priv(inter, self.response)
+        try:
+            self.message.edit(view=self)
+        except discord.NotFound:
+            pass
+        if self.coroutine:
+            await self.coroutine
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
+    async def cancel_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        self.confirmed.set_result(False)
+        self.stop()
+        self.disable_all_items()
+        self.confirm_button.style = discord.ButtonStyle.grey
+        await disp.CANCELLED.send_priv(inter, self.response)
+        try:
+            self.message.edit(view=self)
+        except discord.NotFound:
+            pass
+
+    async def on_timeout(self) -> None:
+        self.confirmed.set_result(False)
+        self.stop()
+        self.disable_all_items()
+        self.confirm_button.style = discord.ButtonStyle.grey
+        try:
+            self.message.delete(delay=10)
+        except discord.NotFound:
+            pass
+
+
+
+

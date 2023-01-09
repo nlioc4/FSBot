@@ -82,7 +82,7 @@ class Player:
     _name_checking = [dict(), dict(), dict()]
 
     @classmethod
-    def get(cls, p_id):
+    def get(cls, p_id) -> 'Player':
         player: Player = cls._all_players.get(p_id)
         return player
 

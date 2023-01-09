@@ -304,7 +304,7 @@ def duel_dashboard(lobby) -> Embed:
 
     # Player_list Header
     embed.add_field(
-        name='----------------------Unranked Lobby----------------------',
+        name=f'{lobby.name.capitalize()} Lobby'.center(70, '-'),
         value='@Mention [Preferred Faction(s)][Skill Level][Wanted Level(s)][Time]\n',
         inline=False
     )
@@ -321,7 +321,7 @@ def duel_dashboard(lobby) -> Embed:
             string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}][{req_skill_levels}][{f_lobbied_stamp}]\n '
             players_string += timeout_warn + string
 
-    embed.add_field(name="----------------------------------------------------------------",
+    embed.add_field(name="-"*(70 - len(lobby.name)//2),
                     value=players_string,
                     inline=False)
 
@@ -459,12 +459,20 @@ def match_info(match) -> Embed:
 
     if match.recent_logs:
         log_string = ''
+        title = "Match Logs"
         for log in match.recent_logs:
             if log[2]:
-                log_string += f"[{format_stamp(log[0], 'T')}]{log[1]}\n"
+                next_string = f"[{format_stamp(log[0], 'T')}]{log[1]}\n"
+                if len(log_string) + len(next_string) > 1000:
+                    embed.add_field(name=title,
+                                    value=log_string,
+                                    inline=False)
+                    log_string = ''
+                    title = '\u200b'
+                log_str = log_string + next_string
 
         if log_string:
-            embed.add_field(name="Match Logs",
+            embed.add_field(name=title,
                             value=log_string,
                             inline=False)
 

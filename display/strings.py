@@ -23,6 +23,8 @@ class AllStrings(Enum):
     NOT_PLAYER = "You are not a player {}, please go to {} first!"
     NOT_PLAYER_2 = "{} is not a player!"
     CANT_USE = "You can't use this!"
+    CONFIRMED = "Confirmed: {}"
+    CANCELLED = "Cancelled: {}"
     STOP_SPAM = "{}: Please stop spamming!"
     ALL_LOCKED = "FSBot is currently disabled, please try again later!"
     DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
@@ -133,6 +135,7 @@ class AllStrings(Enum):
     RM_FACTION_SWITCH = "Half time, please switch factions!" \
                         "  The match will resume when both players have logged back in."
     RM_FACTION_NOT_PICK = "It's not your turn to pick faction!"
+    RM_LOG_IN = "Please log in to your assigned faction!"
     RM_SCORES_EQUAL = "Submitted scores are equal!"
     RM_SCORES_WRONG = "Submitted scores don't match, both players should submit again!\n  If possible, use " \
                       "retroactive video recording now to ensure match integrity."
@@ -140,10 +143,14 @@ class AllStrings(Enum):
     RM_ROUND_MESSAGE = "Round: [{}] Starting!\n" \
                        "Player 1: {}\n" \
                        "Player 2: {}\n"
-
     RM_SCORE_SUBMITTED = "{} Score Submitted: {}"
     RM_ROUND_WINNER = "{} won round {}!"
-    RM_MATCH_APPEALED = "You have submitted an appeal for Match {}, it will be reviewed as soon as possible!"
+    RM_APPEALED = "You have submitted an appeal for Match {}, it will be reviewed as soon as possible!"
+    RM_FORFEIT_CONFIRM = "Leaving a match early will result in a loss being recorded, are you sure?"
+    RM_WINNER = "{} has won the match with a score of {}:{}!"
+    RM_DRAW = "The match was a draw!"
+    RM_ENDED_NO_ELO = "The match was not completed properly, results will not be stored..."
+    RM_ENDED_TOO_MANY_CONFLICTS = "The match is automatically being appealed due to too many score conflicts..."
 
     INVITE_ACCEPT = "You have accepted the invite from {}, join {}."
     INVITE_DECLINE = "You have declined the invite from {}."
