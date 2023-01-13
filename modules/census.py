@@ -193,6 +193,9 @@ async def online_status_updater(chars_players_map_func):
 
 
 async def online_status_rest(chars_players_map):
+    if len(chars_players_map) == 0:
+        return True
+
     acc_char_ids = accounts.account_char_ids
 
     tracked_ids = list(acc_char_ids.keys()) + list(chars_players_map.keys())
