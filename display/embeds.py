@@ -410,9 +410,9 @@ def match_info(match) -> Embed:
     if match.voice_channel:
         match_info_str += f'Match Voice Channel: {match.voice_channel.mention} ' \
                           f'{"🔓" if match.public_voice else "🔒"}\n'
-        embed.add_field(name="Match Info",
-                        value=match_info_str,
-                        inline=False)
+    embed.add_field(name="Match Info",
+                    value=match_info_str,
+                    inline=False)
 
     embed.add_field(
         name='----------------------------------------------------------',
@@ -478,6 +478,69 @@ def match_info(match) -> Embed:
 
     return fs_author(embed)
 
+def ranked_match_info(match) -> Embed:
+    """Match Info Embed, tailored to ranked matches."""
+    match match.status.name:
+        case 'PICKING_FACTIONS':
+            colour = Colour.blue()
+        case 'LOGGING_IN' | 'SWITCHING_SIDES':
+            colour = Colour.yellow()
+        case 'SUBMITTING':
+            colour = Colour.og_blurple()
+        case 'PLAYING':
+            colour = Colour.green()
+        case 'ENDED':
+            colour = Colour.red()
+        case _:
+            colour = Colour.dark_grey()
+
+    embed = Embed(
+        colour=colour,
+        title=f"Match Info for Ranked Match: {match.id_str}",
+        description="Good luck!",
+        timestamp=dt.now()
+    )
+
+    match_info_str = (f"Player1: {match.player1.mention}\n"
+                      f"Player2: {match.player2.mention}\n"
+                      f"Match Status: {match.status.value}\n"
+                      f"Match Started: {format_stamp(match.start_stamp, 'R')} at {format_stamp(match.start_stamp)}\n"
+                      )
+
+    if match.timeout_at:
+        match_info_str += f"Match will timeout {format_stamp(match.timeout_at, 'R')}\n"
+        match_info_str += f"Match timeout will be reset on login to Jaeger\n"
+
+    if match.end_stamp:
+        match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}\n'
+
+    if match.voice_channel:
+        match_info_str += f'Match Voice Channel: {match.voice_channel.mention} ' \
+                          f'{"🔓" if match.public_voice else "🔒"}\n'
+    embed.add_field(name="Match Info",
+                    value=match_info_str,
+                    inline=False)
+
+    # Scores
+
+    embed.add_field(name="Match Score",
+                    value=match.get_score_string(),
+                    inline=False)
+
+    # Current Round
+    online, offline = "🟢", "🔴"
+    if match.status.name in ("LOGGING_IN", "PLAYING", "SWITCHING_SIDES", "SUBMITTING"):
+        player1_online = online if match.player1.on_assigned_faction else offline
+        player2_online = online if match.player2.on_assigned_faction else offline
+        round_string = f"Current Round: [{match.current_round}]\n" \
+                       f"{match.player1.name}: {player1_online}{match.player1.assigned_char_display}\n" \
+                       f"{match.player2.name}: {player2_online}{match.player2.assigned_char_display}\n"
+        embed.add_field(name="Match Score",
+                        value=round_string,
+                        inline=False)
+
+    return fs_author(embed)
+
 
 def to_staff_dm_embed(author: 'discord.User', msg: str) -> Embed:
     author_disc = author.name + "#" + author.discriminator
@@ -498,7 +561,6 @@ def to_staff_dm_embed(author: 'discord.User', msg: str) -> Embed:
               "ex. ``~ My message``\n"
               "    ``! My message``"
 
-              ""
     )
     return embed
 

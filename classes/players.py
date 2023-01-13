@@ -217,8 +217,8 @@ class Player:
         return data
 
     async def db_update(self, arg):
-        '''Update a specific users database element.  Options are name, register, account, timeout,
-         skill_level, req_skill_levels, pref_factions, pref_factions, hidden: '''
+        """Update a specific users database element.  Options are name, register, account, timeout,
+         skill_level, req_skill_levels, pref_factions, pref_factions, hidden: """
         match arg:
             case 'name':
                 await db.async_db_call(db.set_field, 'users', self.id, {'name', self.__name})
@@ -602,6 +602,13 @@ class ActivePlayer:
     @property
     def assigned_faction_char(self):
         return self.ig_names[self.assigned_faction_id - 1]
+
+    @property
+    def assigned_char_display(self):
+        """Gives a string with (FactionEmoji)(AssignedCharacter)"""
+        if not self.assigned_faction_id:
+            return "n/a"
+        return f"{cfg.emojis[self.assigned_faction_abv]}{self.assigned_faction_char}"
 
     @property
     def assigned_faction_display(self):

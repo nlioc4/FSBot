@@ -185,12 +185,11 @@ class BaseMatch:
         self.timeout_stamp = None
         self.timeout_warned = False
         self.was_timeout = False
-        self.was_conflict = False
         self.status = MatchState.LOGGING_IN
         self.__public_voice = False
         self._update_lock = asyncio.Lock()
         self._next_update_task: asyncio.Task | None = None  # store asyncio.Handle for next update call
-        self._next_update: Coroutine = None
+        self._next_update: Coroutine | None = None
 
         # Display
         self.text_channel: discord.TextChannel | None = None
@@ -225,7 +224,7 @@ class BaseMatch:
 
     @classmethod
     async def end_all_matches(cls):
-        end_coros = [match.end_match() for match in cls.active_matches_dict().values()]
+        end_coros = [match.end_match(end_condition=EndCondition.EXTERNAL) for match in cls.active_matches_dict().values()]
         await asyncio.gather(*end_coros)
 
     @classmethod
@@ -248,6 +247,10 @@ class BaseMatch:
         asyncio.create_task(obj._check_accounts_delay(*obj.players))
 
         return obj
+
+    def set_id(self, match_id):
+        self.__id = match_id
+
 
     async def _make_channels(self):
         overwrites = self._get_overwrites()
@@ -383,6 +386,9 @@ class BaseMatch:
         return player
 
     async def end_match(self, end_condition: EndCondition, details=None, leaving_player=None, force=False):
+        """Ends the match, with a given end condition, and extra details if wanted.  Force will force the coroutine
+        to run, even if the match is already considered ended.  Leaving_player is used in forfeits, to denote which
+        player is leaving early.  Main process is covered by the update Asyncio.lock()"""
         if self.is_ended and not force:
             return
         async with self._update_lock:
@@ -517,7 +523,7 @@ class BaseMatch:
                     self.text_channel, self.all_mentions,
                     tools.format_time_from_stamp(self.timeout_at, 'R'))
 
-    async def update(self, status_update=False):
+    async def update(self):
         """Update the match object:  updates timeout, match status, and the embed if required"""
         # ensure exclusive access to update
         try:
@@ -528,9 +534,8 @@ class BaseMatch:
                 # Check if the match should be warned / timed out
                 await self.update_timeout()
 
-                # Updated Match Status.  May be disabled for use in subclasses
-                if status_update:
-                    self.update_status()
+                # Updated Match Status
+                self.update_status()
 
                 # Reflect match embed with updated match attributes, also updates match view
                 await self.update_embed()
@@ -610,7 +615,7 @@ class BaseMatch:
 
     @property
     def online_players(self):
-        return [p for p in self.__players if p.online_name]
+        return [p for p in self.__players if p.online_id]
 
     @property
     def all_mentions(self):
@@ -650,7 +655,7 @@ class BaseMatch:
 class RankedMatch(BaseMatch):
     """
     picking factions -> logging in
-    (player1 faction, blayer2 faction)
+    (player1 faction, player2 faction)
     logging in -> playing
     (player1 logged in player2 logged in)
     playing
@@ -709,6 +714,8 @@ class RankedMatch(BaseMatch):
             if self.match.status != MatchState.SUBMITTING:
                 return await disp.INVALID_INTERACTION.send_priv(inter)
             p = Player.get(inter.user.id)
+            if not await d_obj.is_registered(inter, p) or not await self.in_match_check(inter, p):
+                return
             await disp.RM_APPEALED.send_priv(inter, self.match.id_str)
             await self.match.end_match(EndCondition.APPEALED)
 
@@ -752,6 +759,7 @@ class RankedMatch(BaseMatch):
         self.__player1_stats: PlayerStats | None = None
         self.__player2_stats: PlayerStats | None = None
         self.first_pick = None
+        self.first_picked_faction = ""
 
         # Match Variables
         self.__round_history: List[Round] = []
@@ -786,6 +794,38 @@ class RankedMatch(BaseMatch):
 
         return obj
 
+    @classmethod
+    async def create_from_data(cls, data: dict):
+        """Create a RankedMatch in progress from data in the Database"""
+        owner = Player.get(data['owner'])
+        invited = Player.get(data['player2_id'])
+        obj = await super().create(owner, invited, base_class=cls)
+
+        # Set Variables
+        obj.set_id(data['_id'])
+        obj.start_stamp = data['start_stamp']
+        obj.match_log = data['match_log']
+
+        # Retrieve Current Stats Objects
+        obj.__player1_stats = await PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
+        obj.__player2_stats = await PlayerStats.get_from_db(p_id=invited.id, p_name=invited.name)
+
+        # Fill out round objects
+        obj.add_rounds_from_data(*data['round_history'])
+
+        # Set player Factions
+        obj.first_pick = Player.get(data['first_pick']).active
+        obj.first_picked_faction = data['first_picked_faction']
+
+        obj.first_pick.assigned_faction_id = obj.first_picked_faction
+        second_pick = obj.player1 if obj.first_pick is obj.player2 else obj.player2
+        second_pick.assigned_faction_id = 2 if obj.first_pick == 3 else 3
+
+        if obj.rounds_complete >= obj.wins_required - 1:
+            await obj._switch_factions()
+
+        return obj
+
     def get_round_view(self):
         return self.RankedRoundView(self)
 
@@ -806,6 +846,8 @@ class RankedMatch(BaseMatch):
             **super().get_end_data(),
             'player1_id': self.player1.id,
             'player2_id': self.player2.id,
+            'first_pick': self.first_pick.id,
+            'first_picked_faction': self.first_picked_faction,
             'match_outcome': self.__match_outcome,
             'round_history': [r._asdict() for r in self.__round_history]
         }
@@ -839,6 +881,7 @@ class RankedMatch(BaseMatch):
                 other_p = self.match.player2
             else:
                 other_p = self.match.player1
+            self.match.first_picked_faction = faction_id
             p.assigned_faction_id = faction_id  # Set Chosen faction var for each player
             other_p.assigned_faction_id = other_faction_id
 
@@ -932,6 +975,15 @@ class RankedMatch(BaseMatch):
             return len(self.__round_history) + 1
         return len(self.__round_history)
 
+    @property
+    def round_history(self):
+        return self.__round_history
+
+    def add_rounds_from_data(self, *rounds: dict):
+        """Add rounds objects to the round history, by converting variables passed to Round."""
+        for r in rounds:
+            self.__round_history.append(Round(**r))
+
     def _decide_round_winner(self):
         """Set self.__round_winner variable and return it"""
         if self.__p1_submitted_score == -self.__p2_submitted_score == 1:
@@ -949,6 +1001,23 @@ class RankedMatch(BaseMatch):
     def get_player2_wins(self):
         """Return the number of round wins player 2 has"""
         return sum(1 for r in self.__round_history if r.winner == 2)
+
+    def get_score_string(self):
+        """Return a formatted string displaying the score of the match, along with round history"""
+        name_line = f"{self.player1.name} - {self.player2.name}\n"
+        score_line = f"{self.get_player1_wins()} - {self.get_player2_wins()}".center(len(name_line)) + "\n"
+
+        round_lines = ''
+        for r in self.__round_history:
+            if r.defaulted:
+                round_lines += f"Defaulted - {self.player1.name if r.winner == 1 else self.player2.name} Given Win"
+            else:
+                p1_bold = "**" if r.winner == 1 else ""
+                p2_bold = "**" if r.winner == 2 else ""
+                round_lines += f"{cfg.emojis[r.p1_faction]}{p1_bold}{self.player1.name}{p1_bold} - "\
+                                f"{cfg.emojis[r.p2_faction]}{p2_bold}{self.player2.name}{p2_bold}\n"
+
+        return name_line + score_line + round_lines
 
     @property
     def wins_required(self):
@@ -972,8 +1041,8 @@ class RankedMatch(BaseMatch):
         await disp.RM_SCORES_WRONG.send_long(self.__round_message, ping=self.players)
         self.log(disp.RM_SCORES_WRONG())
 
-    async def update(self, status_update=False):
-        """Custom overwrite of original BaseMatch.update method, for additional functionality in RankedMatch.
+    async def update(self):
+        """Custom overwrite of original BaseMatch.update() method, for additional functionality in RankedMatch.
         Must handle checking round status, match status, pick status etc.  Must schedule next update"""
         # ensure exclusive access to update
         try:
@@ -987,6 +1056,7 @@ class RankedMatch(BaseMatch):
                 # Update Status and run transition specific logic
                 match self.status:
                     case MatchState.PICKING_FACTIONS if self._factions_picked():
+                        #TODO add check that all players have accounts
                         self.status = MatchState.LOGGING_IN
                         await disp.RM_LOG_IN.send_long(self.text_channel, ping=self.players)
 
@@ -1014,7 +1084,7 @@ class RankedMatch(BaseMatch):
                                 self.status = MatchState.SWITCHING_SIDES
                                 await self._switch_factions()
 
-                            elif self.rounds_complete < self.MATCH_LENGTH:
+                            elif self.rounds_complete <= self.MATCH_LENGTH:
                                 # all other normal round progression
                                 if await self._end_round():  # check if match should end before starting next round
                                     return
@@ -1042,6 +1112,8 @@ class RankedMatch(BaseMatch):
             d_obj.bot.loop.call_later(0.1, self._schedule_update_task)
 
     async def _start_round(self):
+        # TODO add active round variable?
+
         #  Reset score variables
         self.__round_wrong_scores_counter = 0
         self.__round_winner = None
@@ -1144,8 +1216,8 @@ class RankedMatch(BaseMatch):
 
 
         if end_condition in (EndCondition.COMPLETED, EndCondition.FORFEIT):
+            # Check correct completion before determining winner and altering Elo
 
-            # Check normal completion before determining winner and altering Elo
             # Determine Match winner
             p1_wins, p2_wins = self.get_player1_wins(), self.get_player2_wins()
             self.__match_outcome = p1_wins - p2_wins
@@ -1172,6 +1244,8 @@ class RankedMatch(BaseMatch):
                                                                                         self.id,
                                                                                         self.__match_outcome,
                                                                                         self.MATCH_LENGTH)
+            # TODO Send embed with match results + elo changes to each player in DM's
+
 
         else:
             # Nonstandard Ending, warn of no elo saving

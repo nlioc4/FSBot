@@ -190,6 +190,8 @@ class RegisterCharacterModal(discord.ui.Modal):
         if len(char_list) == 1 or len(char_list) == 3:  # if base char name, or individual names provided
             try:
                 registered = await p.register(char_list)
+                if registered and p.account:
+                    await p.account.terminate()
                 # match/case to allow proxy registration responses
                 match registered:
                     case True if not self.p:
