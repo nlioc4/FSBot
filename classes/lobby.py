@@ -133,7 +133,7 @@ class DashboardView(views.FSBotView):
         if not await d_obj.is_registered(inter, player):
             return
         elif player in self.lobby.lobbied:
-            self.lobby.lobby_timeout_reset(player)
+            await self.lobby.lobby_timeout_set(player)
             await disp.LOBBY_TIMEOUT_RESET.send_priv(inter, player.mention)
         else:
             await disp.LOBBY_NOT_IN.send_priv(inter, player.mention)
@@ -150,7 +150,7 @@ class DashboardView(views.FSBotView):
         player: Player = Player.get(inter.user.id)
         if not await d_obj.is_registered(inter, player):
             return
-        elif self.lobby.lobby_leave(player):
+        elif await self.lobby.lobby_leave(player):
             self.lobby.schedule_dashboard_update()
             await disp.LOBBY_LEAVE.send_temp(inter, player.mention)
         else:
@@ -207,7 +207,8 @@ class Lobby:
         #  Containers
         self.__lobbied_players: list[Player] = []  # List of players currently in lobby
         self.__invites: dict[Player, list[Player]] = {}  # list of invites by owner.id: list[invited players]
-        self.__warned_players: list[Player] = []  # list of players that have been warned of impending timeout
+        # self.__warned_players: list[Player] = []  # list of players that have been warned of impending timeout
+        self.__warned_players: dict[Player, discord.Message] = {}  # dict of (Player, warning_message) for players warned of impending timeout
         self.__matches: list[BaseMatch] = []  # list of matches created by this lobby
         self.__logs: list[(int, str)] = []  # lobby logs recorded as a list of tuples, (timestamp, message)
 
@@ -320,42 +321,51 @@ class Lobby:
         """Schedules a dashboard update"""
         task = d_obj.bot.loop.create_task(self.update_dashboard())
 
-    def _player_timeout_at(self, player: Player) -> int:
-        """Determine a player timeout based on Player discord Status.
-        returns Timestamp to timeout player at """
+    async def _check_player_timeout_status(self, player: Player) -> bool:
+        """Checks if a player should have timeout_stamp updated based on Player discord Status.
+        Updates players timestamp if necessary, returns whether timestamp was updated"""
         player_memb = d_obj.guild.get_member(player.id)
-        #  Determine potential timeout
         if player_memb.status in [discord.Status.online, discord.Status.do_not_disturb, discord.Status.streaming]:
-            return 0
-        else:
-            return tools.timestamp_now() + (self.timeout_minutes * 60)
+            await self.lobby_timeout_set(player)
+            return True
+        return False
+
+    async def lobby_timeout_set(self, player, timestamp=None):
+        """Set the timestamp a player will be timed out from the lobby at.  If timestamp is not provided,
+        sets to lobby default
+         Returns True if player was in lobby"""
+        timeout_at = timestamp or tools.timestamp_now() + self.timeout_minutes * 60
+
+        if player in self.__lobbied_players:
+            player.set_lobby_timeout(timeout_at)
+            if msg := self.__warned_players.pop(player, None):
+                try:
+                    await msg.delete()
+                except discord.NotFound:
+                    pass
+                self.lobby_log(f"{player.name} reset their lobby timeout.")
+            return True
+        return False
 
     async def update_timeouts(self):
         """Check all lobbied players for timeouts, send timeout messages"""
         for p in self.lobbied:
-
             # Update timeout stamps
 
-            # Timeout stamp not set, and player lobbied 4x normal timeout ensure that player is indeed online
-            if p.lobby_timeout_stamp == 0:
-                if p.lobbied_stamp + self.timeout_minutes * 60 * 4 < tools.timestamp_now():
-                    self.player_timeout_update(p)
-                return
-
             # Timeout if current time greater than timeout stamp
-            elif p.lobby_timeout_stamp < tools.timestamp_now():
-                try:
-                    self.lobby_timeout(p)
-                except (ValueError, KeyError) as e:
-                    log.error(f"Error on timeout for {p.name}, running lobby_leave...", exc_info=e)
-                    self.lobby_leave(p)
+            if p.lobby_timeout_stamp < tools.timestamp_now():
+                if self._check_player_timeout_status(p):  # Check if player should have timeout reset, skip warn if so
+                    continue
+                await self.lobby_leave(p, timeout=True)
                 await disp.LOBBY_TIMEOUT.send(self.channel, p.mention, delete_after=30)
 
             # Warn if current time less than 5 minutes (300 s) before timeout stamp
             elif p.lobby_timeout_stamp - 300 < tools.timestamp_now() and p not in self.__warned_players:
-                self.__warned_players.append(p)
+                if self._check_player_timeout_status(p):  # Check if player should have timeout reset, skip warn if so
+                    continue
                 self.lobby_log(f'{p.name} will soon be timed out of the lobby')
-                await disp.LOBBY_TIMEOUT_SOON.send(self.channel, p.mention, delete_after=30)
+                self.__warned_players[p] = await disp.LOBBY_TIMEOUT_SOON.send(self.channel, p.mention, delete_after=30)
+
 
     def update_matches(self):
         """Remove matches from match list if ended"""
@@ -427,8 +437,7 @@ class Lobby:
         if self.__disabled:
             return False
         self.__disabled = True
-        for p in self.lobbied:
-            self.lobby_leave(p)
+        await asyncio.gather(*[self.lobby_leave(p) for p in self.lobbied])
         self.lobby_log("Lobby Disabled")
         await self.update()
         return True
@@ -446,65 +455,35 @@ class Lobby:
     def disabled(self):
         return self.__disabled
 
-    def lobby_timeout(self, player):
-        """Removes from lobby list, executes player lobby leave method, returns True if removed"""
+
+    async def lobby_leave(self, player, match=None, *, timeout=False):
+        """Removes from lobby list, executes player lobby leave method, returns True if removed
+        Timeout flag denotes player was timed out from the lobby"""
         if player in self.__lobbied_players:
             player.on_lobby_leave()
             self.__lobbied_players.remove(player)
-            if player in self.__warned_players:
-                self.__warned_players.remove(player)
-            self.lobby_log(f'{player.name} was removed from the lobby by timeout.')
-            return True
-        else:
-            return False
-
-    def lobby_timeout_reset(self, player, timestamp=None):
-        """Resets player lobbied timestamp, using Discord status to set timeout duration.
-         Returns True if player was in lobby"""
-        timeout_at = timestamp if timestamp is not None else self._player_timeout_at(player)
-
-        if player in self.__lobbied_players:
-            player.set_lobby_timeout(timeout_at)
-            if player in self.__warned_players:
-                self.__warned_players.remove(player)
-                self.lobby_log(f"{player.name} reset their lobby timeout.")
-            return True
-        return False
-
-    def player_timeout_update(self, p):
-        timeout_at = self._player_timeout_at(p)
-        # If Player not in lobby, or new lobby stamp == old lobby stamp, do nothing
-        if p not in self.__lobbied_players or p.lobby_timeout_stamp == timeout_at:
-            return
-        # If old lobby stamp not 0 and new lobby stamp not 0, keep old lobby stamp.
-        # This covers cases where player is still offline during multiple resets.
-        if p.lobby_timeout_stamp != 0 and timeout_at != 0:
-            return
-        # If all the above fails, reset timeout.  Will set to 0 if online, will set to new timeout if newly offline.
-        self.lobby_timeout_reset(p, timestamp=timeout_at)
-
-    def lobby_leave(self, player, match=None):
-        """Removes from lobby list, executes player lobby leave method, returns True if removed"""
-        if player in self.__lobbied_players:
-            player.on_lobby_leave()
-            self.__lobbied_players.remove(player)
-            if player in self.__warned_players:
-                self.__warned_players.remove(player)
+            if msg := self.__warned_players.pop(player, None):
+                try:
+                    await msg.delete()
+                except discord.NotFound:
+                    pass
             if match:
                 self.lobby_log(f'{player.name} joined Match: {match.id_str}')
+            elif timeout:
+                self.lobby_log(f'{player.name} was removed from the lobby by timeout.')
             else:
                 self.lobby_log(f'{player.name} left the lobby.')
             return True
         else:
             return False
 
-    def lobby_join(self, player):
+    def lobby_join(self, player, timeout_at=None):
         """Adds to lobby list, executes player lobby join method, returns True if added.
-        param timeout_at, timestamp to timeout player at
+        param timeout_at, timestamp to timeout player at.  Defaults to 60 minutes from now if not provided
         """
         if player not in self.__lobbied_players:
-
-            player.on_lobby_add(self, self._player_timeout_at(player))
+            timeout_at = timeout_at or tools.timestamp_now() + self.timeout_minutes * 60
+            player.on_lobby_add(self, timeout_at)
             self.__lobbied_players.append(player)
             self.lobby_log(f'{player.name} joined the lobby.')
 
@@ -552,7 +531,7 @@ class Lobby:
             if not await match.join_match(player):
                 return False  # if match join failed (match full)
             await match.update()
-            self.lobby_leave(player, match)
+            await self.lobby_leave(player, match)
             return match
         elif owner.active:
             return False
@@ -567,12 +546,12 @@ class Lobby:
                 for other_player in self.__invites[owner.id]:
                     match.invite(other_player)
                 del self.__invites[owner.id]
-            self.lobby_leave(player, match)
-            self.lobby_leave(owner, match)
+            await asyncio.gather(self.lobby_leave(player, match),
+                                 self.lobby_leave(owner, match))
             return match
 
     def decline_invite(self, owner, player):
-        """Decline an invite from owner to player"""
+        """Decline an invitation from owner to player"""
         if owner.match and owner.match.owner == owner:
             owner.match.decline_invite(player)
         if owner.id in self.__invites:

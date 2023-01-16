@@ -48,17 +48,6 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog"):
         ranked_lobby = await Lobby.create_lobby("ranked", d_obj.guild.get_channel(1061989011092144138),
                                                 timeout_minutes=30, match_type=RankedMatch)
 
-    # @commands.Cog.listener('on_presence_update')
-    # async def lobby_timeout_updater(self, before, after):
-    #     # This is redundant with the lobby loop
-    #     #  Return if not player
-    #     p = Player.get(p_id=after.id)
-    #     if not p:
-    #         return
-    #     #  Return if status hasn't changed, or p not in lobby
-    #     if before.status == after.status or not p.lobby:
-    #         return
-    #     p.lobby.lobby_timeout_reset(p)
 
     @commands.user_command(name="Invite To Match")
     async def user_match_invite(self, ctx: discord.ApplicationContext, user: discord.Member):

@@ -184,6 +184,6 @@ async def timeout_player(p: Player, stamp: int, mod: discord.Member = None, reas
         if p.match:
             await p.match.leave_match(p.active)
         if p.lobby:
-            p.lobby.lobby_leave(p)
+            await p.lobby.lobby_leave(p)
         await p.db_update('timeout')
         return True

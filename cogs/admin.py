@@ -129,7 +129,7 @@ class AdminCog(commands.Cog):
 
         await match.join_match(p)
         if p.lobby:
-            p.lobby.lobby_leave(player=p, match=match)
+            await p.lobby.lobby_leave(player=p, match=match)
         await disp.MATCH_JOIN_2.send_priv(ctx, p.name, match.text_channel.mention)
 
     @match_admin.command(name="removeplayer")
@@ -308,7 +308,7 @@ class AdminCog(commands.Cog):
         if p.match:
             await p.match.leave_match(p.active)
         if p.lobby:
-            p.lobby.lobby_leave(p)
+            await p.lobby.lobby_leave(p)
 
         await disp.ADMIN_PLAYER_CLEAN.send_priv(ctx, p.mention)
 
