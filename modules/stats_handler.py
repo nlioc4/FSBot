@@ -45,8 +45,8 @@ async def update_elo(player1: PlayerStats, player2: PlayerStats, match_id, resul
 
 
     #  update player_stats
-    player1.add_match(match_id, player1_new_elo, player1_result)
-    player2.add_match(match_id, player2_new_elo, player2_result)
+    player1.add_match(str(match_id), player1_new_elo, player1_result)
+    player2.add_match(str(match_id), player2_new_elo, player2_result)
     await asyncio.gather(player1.push_to_db(), player2.push_to_db())
 
 

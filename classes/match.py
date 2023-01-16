@@ -244,7 +244,8 @@ class BaseMatch:
         await obj._make_channels()
 
         await obj.update()
-        asyncio.create_task(obj._check_accounts_delay(*obj.players))
+        if isinstance(obj, BaseMatch): #Create Task if the match is casual, otherwise dont
+            asyncio.create_task(obj._check_accounts_delay(*obj.players))
 
         return obj
 
@@ -468,6 +469,19 @@ class BaseMatch:
         if no_acc:
             await disp.MATCH_NO_ACCOUNT.send(self.text_channel, ''.join([p.mention for p in no_acc]),
                                              d_obj.channels['register'].mention)
+
+    async def check_player_accounts(self, players_to_check):
+        while True:
+            no_acc = []
+            for p in players_to_check:
+                if not p.has_own_account and not p.account:
+                    no_acc.append(p)
+            if no_acc:
+                await disp.MATCH_NO_ACCOUNT.send(self.text_channel, ''.join([p.mention for p in no_acc]),
+                                             d_obj.channels['register'].mention)
+                await asyncio.sleep(120)
+            else: 
+                return True
 
     async def update_embed(self):
         if self.info_message:
@@ -1052,13 +1066,14 @@ class RankedMatch(BaseMatch):
 
                 # Check if the match should be warned / timed out
                 await self.update_timeout()
-
                 # Update Status and run transition specific logic
                 match self.status:
                     case MatchState.PICKING_FACTIONS if self._factions_picked():
                         #TODO add check that all players have accounts
                         self.status = MatchState.LOGGING_IN
-                        await disp.RM_LOG_IN.send_long(self.text_channel, ping=self.players)
+                        accountcheck = await self.check_player_accounts(self.players)
+                        if accountcheck:
+                            await disp.RM_LOG_IN.send_long(self.text_channel, ping=self.players)
 
                     case MatchState.LOGGING_IN if self._ready_to_play:
                         # Initial round start, both players logged in

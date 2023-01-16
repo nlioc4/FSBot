@@ -17,7 +17,7 @@ from modules import census
 from modules import tools
 from modules import loader
 from classes import Player
-from classes.match import BaseMatch
+from classes.match import BaseMatch, EndCondition
 from display import AllStrings as disp, embeds
 import cogs.register as register
 
@@ -148,6 +148,8 @@ class AdminCog(commands.Cog):
     @match_admin.command(name="end")
     async def end_match(self, ctx: discord.ApplicationContext,
                         match_id: discord.Option(int, "Match ID to end",
+                                                 required=False),
+                                                 is_ranked: discord.Option(bool, "Is match a ranked match?",
                                                  required=False)):
         """End a given match forcibly.  Uses current channel if no ID provided"""
         await ctx.defer(ephemeral=True)
@@ -158,7 +160,7 @@ class AdminCog(commands.Cog):
             await disp.MATCH_NOT_FOUND.send_priv(ctx, (match_id or ctx.channel.mention))
 
         await disp.MATCH_END.send_priv(ctx, match.id_str)
-        await match.end_match()
+        await match.end_match(EndCondition.EXTERNAL if is_ranked else None)
 
     #########################################################
 

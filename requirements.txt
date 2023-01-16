@@ -5,4 +5,4 @@ asyncio~=3.4.3
 auraxium>=0.2.2
 pymongo[tls,srv]==4.1.1
 dnspython
-py-cord=2.3.2
+py-cord==2.3.2
