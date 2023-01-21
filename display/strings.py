@@ -207,6 +207,9 @@ class AllStrings(Enum):
     USAGE_WRONG_FORMAT = "Incorrect format ``{}``, formatting must follow ``YYYY-MM-DD``. "
     USAGE_PSB = None, psb_account_usage
 
+    # `stat` command strings
+    STAT_RESPONSE = "You've participated in **{}** matches."
+
     def __init__(self, string, embed=None):
         self.__string = string
         self.__embed = embed

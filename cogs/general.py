@@ -110,7 +110,7 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
                                                         ]
                                                     })
 
-        await ctx.respond(content=f"You've participated in {player_match_count} matches")
+        return await disp.STAT_RESPONSE.send_priv(ctx, player_match_count)
 
     @tasks.loop(seconds=5)
     async def activity_update(self):
