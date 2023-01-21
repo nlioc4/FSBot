@@ -42,7 +42,7 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
         """Used to request freedom if you have been timed out from FSBot."""
         await ctx.defer(ephemeral=True)
         if not (p := d_obj.is_player(ctx.user)):
-            return await disp.NOT_PLAYER.send_priv(ctx, ctx.user.mention, d_obj.channels['register'].mention)
+            return await disp.NOT_PLAYER.send_priv(ctx, ctx.user.mention, d_obj.channels['register'])
         if p.timeout_until != 0 and not p.is_timeout:
             await d_obj.timeout_player(p=p, stamp=0)
             await disp.TIMEOUT_RELEASED.send_priv(ctx)
