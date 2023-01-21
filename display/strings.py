@@ -207,7 +207,7 @@ class AllStrings(Enum):
     USAGE_WRONG_FORMAT = "Incorrect format ``{}``, formatting must follow ``YYYY-MM-DD``. "
     USAGE_PSB = None, psb_account_usage
 
-    # `stat` command strings
+    # `stats` command strings
     STAT_RESPONSE = None, stat_response
     STAT_NO_MATCHES = "You have not participated in any matches :frowning:."
     STAT_TOTALS = "You've participated in **{}** matches, over **{}** hours!"
