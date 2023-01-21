@@ -208,7 +208,10 @@ class AllStrings(Enum):
     USAGE_PSB = None, psb_account_usage
 
     # `stat` command strings
-    STAT_RESPONSE = "You've participated in **{}** matches."
+    STAT_RESPONSE = None, stat_response
+    STAT_NO_MATCHES = "You have not participated in any matches :frowning:."
+    STAT_TOTALS = "You've participated in **{}** matches, over **{}** hours!"
+    STAT_PARTNER_MATCH_COUNT = "<@{}> | {} matches"
 
     def __init__(self, string, embed=None):
         self.__string = string

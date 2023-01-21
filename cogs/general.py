@@ -89,9 +89,8 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
 
         await ctx.defer(ephemeral=True)
 
-        # This could become rather expensive over time. A likely better option would be to store
-        # a match count on the player object
-        player_match_count = await db.async_db_call(db.count_elements,
+        # This could become rather expensive over time...
+        get_player_matches = await db.async_db_call(db.find_elements,
                                                     "matches",
                                                     {
                                                         "$and": [
@@ -109,8 +108,39 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
                                                             }
                                                         ]
                                                     })
+        player_matches = list(get_player_matches)
+        player_match_count = len(player_matches)
 
-        return await disp.STAT_RESPONSE.send_priv(ctx, player_match_count)
+        if player_match_count is 0:
+            return await disp.STAT_NO_MATCHES.send_priv(ctx)
+
+        total_duel_sec = 0
+        partners = {}
+
+        for match in player_matches:
+            total_duel_sec += match["end_stamp"] - match["start_stamp"]
+
+            for player_id in match["current_players"]:
+                if player_id == player.id:
+                    continue
+                if player_id in partners:
+                    partners[player_id] += 1
+                else:
+                    partners[player_id] = 1
+
+            for player_id in match["previous_players"]:
+                if player_id == player.id:
+                    continue
+                if player_id in partners:
+                    partners[player_id] += 1
+                else:
+                    partners[player_id] = 1
+
+        return await disp.STAT_RESPONSE.send_priv(
+            ctx,
+            match_count=player_match_count,
+            total_duel_sec=total_duel_sec,
+            duel_partner_frequencies=partners)
 
     @tasks.loop(seconds=5)
     async def activity_update(self):
