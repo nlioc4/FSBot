@@ -10,7 +10,8 @@ import asyncio
 from modules import discord_obj as d_obj, tools, bot_status, trello, account_usage
 from display import AllStrings as disp, views
 from classes import Player
-
+from classes.match import EndCondition
+from modules import database as db
 
 import modules.config as cfg
 
@@ -78,6 +79,38 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
         usages = await account_usage.get_usages_period(p.id, start_stamp, end_stamp)
 
         await disp.USAGE_PSB.send_priv(ctx, player=p, start_stamp=start_stamp, end_stamp=end_stamp, usages=usages)
+
+    @commands.slash_command(name="stats")
+    async def stats_command(self, ctx: discord.ApplicationContext):
+        """View your dueling stats"""
+
+        if not (player := d_obj.is_player(ctx.user)):
+            return await disp.NOT_PLAYER.send_priv(ctx, ctx.user.mention, d_obj.channels['register'].mention)
+
+        await ctx.defer(ephemeral=True)
+
+        # This could become rather expensive over time. A likely better option would be to store
+        # a match count on the player object
+        player_match_count = await db.async_db_call(db.count_elements,
+                                                    "matches",
+                                                    {
+                                                        "$and": [
+                                                            {
+                                                                "$or": [
+                                                                    {"current_players": player.id},
+                                                                    {"previous_players": player.id}
+                                                                ]
+                                                            },
+                                                            {
+                                                                "end_condition": {"$ne": EndCondition.FORFEIT.name}
+                                                            },
+                                                            {
+                                                                "end_condition": {"$ne": EndCondition.TIMEOUT.name}
+                                                            }
+                                                        ]
+                                                    })
+
+        await ctx.respond(content=f"You've participated in {player_match_count} matches")
 
     @tasks.loop(seconds=5)
     async def activity_update(self):
