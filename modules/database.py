@@ -213,18 +213,6 @@ def find_elements(collection: str, query: dict, projection=None):
     return _collections[collection].find(query)
 
 
-def count_elements(collection: str, query: dict) -> int:
-    """
-    Count the elements in a collection.
-
-    :param collection: The name of the collection to count elements from.
-    :param query: A query document that selects which documents to count in the collection.
-        Can be an empty document to count all documents.
-    """
-
-    return _collections[collection].count_documents(query)
-
-
 def aggregate_fields(collection: str, query: list):
     """
     Aggregate a collection via query list, using keywords for $match, $group, $project dicts etc
@@ -237,3 +225,4 @@ def add_element(collection: str, doc):
     Add an element to a collection, with an unspecified object ID
     """
     _collections[collection].insert_one(doc)
+
