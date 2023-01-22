@@ -204,6 +204,46 @@ def psb_account_usage(player, start_stamp, end_stamp, usages) -> Embed:
     return embed
 
 
+def stat_response(match_count: int, total_duel_sec: int, duel_partner_frequencies: dict) -> Embed:
+    # Local import to avoid circular dependency
+    from display import AllStrings
+
+    embed = Embed(
+        colour=Colour.blurple(),
+        title="Match Statistics",
+        description=AllStrings.STAT_TOTALS.value.format(match_count, round(total_duel_sec / 60 / 60, 1))
+    )
+
+    highest_partner = None
+    duel_partners = ""
+
+    for i in range(3):
+        if len(duel_partner_frequencies) == 0:
+            break
+
+        # Find the partner with which we've had the most matches
+        for partner_id, match_count in duel_partner_frequencies.items():
+            if highest_partner is None or highest_partner[1] < match_count:
+                highest_partner = (partner_id, match_count)
+
+        # Check if we selected a new highest partner
+        if highest_partner is None or highest_partner[0] not in duel_partner_frequencies:
+            continue
+
+        # We've found a new highest partner. Add them and move on
+        duel_partners += AllStrings.STAT_PARTNER_MATCH_COUNT.value.format(highest_partner[0], highest_partner[1])
+        duel_partners += "\n"
+        duel_partner_frequencies.pop(highest_partner[0])
+
+    if duel_partners != "":
+        embed.add_field(
+            name="Top Duel Partners",
+            value=duel_partners
+        )
+
+    return embed
+
+
 def player_info(player) -> Embed:
     embed = Embed(
         colour=Colour.greyple(),

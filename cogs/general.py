@@ -10,7 +10,8 @@ import asyncio
 from modules import discord_obj as d_obj, tools, bot_status, trello, account_usage
 from display import AllStrings as disp, views
 from classes import Player
-
+from classes.match import EndCondition
+from modules import database as db
 
 import modules.config as cfg
 
@@ -78,6 +79,68 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
         usages = await account_usage.get_usages_period(p.id, start_stamp, end_stamp)
 
         await disp.USAGE_PSB.send_priv(ctx, player=p, start_stamp=start_stamp, end_stamp=end_stamp, usages=usages)
+
+    @commands.slash_command(name="stats")
+    async def stats_command(self, ctx: discord.ApplicationContext):
+        """View your dueling stats"""
+
+        if not (player := d_obj.is_player(ctx.user)):
+            return await disp.NOT_PLAYER.send_priv(ctx, ctx.user.mention, d_obj.channels['register'].mention)
+
+        await ctx.defer(ephemeral=True)
+
+        # This could become rather expensive over time...
+        get_player_matches = await db.async_db_call(db.find_elements,
+                                                    "matches",
+                                                    {
+                                                        "$and": [
+                                                            {
+                                                                "$or": [
+                                                                    {"current_players": player.id},
+                                                                    {"previous_players": player.id}
+                                                                ]
+                                                            },
+                                                            {
+                                                                "end_condition": {"$ne": EndCondition.FORFEIT.name}
+                                                            },
+                                                            {
+                                                                "end_condition": {"$ne": EndCondition.TIMEOUT.name}
+                                                            }
+                                                        ]
+                                                    })
+        player_matches = list(get_player_matches)
+        player_match_count = len(player_matches)
+
+        if player_match_count is 0:
+            return await disp.STAT_NO_MATCHES.send_priv(ctx)
+
+        total_duel_sec = 0
+        partners = {}
+
+        for match in player_matches:
+            total_duel_sec += match["end_stamp"] - match["start_stamp"]
+
+            for player_id in match["current_players"]:
+                if player_id == player.id:
+                    continue
+                if player_id in partners:
+                    partners[player_id] += 1
+                else:
+                    partners[player_id] = 1
+
+            for player_id in match["previous_players"]:
+                if player_id == player.id:
+                    continue
+                if player_id in partners:
+                    partners[player_id] += 1
+                else:
+                    partners[player_id] = 1
+
+        return await disp.STAT_RESPONSE.send_priv(
+            ctx,
+            match_count=player_match_count,
+            total_duel_sec=total_duel_sec,
+            duel_partner_frequencies=partners)
 
     @tasks.loop(seconds=5)
     async def activity_update(self):
