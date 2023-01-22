@@ -41,8 +41,10 @@ async def update_elo(player1: PlayerStats, player2: PlayerStats, match_id, resul
 
     player1_new_elo = _new_player_rating(player1.elo, player1_win_xpt, player1_result)
     player2_new_elo = _new_player_rating(player2.elo, player2_win_xpt, player2_result)
-
-
+    
+    #Calculate elo change
+    player1_elo_delta = player1_new_elo - player1.elo
+    player2_elo_delta = player2_new_elo - player2.elo
 
     #  update player_stats
     player1.add_match(str(match_id), player1_new_elo, player1_result)
@@ -50,5 +52,5 @@ async def update_elo(player1: PlayerStats, player2: PlayerStats, match_id, resul
     await asyncio.gather(player1.push_to_db(), player2.push_to_db())
 
 
-    return player1, player2
+    return player1, player2, player1_elo_delta, player2_elo_delta
 

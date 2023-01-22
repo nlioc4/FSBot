@@ -151,6 +151,7 @@ class AllStrings(Enum):
     RM_DRAW = "The match was a draw!"
     RM_ENDED_NO_ELO = "The match was not completed properly, results will not be stored..."
     RM_ENDED_TOO_MANY_CONFLICTS = "The match is automatically being appealed due to too many score conflicts..."
+    RM_MATCH_END_DM = "", match_result_embed
 
     INVITE_ACCEPT = "You have accepted the invite from {}, join {}."
     INVITE_DECLINE = "You have declined the invite from {}."

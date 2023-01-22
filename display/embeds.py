@@ -774,3 +774,15 @@ def fs_join_embed(mention) -> Embed:
               f" or ``staff `` "
     )
     return fs_author(embed)
+
+def match_result_embed(match, elodelta: int, isplayerone: bool) -> Embed:
+    embed = Embed(
+        colour=Colour.green() if elodelta >= 0 else Colour.red(),
+        title=f"Your statistic overview for match {match.id} against {match.player2.name if isplayerone else match.player1.name}."
+    )
+    embed.add_field(
+        name="Elo",
+        value=f"You have {'gained' if elodelta >= 0 else 'lost'} {abs(elodelta)} elo."
+    )
+    return embed
+

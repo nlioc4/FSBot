@@ -86,12 +86,19 @@ class PlayerStats:
     def elo(self):
         return self.__elo
 
-    def add_match(self, match_id, elo_delta, result):
+    def add_match(self, match_id, new_elo, result):
         """Add a match to a player stats set.
         Result should be 1 if match won, 0.5 if match drawn, or 0 if match lost"""
         self.__match_ids.append(match_id)
-        self.__elo_history[match_id] = elo_delta
-        self.__elo = self.__elo + elo_delta
+        #self.__elo_history[match_id] = elo_delta
+
+        #Calculate the elo gain/loss from the match and add it to the history
+        self.__elo_history[match_id] = new_elo - self.__elo 
+        #self.__elo = self.__elo + elo_delta
+
+        #Set new elo as the elo of player
+        self.__elo = new_elo
+
         if result > 0.5:
             self.__match_wins += 1
         if result == 0.5:

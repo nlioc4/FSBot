@@ -1254,14 +1254,19 @@ class RankedMatch(BaseMatch):
 
 
             # Determine Elo Changes
-            self.__player1_stats, self.__player2_stats = await stats_handler.update_elo(self.__player1_stats,
+            self.__player1_stats, self.__player2_stats, player1delta, player2delta = await stats_handler.update_elo(self.__player1_stats,
                                                                                         self.__player2_stats,
                                                                                         self.id,
                                                                                         self.__match_outcome,
                                                                                         self.MATCH_LENGTH)
-            # TODO Send embed with match results + elo changes to each player in DM's
+            
+            #Send embed with match results + elo changes to each player in DM's
+            p1 = d_obj.guild.get_member(self.player1.id)
+            p2 = d_obj.guild.get_member(self.player2.id)
 
-
+            await disp.RM_MATCH_END_DM.send(p1, match = self, elodelta = round(player1delta), isplayerone = True)
+            await disp.RM_MATCH_END_DM.send(p2, match = self, elodelta = round(player2delta), isplayerone = False)
+            
         else:
             # Nonstandard Ending, warn of no elo saving
             await disp.RM_ENDED_NO_ELO.send(self.text_channel, ping=self.players)
