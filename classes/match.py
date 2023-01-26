@@ -778,6 +778,7 @@ class RankedMatch(BaseMatch):
         # Match Variables
         self.__round_history: List[Round] = []
         self.__match_outcome: int = 0
+        self.status = MatchState.PICKING_FACTIONS
 
         # Round Variables
         self.__round_wrong_scores_counter = 0
@@ -787,7 +788,9 @@ class RankedMatch(BaseMatch):
 
         # Display Objects
         self.__round_message: discord.Message | None = None
+        self.__embed_func = embeds.ranked_match_info
 
+        self.__view: RankedMatch.RankedMatchView | None = None
         self.__view_class = self.RankedMatchView
 
     @classmethod
@@ -865,6 +868,34 @@ class RankedMatch(BaseMatch):
             'match_outcome': self.__match_outcome,
             'round_history': [r._asdict() for r in self.__round_history]
         }
+    #Override embed functions to send ranked embed
+
+    def view(self, new=False):
+        if not new and self.__view:
+            return self.__view.update()
+        self.__view = self.__view_class(self)
+        return self.__view
+    
+    def _new_embed(self):
+        return self.__embed_func(self)
+
+    async def send_embed(self):
+        if not self.embed_cache:
+            self.embed_cache = self._new_embed()
+        self.info_message = await disp.RM_MATCH_INFO.send(self.text_channel, embed=self.embed_cache, view=self.view())
+        await self.info_message.pin()
+
+    async def update_embed(self):
+        if self.info_message:
+            if not tools.compare_embeds(self.embed_cache, new_embed := self._new_embed()):
+                self.embed_cache = new_embed   
+                try:
+                    await disp.RM_MATCH_INFO.edit(self.info_message, embed=self.embed_cache, view=self.view())
+                except discord.errors.NotFound as e:
+                    log.error("Couldn't find self.info_message for Match %s", self.id_str, exc_info=e)
+                    await self.send_embed()
+        else:
+            await self.send_embed()
 
     # Faction Picks
     class FactionPickView(views.FSBotView):

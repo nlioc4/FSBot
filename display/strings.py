@@ -129,7 +129,8 @@ class AllStrings(Enum):
     MATCH_NO_ACCOUNT = "{} you are registered without a Jaeger Account and have yet to request one for this match!" \
                        "  If you have your own account please register it in {}," \
                        " otherwise request an account using the button above!"
-
+                       
+    RM_MATCH_INFO = "", ranked_match_info
     RM_FACTION_PICK = "{} pick which faction you will play first below!"
     RM_FACTION_PICKED = "{} chose to play {} first.\n {} has been assigned {}!"
     RM_FACTION_SWITCH = "Half time, please switch factions!" \

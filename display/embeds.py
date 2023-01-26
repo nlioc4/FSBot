@@ -523,10 +523,11 @@ def ranked_match_info(match) -> Embed:
 
     # Scores
 
-    embed.add_field(name="Match Score",
-                    value=match.get_score_string(),
-                    inline=False)
-
+    if match.status.name in ("LOGGING_IN", "PLAYING", "SWITCHING_SIDES", "SUBMITTING"):
+        embed.add_field(name="Match Score",
+                        value=match.get_score_string(),
+                        inline=False)
+                      
     # Current Round
     online, offline = "🟢", "🔴"
     if match.status.name in ("LOGGING_IN", "PLAYING", "SWITCHING_SIDES", "SUBMITTING"):
@@ -782,7 +783,7 @@ def match_result_embed(match, elodelta: int, isplayerone: bool) -> Embed:
     )
     embed.add_field(
         name="Elo",
-        value=f"You have {'gained' if elodelta >= 0 else 'lost'} {abs(elodelta)} elo."
+        value=f"You {'gained' if elodelta >= 0 else 'lost'} {abs(elodelta)} elo."
     )
     return embed
 
