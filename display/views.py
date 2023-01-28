@@ -283,5 +283,58 @@ class ConfirmView(FSBotView):
             pass
 
 
+class CustomMatchTimeoutView(FSBotView):
+    """View to change custom timeout value on the fly.
+    Next timeout check: {Player Timeout}
+    **Player will not be timed out, currently Online** if online
+    [-30 Min][-5 Min][Custom][+5 Min][+30 Min]"""
+    def __init__(self):
+        super().__init__()
+
+    async def update_timeout(self, inter, timeout_delta):
+        """
+        Method to update players timeout, executes all logic
+        Pass new timeout stamp
+        """
+        if not (p := Player.get(inter.user.id)) or not p.lobby:
+            await disp.CANT_USE.send_priv(inter)
+            await inter.delete_original_response()
+            self.stop()
+            return
+
+        new_timeout_stamp = p.lobby_timeout_stamp + timeout_delta
+
+        if new_timeout_stamp < tools.timestamp_now() or new_timeout_stamp > tools.timestamp_now() + 10800:
+            # If timeout is invalid, in the past or more than 3 hours in future
+            return await disp.LOBBY_TIMEOUT_INVALID.edit(inter,
+                                                         tools.format_time_from_stamp(p.lobby_timeout_stamp, "t"),
+                                                         tools.format_time_from_stamp(new_timeout_stamp, "R")
+                                                        )
+
+        await p.lobby.lobby_timeout_set(p, new_timeout_stamp)
+        await disp.LOBBY_TIMEOUT_CUSTOM.edit(inter, tools.format_time_from_stamp(new_timeout_stamp, "t"), view=self)
+
+
+    @discord.ui.button(label="-30 Minutes", style=discord.ButtonStyle.red)
+    async def minus_thirty_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        await self.update_timeout(inter, -30 * 60)
+
+    @discord.ui.button(label="-5 Minutes", style=discord.ButtonStyle.red)
+    async def minus_five_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        await self.update_timeout(inter, -5 * 60)
+
+    @discord.ui.button(label="+5 Minutes", style=discord.ButtonStyle.green)
+    async def plus_five_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        await self.update_timeout(inter, 5 * 60)
+
+    @discord.ui.button(label="+30 Minutes", style=discord.ButtonStyle.green)
+    async def plus_thirty_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        await self.update_timeout(inter, 30 * 60)
+
+
+
+
+
+
 
 

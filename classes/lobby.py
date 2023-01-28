@@ -35,6 +35,7 @@ class DashboardView(views.FSBotView):
         else:
             self.leave_lobby_button.disabled = True
             self.reset_lobby_button.disabled = True
+            self.custom_timeout_lobby_button.disabled = True
 
     def update(self):
         if self.lobby.disabled:
@@ -47,6 +48,7 @@ class DashboardView(views.FSBotView):
         else:
             self.leave_lobby_button.disabled = True
             self.reset_lobby_button.disabled = True
+            self.custom_timeout_lobby_button.disabled = True
         return self
 
     class ChallengeDropdown(discord.ui.Select):
@@ -137,6 +139,14 @@ class DashboardView(views.FSBotView):
             await disp.LOBBY_TIMEOUT_RESET.send_priv(inter, player.mention)
         else:
             await disp.LOBBY_NOT_IN.send_priv(inter, player.mention)
+
+    @discord.ui.button(label="Custom Timeout", style=discord.ButtonStyle.blurple)
+    async def custom_timeout_lobby_button(self, button: discord.Button, inter: discord.Interaction):
+        player: Player = Player.get(inter.user.id)
+        if player.lobby is not self.lobby:
+            return await disp.LOBBY_NOT_IN.send_priv(inter, player.mention)
+        await disp.LOBBY_TIMEOUT_CUSTOM.send_priv(inter, tools.format_time_from_stamp(player.lobby_timeout_stamp, 't'),
+                                                  view=views.CustomMatchTimeoutView())
 
     @discord.ui.button(label="Extended History", style=discord.ButtonStyle.blurple)
     async def history_lobby_button(self, button: discord.Button, inter: discord.Interaction):

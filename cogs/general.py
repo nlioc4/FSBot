@@ -111,7 +111,7 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
         player_matches = list(get_player_matches)
         player_match_count = len(player_matches)
 
-        if player_match_count is 0:
+        if player_match_count == 0:
             return await disp.STAT_NO_MATCHES.send_priv(ctx)
 
         total_duel_sec = 0

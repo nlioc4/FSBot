@@ -91,7 +91,7 @@ class AllStrings(Enum):
     LOBBY_JOIN = "{} you have joined the lobby!"
     LOBBY_LEAVE = "{} you have left the lobby!"
     LOBBY_NOT_IN = "{} you are not in this lobby!"
-    LOBBY_NOT_IN_2 = "{} is not in the lobby as you!"
+    LOBBY_NOT_IN_2 = "{} is not in same the lobby as you!"
     LOBBY_NOT_OWNER = "You can't invite players to a match you don't own!"
     LOBBY_NO_DM = "{} could not be invited as they are refusing DM's from the bot!"
     LOBBY_NO_DM_ALL = "{} no players could be invited."
@@ -100,6 +100,11 @@ class AllStrings(Enum):
     LOBBY_TIMEOUT = "{} you have been removed from the lobby by timeout!"
     LOBBY_TIMEOUT_SOON = "{} you will soon be timed out from the lobby, click above to reset."
     LOBBY_TIMEOUT_RESET = "{} you have reset your lobby timeout."
+    LOBBY_TIMEOUT_SET = "Your next timeout check will now occur {}."
+    LOBBY_TIMEOUT_CUSTOM = "Set a custom timeout using the buttons below!\nYour timeout will be checked next at {}."
+    LOBBY_TIMEOUT_INVALID = "Set a custom timeout using the buttons below!\nYour timeout will be checked next at {}." \
+                            "\n**Timeout request for {} is invalid!**"
+
     LOBBY_DASHBOARD = ''
     LOBBY_LONGER_HISTORY = '{}', longer_lobby_logs
     LOBBY_NO_HISTORY = '{} there is no extended activity to display!'

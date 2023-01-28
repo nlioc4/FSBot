@@ -275,7 +275,8 @@ def player_info(player) -> Embed:
 
     if player.lobby:
         embed.add_field(name="Player Lobby",
-                        value=f"Current Lobby: {player.lobby.channel.mention}")
+                        value=f"Current Lobby: {player.lobby.channel.mention}\n"
+                              f"Lobby Timeout: {format_stamp(player.lobby_timeout_stamp)}")
     if player.match:
         embed.add_field(name="Player Match",
                         value=f"Current Match: [{player.match.id_str}]({player.match.text_channel.mention})\n")
