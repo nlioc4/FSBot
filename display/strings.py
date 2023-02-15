@@ -98,11 +98,14 @@ class AllStrings(Enum):
     LOBBY_ALREADY_IN = "{} you are already in this lobby!"
     LOBBY_ALREADY_MATCH = '{} you are already in a match [{}]({}), leave to join the lobby again.'
     LOBBY_TIMEOUT = "{} you have been removed from the lobby by timeout!"
-    LOBBY_TIMEOUT_SOON = "{} you will soon be timed out from the lobby, click above to reset."
+    LOBBY_TIMEOUT_SOON = "{} you will  be timed out from the lobby {}, click above to reset."
+    LOBBY_TIMEOUT_ONLINE = "While Online on Discord, you cannot be timed out from the lobby!"
     LOBBY_TIMEOUT_RESET = "{} you have reset your lobby timeout."
-    LOBBY_TIMEOUT_SET = "Your next timeout check will now occur {}."
-    LOBBY_TIMEOUT_CUSTOM = "Set a custom timeout using the buttons below!\nYour timeout will be checked next at {}."
-    LOBBY_TIMEOUT_INVALID = "Set a custom timeout using the buttons below!\nYour timeout will be checked next at {}." \
+    LOBBY_TIMEOUT_SET = "You will be timed out at {} if not online."
+    LOBBY_TIMEOUT_CUSTOM = "Set a custom timeout within the next 3 hours using the buttons below!\n" \
+                           "You will be timed out at {} if not online."
+    LOBBY_TIMEOUT_INVALID = "Set a custom timeout within the next 3 hours using the buttons below!\n" \
+                            "You will be timed out at {} if not online." \
                             "\n**Timeout request for {} is invalid!**"
 
     LOBBY_DASHBOARD = ''

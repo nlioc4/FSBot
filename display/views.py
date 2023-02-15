@@ -22,9 +22,8 @@ log = getLogger('fs_bot')
 class FSBotView(discord.ui.View):
     """Base View for the bot, includes error handling and locked check"""
 
-    def __init__(self, timeout=None):
-        super().__init__(timeout=timeout, disable_on_timeout=True)
-        self.msg = None
+    def __init__(self, timeout=None, disable_on_timeout=True):
+        super().__init__(timeout=timeout, disable_on_timeout=disable_on_timeout)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if is_all_locked():
@@ -240,6 +239,7 @@ class RemoveTimeoutView(FSBotView):
 
 
 class ConfirmView(FSBotView):
+    # TODO BUILD func for creating confirmations and sending them, with countdowns until timeout etc.
     def __init__(self, timeout=60, response="Action", coroutine=None):
         super().__init__(timeout=timeout)
         self.response = response
@@ -279,30 +279,36 @@ class ConfirmView(FSBotView):
         self.confirm_button.style = discord.ButtonStyle.grey
         try:
             self.message.delete(delay=10)
-        except discord.NotFound:
+        except (discord.NotFound, discord.HTTPException):
             pass
 
 
-class CustomMatchTimeoutView(FSBotView):
+class CustomLobbyTimeoutView(FSBotView):
     """View to change custom timeout value on the fly.
     Next timeout check: {Player Timeout}
     **Player will not be timed out, currently Online** if online
     [-30 Min][-5 Min][Custom][+5 Min][+30 Min]"""
     def __init__(self):
-        super().__init__()
+        super().__init__(timeout=60)
 
-    async def update_timeout(self, inter, timeout_delta):
+
+    async def update_timeout(self, inter, timeout_delta, new_stamp=0):
         """
         Method to update players timeout, executes all logic
         Pass new timeout stamp
         """
         if not (p := Player.get(inter.user.id)) or not p.lobby:
-            await disp.CANT_USE.send_priv(inter)
-            await inter.delete_original_response()
             self.stop()
+            self.disable_all_items()
+            await disp.CANT_USE.edit(inter, view=self, delete_after=5)
             return
 
-        new_timeout_stamp = p.lobby_timeout_stamp + timeout_delta
+        elif await p.lobby.check_player_timeout_status(p): # Cancel if player is online
+            self.stop()
+            self.disable_all_items()
+            return await disp.LOBBY_TIMEOUT_ONLINE.edit(inter, view=self, delete_after=5)
+
+        new_timeout_stamp = new_stamp or p.lobby_timeout_stamp + timeout_delta
 
         if new_timeout_stamp < tools.timestamp_now() or new_timeout_stamp > tools.timestamp_now() + 10800:
             # If timeout is invalid, in the past or more than 3 hours in future
@@ -322,6 +328,38 @@ class CustomMatchTimeoutView(FSBotView):
     @discord.ui.button(label="-5 Minutes", style=discord.ButtonStyle.red)
     async def minus_five_button(self, button: discord.ui.Button, inter: discord.Interaction):
         await self.update_timeout(inter, -5 * 60)
+
+    @discord.ui.button(label="Custom", style=discord.ButtonStyle.blurple)
+    async def custom_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        class CustomTimeoutModal(discord.ui.Modal):
+            def __init__(self, parent_view=None, lobby=None) -> None:
+                super().__init__(
+                    discord.ui.InputText(
+                        label="Input Timeout Duration String",
+                        placeholder="Format: 'HH:MM', duration from now before timeout.",
+                        style=discord.InputTextStyle.short,
+                        min_length=3,
+                        max_length=5
+                    ),
+                    title="Custom Timeout Duration")
+                self.parent = parent_view
+                self.lobby = lobby
+
+            async def callback(self, inter: discord.Interaction):
+                response = self.children[0].value.split(':')
+                if not (p := Player.get(inter.user.id)):
+                    return await disp.CANT_USE.send_priv(inter, delete_after=5)
+
+                # Check failure cases
+                if len(response) != 2 or not all(r.isnumeric() for r in response):
+                    curr_timeout = tools.format_time_from_stamp(p.lobby_timeout_stamp, "t")
+                    return await disp.LOBBY_TIMEOUT_INVALID.edit(inter, curr_timeout, ':'.join(response))
+
+                hours, minutes = int(response[0]), int(response[1])
+                timeout_at = tools.timestamp_now() + (hours * 60 * 60) + (minutes * 60)
+                return await self.parent.update_timeout(inter, None, timeout_at)
+        await inter.response.send_modal(CustomTimeoutModal(self))
+
 
     @discord.ui.button(label="+5 Minutes", style=discord.ButtonStyle.green)
     async def plus_five_button(self, button: discord.ui.Button, inter: discord.Interaction):

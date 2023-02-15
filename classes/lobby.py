@@ -142,11 +142,13 @@ class DashboardView(views.FSBotView):
 
     @discord.ui.button(label="Custom Timeout", style=discord.ButtonStyle.blurple)
     async def custom_timeout_lobby_button(self, button: discord.Button, inter: discord.Interaction):
-        player: Player = Player.get(inter.user.id)
-        if player.lobby is not self.lobby:
-            return await disp.LOBBY_NOT_IN.send_priv(inter, player.mention)
-        await disp.LOBBY_TIMEOUT_CUSTOM.send_priv(inter, tools.format_time_from_stamp(player.lobby_timeout_stamp, 't'),
-                                                  view=views.CustomMatchTimeoutView())
+        if not (p := Player.get(inter.user.id)) or p.lobby != self.lobby:
+            await disp.LOBBY_NOT_IN.send_priv(inter, p.mention)
+        elif await self.lobby.check_player_timeout_status(p):
+            await disp.LOBBY_TIMEOUT_ONLINE.send_priv(inter)
+        else:
+            await disp.LOBBY_TIMEOUT_CUSTOM.send_priv(inter, tools.format_time_from_stamp(p.lobby_timeout_stamp, 't'),
+                                                  view=views.CustomLobbyTimeoutView())
 
     @discord.ui.button(label="Extended History", style=discord.ButtonStyle.blurple)
     async def history_lobby_button(self, button: discord.Button, inter: discord.Interaction):
@@ -218,7 +220,8 @@ class Lobby:
         self.__lobbied_players: list[Player] = []  # List of players currently in lobby
         self.__invites: dict[Player, list[Player]] = {}  # list of invites by owner.id: list[invited players]
         # self.__warned_players: list[Player] = []  # list of players that have been warned of impending timeout
-        self.__warned_players: dict[Player, discord.Message] = {}  # dict of (Player, warning_message) for players warned of impending timeout
+        self.__warned_players: dict[
+            Player, discord.Message] = {}  # dict of (Player, warning_message) for players warned of impending timeout
         self.__matches: list[BaseMatch] = []  # list of matches created by this lobby
         self.__logs: list[(int, str)] = []  # lobby logs recorded as a list of tuples, (timestamp, message)
 
@@ -331,7 +334,7 @@ class Lobby:
         """Schedules a dashboard update"""
         task = d_obj.bot.loop.create_task(self.update_dashboard())
 
-    async def _check_player_timeout_status(self, player: Player) -> bool:
+    async def check_player_timeout_status(self, player: Player) -> bool:
         """Checks if a player should have timeout_stamp updated based on Player discord Status.
         Updates players timestamp if necessary, returns whether timestamp was updated"""
         player_memb = d_obj.guild.get_member(player.id)
@@ -354,6 +357,7 @@ class Lobby:
                 except discord.NotFound:
                     pass
                 self.lobby_log(f"{player.name} reset their lobby timeout.")
+                await self.update()
             return True
         return False
 
@@ -362,20 +366,20 @@ class Lobby:
         for p in self.lobbied:
             # Update timeout stamps
 
+            if await self.check_player_timeout_status(p):
+                pass
+
             # Timeout if current time greater than timeout stamp
-            if p.lobby_timeout_stamp < tools.timestamp_now():
-                if self._check_player_timeout_status(p):  # Check if player should have timeout reset, skip warn if so
-                    continue
+            elif p.lobby_timeout_stamp < tools.timestamp_now():
                 await self.lobby_leave(p, timeout=True)
                 await disp.LOBBY_TIMEOUT.send(self.channel, p.mention, delete_after=30)
 
             # Warn if current time less than 5 minutes (300 s) before timeout stamp
             elif p.lobby_timeout_stamp - 300 < tools.timestamp_now() and p not in self.__warned_players:
-                if self._check_player_timeout_status(p):  # Check if player should have timeout reset, skip warn if so
-                    continue
                 self.lobby_log(f'{p.name} will soon be timed out of the lobby')
-                self.__warned_players[p] = await disp.LOBBY_TIMEOUT_SOON.send(self.channel, p.mention, delete_after=30)
-
+                self.__warned_players[p] = await disp.LOBBY_TIMEOUT_SOON.send(self.channel, p.mention,
+                                                                              tools.format_time_from_stamp(
+                                                                                  p.lobby_timeout_stamp, 'R'))
 
     def update_matches(self):
         """Remove matches from match list if ended"""
@@ -465,7 +469,6 @@ class Lobby:
     def disabled(self):
         return self.__disabled
 
-
     async def lobby_leave(self, player, match=None, *, timeout=False):
         """Removes from lobby list, executes player lobby leave method, returns True if removed
         Timeout flag denotes player was timed out from the lobby"""
@@ -491,7 +494,7 @@ class Lobby:
         """Adds to lobby list, executes player lobby join method, returns True if added.
         param timeout_at, timestamp to timeout player at.  Defaults to 60 minutes from now if not provided
         """
-        if player not in self.__lobbied_players:
+        if player not in self.__lobbied_players or not player.lobby:
             timeout_at = timeout_at or tools.timestamp_now() + self.timeout_minutes * 60
             player.on_lobby_add(self, timeout_at)
             self.__lobbied_players.append(player)

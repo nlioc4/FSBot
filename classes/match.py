@@ -347,10 +347,8 @@ class BaseMatch:
                 return
 
             if player.player == self.owner:
-                if len(self.players) >= 3 and await self.change_owner():
+                if len(self.players) >= 3 and not await self.change_owner():
                     # if 3 or more players and new owner possible, assign new owner rather than ending the match
-                    pass
-                else:
                     await self.end_match(EndCondition.FORFEIT, leaving_player=player)
                     return
 
@@ -719,7 +717,7 @@ class RankedMatch(BaseMatch):
                 
                 await disp.RM_FORFEIT_CONFIRM.send_priv(inter, ping=p,
                                                         view=confirm)
-                if await confirm.confirmed():
+                if await confirm.confirmed:
                     self.match.log(f"Match is ending due to {p.name} leaving early!")
                     await self.match.end_match(EndCondition.FORFEIT)  # will do nothing if leaving player was owner
 
