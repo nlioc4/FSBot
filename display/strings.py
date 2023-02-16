@@ -38,6 +38,8 @@ class AllStrings(Enum):
     LOADER_TOGGLE = "FSBot {}ed"
     HELLO = "Hello there {}"
     MANUAL_CENSUS = "Manual Census Check {}"
+    CENSUS_LOOP_STATUS = "The Census loop is {}"
+    CENSUS_LOOP_CHANGED = "The Census loop was {}, it has now been {}."
     SUGGESTION_ACCEPTED = "{} your suggestion has been submitted to the administration team. Thanks!"
 
     ADMIN_PLAYER_CLEAN = "{} has been cleaned."

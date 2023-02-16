@@ -70,6 +70,28 @@ class AdminCog(commands.Cog):
         ran = await self.census_rest()
         await disp.MANUAL_CENSUS.send_priv(ctx, "successful." if ran else "failed.")
 
+    @admin.command(name='census')
+    async def census_control(self, ctx: discord.ApplicationContext,
+                             action: discord.Option(str, "Enable, Disable, or check status of the Census Loop",
+                                                    choices=("Enable", "Disable", "Status"),
+                                                    required=False)):
+        """Control the Census loop"""
+
+        match action:
+
+            case "Enable" if self.census_rest.is_running():
+                self.census_rest.restart()
+                await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Running", "restarted")
+            case "Enable":
+                self.census_rest.start()
+                await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Stopped", "started")
+            case "Disable" if self.census_rest.is_running():
+                self.census_rest.stop()
+                await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Running", "stopped")
+            case _:
+                await disp.CENSUS_LOOP_STATUS.send_priv(ctx, "Running" if self.census_rest.is_running() else "Stopped")
+
+
     @admin.command(name="rulesinit")
     async def rulesinit(self, ctx: discord.ApplicationContext,
                         message_id: discord.Option(str, "Existing FSBot Rules message", required=False)):
@@ -438,7 +460,7 @@ class AdminCog(commands.Cog):
 
     @tasks.loop(seconds=15)
     async def census_rest(self):
-        """Built to detect already online accounts on bot startup"""
+        """Backup census method for checking accounts online status"""
         for _ in range(5):
             if await census.online_status_rest(Player.map_chars_to_players()):
                 return True
