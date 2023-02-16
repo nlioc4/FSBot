@@ -112,7 +112,7 @@ async def is_registered(ctx, user: discord.Member | discord.User | classes.Playe
 async def d_log(message: str = '', source: str = '', error=None) -> bool:
     """Utility function to send logs to #logs channel and fsbot Log"""
     if error:
-        msg = await disp.LOG_ERROR.send(channels['logs'], source, message, error)
+        msg = await disp.LOG_ERROR.send(channels['logs'], source, message, error, ping=roles['app_admin'])
         log.error(msg.clean_content, exc_info=error)
         return msg
 

@@ -375,15 +375,15 @@ async def logout_reminder(acc: classes.Account):
     """Looping coroutine to remind a player to logout of an account after it is terminated.
     Sends warning to log channel if players continue to stay on account."""
 
-    await asyncio.sleep(60)
+    await asyncio.sleep(300)
 
     if acc.online_id:
         await disp.ACCOUNT_LOGOUT_WARN.send(acc.message, acc.online_name, ping=acc.a_player.mention)
 
         acc.logout_reminders += 1
-        if acc.logout_reminders % 5 == 0:
+        if acc.logout_reminders % 3 == 0 or acc.logout_reminders == 1:
             await d_obj.d_log(f'User: {acc.a_player.mention} has not logged out of their Jaeger account'
-                              f' {acc.logout_reminders} minutes after their session ended!')
+                              f' {acc.logout_reminders * 5} minutes after their session ended!')
 
         asyncio.create_task(logout_reminder(acc))
     else:
