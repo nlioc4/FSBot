@@ -112,10 +112,13 @@ async def is_registered(ctx, user: discord.Member | discord.User | classes.Playe
 async def d_log(message: str = '', source: str = '', error=None) -> bool:
     """Utility function to send logs to #logs channel and fsbot Log"""
     if error:
-        log.error(f"{source + ': ' if source else ''}{message}", exc_info=error)
-        return True if await disp.LOG_ERROR.send(channels['logs'], source, message, error) else False
-    log.info(f"{source + ': ' if source else ''}{message}")
-    return await disp.LOG_GENERAL.send(channels['logs'], message, error)
+        msg = await disp.LOG_ERROR.send(channels['logs'], source, message, error)
+        log.error(msg.clean_content, exc_info=error)
+        return msg
+
+    msg = await disp.LOG_GENERAL.send(channels['logs'], message, error)
+    log.info(msg.clean_content)
+    return msg
 
 
 async def role_update(member: discord.Member = None, player: classes.Player = None, reason="FSBot Role Update"):

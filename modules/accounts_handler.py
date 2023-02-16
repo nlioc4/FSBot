@@ -378,10 +378,10 @@ async def logout_reminder(acc: classes.Account):
     await asyncio.sleep(60)
 
     if acc.online_id:
-        await disp.ACCOUNT_LOGOUT_WARN.send(acc.message, acc.a_player.mention, acc.online_name)
+        await disp.ACCOUNT_LOGOUT_WARN.send(acc.message, acc.online_name, ping=acc.a_player.mention)
 
         acc.logout_reminders += 1
-        if acc.logout_reminders % 5 != 0:
+        if acc.logout_reminders % 5 == 0:
             await d_obj.d_log(f'User: {acc.a_player.mention} has not logged out of their Jaeger account'
                               f' {acc.logout_reminders} minutes after their session ended!')
 

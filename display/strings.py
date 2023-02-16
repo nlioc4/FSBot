@@ -183,7 +183,7 @@ class AllStrings(Enum):
     ACCOUNT_SENT_2 = "{} has been sent account ID: {}."
     ACCOUNT_TERM_LOG = "Your FSBot Account session has ended, please log out of {}!"
     ACCOUNT_TERM = "Your FSBot Account session has ended!"
-    ACCOUNT_LOGOUT_WARN = "{} this session has ended, please log out of {} now!"
+    ACCOUNT_LOGOUT_WARN = "This session has ended, please log out of {} now!"
     ACCOUNT_TOKEN_EXPIRED = "After 5 minutes this account token has expired, please request another" \
                             " if you still need an account."
     ACCOUNT_NO_DMS = "You must allow the bot to send you DM's in order to receive an account!"
