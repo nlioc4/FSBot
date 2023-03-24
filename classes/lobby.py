@@ -179,7 +179,6 @@ class Lobby:
             raise tools.UnexpectedError("%s lobby already exists!")
 
         obj = cls(name, channel, match_type, timeout_minutes)
-        obj.dashboard_embed = embeds.duel_dashboard(obj)
         await obj.update()
 
         return obj
@@ -486,6 +485,7 @@ class Lobby:
                 self.lobby_log(f'{player.name} was removed from the lobby by timeout.')
             else:
                 self.lobby_log(f'{player.name} left the lobby.')
+            self.schedule_dashboard_update()
             return True
         else:
             return False
@@ -543,7 +543,6 @@ class Lobby:
             match = owner.match
             if not await match.join_match(player):
                 return False  # if match join failed (match full)
-            await match.update()
             await self.lobby_leave(player, match)
             return match
         elif owner.active:
