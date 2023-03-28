@@ -102,7 +102,7 @@ intents.message_content = True
 
 bot = commands.Bot(intents=intents)
 
-bot.activity = discord.Game(name="/modmail to talk to the mods!")
+bot.activity = discord.Game(name="Hello Pilots!")
 
 
 @bot.event
@@ -128,7 +128,7 @@ async def global_interaction_check(ctx):
     if await spam.is_spam(ctx):
         return False
 
-    # Only allow timed out users to use /freeme command
+    # Allow timed out users to use only /freeme command
     if await d_obj.is_timeout_check(ctx) and not ctx.command.full_parent_name == "freeme":
         return False
 

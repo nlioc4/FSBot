@@ -50,7 +50,8 @@ class AllStrings(Enum):
     LOG_GENERAL_ERROR = "An error has occurred, {}"
 
     DM_ONLY = "This command can only be used in DM's!   "
-    DM_INVITED = "{} you have been invited to a match by {}! Accept or decline below!"
+    DM_INVITED = "{} you have been invited to a match by {}! Accept or decline below!\n" \
+                 "This invite expires {}, expiry will remove you from the lobby!"
     DM_INVITE_EXPIRED = "This invite from {} has expired!"
     DM_INVITE_EXPIRED_INFO = "Your invite to {} has expired!"
     DM_INVITE_INVALID = "This invite is invalid!"

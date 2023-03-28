@@ -163,6 +163,10 @@ class InviteView(FSBotView):
         # Decline Invite
         self.lobby.decline_invite(self.owner, self.player)
 
+        # Remove Invited Player from lobby
+        if self.owner.lobby:
+            await self.lobby.lobby_leave(self.owner, reason='ignoring invite.')
+
 
 class RegisterPingsView(FSBotView):
     def __init__(self):

@@ -267,6 +267,11 @@ class Player:
         return f"<@{self.__id}>"
 
     @property
+    async def get_or_fetch_member(self):
+        from modules import discord_obj
+        return discord_obj.guild.get_member(self.id) or await discord_obj.guild.fetch_member(self.id)
+
+    @property
     def ig_names(self):
         return self.__ig_names
 

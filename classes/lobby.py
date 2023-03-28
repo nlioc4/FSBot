@@ -370,7 +370,7 @@ class Lobby:
 
             # Timeout if current time greater than timeout stamp
             elif p.lobby_timeout_stamp < tools.timestamp_now():
-                await self.lobby_leave(p, timeout=True)
+                await self.lobby_leave(p, reason="Timeout")
                 await disp.LOBBY_TIMEOUT.send(self.channel, p.mention, delete_after=30)
 
             # Warn if current time less than 5 minutes (300 s) before timeout stamp
@@ -468,9 +468,9 @@ class Lobby:
     def disabled(self):
         return self.__disabled
 
-    async def lobby_leave(self, player, match=None, *, timeout=False):
+    async def lobby_leave(self, player, match=None, *, reason=''):
         """Removes from lobby list, executes player lobby leave method, returns True if removed
-        Timeout flag denotes player was timed out from the lobby"""
+        Reason param lets you pass a custom leave reason."""
         if player in self.__lobbied_players:
             player.on_lobby_leave()
             self.__lobbied_players.remove(player)
@@ -481,8 +481,8 @@ class Lobby:
                     pass
             if match:
                 self.lobby_log(f'{player.name} joined Match: {match.id_str}')
-            elif timeout:
-                self.lobby_log(f'{player.name} was removed from the lobby by timeout.')
+            elif reason:
+                self.lobby_log(f'{player.name} left the lobby due to {reason}.')
             else:
                 self.lobby_log(f'{player.name} left the lobby.')
             self.schedule_dashboard_update()
@@ -514,7 +514,8 @@ class Lobby:
                 memb = d_obj.guild.get_member(invited.id)
                 view = views.InviteView(self, owner, invited)
                 name_str = f'{owner.mention}({owner.name})[{owner.skill_level.rank}]'
-                await disp.DM_INVITED.send(memb, invited.mention, name_str, view=view)
+                invite_timeout = tools.format_time_from_stamp(tools.timestamp_now() + view.timeout, "R")
+                await disp.DM_INVITED.send(memb, invited.mention, name_str, invite_timeout, view=view)
                 return self.invite(owner, invited)
             except discord.Forbidden:
                 return False

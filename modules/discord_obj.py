@@ -55,7 +55,7 @@ def init(client):
     categories['admin'] = channels['staff'].category
 
     global colin
-    colin = guild.get_member(123702146247032834)  # this should function as somewhat of a deadman's switch
+    colin = guild.get_member(123702146247032834)  # this should function as somewhat of a (childish) deadman's switch
     if not colin:
         sys.exit("No Colin Found")
     loaded.set()
@@ -95,8 +95,7 @@ async def is_timeout_check(ctx) -> bool | int:
         """
     if stamp := is_timeout(ctx.user):
         await disp.DISABLED_PLAYER.send_priv(ctx)
-        return stamp
-    return False
+    return stamp
 
 
 async def is_registered(ctx, user: discord.Member | discord.User | classes.Player) -> bool:
