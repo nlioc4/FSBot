@@ -155,7 +155,7 @@ def psb_account_usage(player, start_stamp, end_stamp, usages) -> Embed:
 
     # create week separators
     week_start_stamps = []
-    last_stamp = end_stamp - 604800  # seconds in a week
+    last_stamp = end_stamp
     while last_stamp > start_stamp:
         last_stamp = last_stamp - 604800  # seconds in a week
         week_start_stamps.append(last_stamp)
