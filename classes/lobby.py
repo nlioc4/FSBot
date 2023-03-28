@@ -118,8 +118,7 @@ class DashboardView(views.FSBotView):
             return
         elif player.match:
             await disp.LOBBY_ALREADY_MATCH.send_priv(inter, player.mention,
-                                                     player.match.id_str,
-                                                     player.match.text_channel.mention)
+                                                     player.match.thread.mention)
         elif not player.lobby:
             self.enable_all_items()
             await disp.LOBBY_JOIN.send_temp(inter, player.mention)
@@ -163,8 +162,7 @@ class DashboardView(views.FSBotView):
         if not await d_obj.is_registered(inter, player):
             return
         elif await self.lobby.lobby_leave(player):
-            self.lobby.schedule_dashboard_update()
-            await disp.LOBBY_LEAVE.send_temp(inter, player.mention)
+            await inter.response.defer()
         else:
             await disp.LOBBY_NOT_IN.send_temp(inter, player.mention)
 
@@ -184,7 +182,7 @@ class Lobby:
         return obj
 
     @classmethod
-    async def get(cls, lobby):
+    def get(cls, lobby):
         return cls.all_lobbies.get(lobby)
 
     @staticmethod
@@ -370,12 +368,12 @@ class Lobby:
 
             # Timeout if current time greater than timeout stamp
             elif p.lobby_timeout_stamp < tools.timestamp_now():
-                await self.lobby_leave(p, reason="Timeout")
-                await disp.LOBBY_TIMEOUT.send(self.channel, p.mention, delete_after=30)
+                await self.lobby_leave(p, reason="timeout")
+
 
             # Warn if current time less than 5 minutes (300 s) before timeout stamp
             elif p.lobby_timeout_stamp - 300 < tools.timestamp_now() and p not in self.__warned_players:
-                self.lobby_log(f'{p.name} will soon be timed out of the lobby')
+                self.lobby_log(f'{p.name} will soon be timed out of the lobby.')
                 self.__warned_players[p] = await disp.LOBBY_TIMEOUT_SOON.send(self.channel, p.mention,
                                                                               tools.format_time_from_stamp(
                                                                                   p.lobby_timeout_stamp, 'R'))
@@ -483,8 +481,10 @@ class Lobby:
                 self.lobby_log(f'{player.name} joined Match: {match.id_str}')
             elif reason:
                 self.lobby_log(f'{player.name} left the lobby due to {reason}.')
+                await disp.LOBBY_LEAVE_REASON.send_long(self.channel, player.mention, reason)
             else:
                 self.lobby_log(f'{player.name} left the lobby.')
+                await disp.LOBBY_LEAVE.send_temp(self.channel, player.mention)
             self.schedule_dashboard_update()
             return True
         else:
@@ -550,10 +550,10 @@ class Lobby:
             return False
         else:
 
-            match = await self.__match_type.create(owner, player)
+            match = await self.__match_type.create(owner, player, lobby=self)
             self.__matches.append(match)
 
-            await disp.MATCH_JOIN.send_temp(match.text_channel, f'{owner.mention}{player.mention}')
+            await disp.MATCH_JOIN.send_temp(match.thread, f'{owner.mention}{player.mention}')
             if owner.id in self.__invites:
                 self.__invites[owner.id].remove(player)
                 for other_player in self.__invites[owner.id]:

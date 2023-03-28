@@ -279,7 +279,7 @@ def player_info(player) -> Embed:
                               f"Lobby Timeout: {format_stamp(player.lobby_timeout_stamp)}")
     if player.match:
         embed.add_field(name="Player Match",
-                        value=f"Current Match: [{player.match.id_str}]({player.match.text_channel.mention})\n")
+                        value=f"Current Match: [{player.match.id_str}]{player.match.thread.mention}\n")
 
     pref_fac_str = ''.join([cfg.emojis[fac] for fac in player.pref_factions]) if player.pref_factions else 'Any'
     pref_level_str = ' '.join(
@@ -477,8 +477,8 @@ def match_info(match) -> Embed:
         for p in match.players:
             p = p.player
             preferred_facs = ''.join([cfg.emojis[fac] for fac in p.pref_factions]) if p.pref_factions else 'Any'
-            account_status = '\u2611' if p.has_own_account else ''
-            account_status = '\u2705' if p.account else account_status
+            account_status = '☑️' if p.has_own_account else ''
+            account_status = '✅' if p.account else account_status
             string = f'{account_status}{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}]\n'
 
             players_string += string
@@ -510,7 +510,7 @@ def match_info(match) -> Embed:
                                     inline=False)
                     log_string = ''
                     title = '\u200b'
-                log_str = log_string + next_string
+                log_string = log_string + next_string
 
         if log_string:
             embed.add_field(name=title,

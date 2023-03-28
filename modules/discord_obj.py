@@ -98,14 +98,15 @@ async def is_timeout_check(ctx) -> bool | int:
     return stamp
 
 
-async def is_registered(ctx, user: discord.Member | discord.User | classes.Player) -> bool:
-    """Checks if a user is a registered player, returns True if passed and sends a response if not."""
-    player = classes.Player.get(user.id)
-    if player.is_registered:
-        return True
-    else:
+async def is_registered(ctx, user: discord.Member | discord.User | classes.Player) -> bool | classes.Player:
+    """Checks if a user is a registered player, returns Player if passed and sends a response if not."""
+    if (player := is_player(user)) and player.is_registered:
+        return player
+    elif ctx.user.id == user.id:
         await disp.NOT_REGISTERED.send_priv(ctx, user.mention, channels['register'].mention)
-        return False
+    else:
+        await disp.NOT_REGISTERED_2.send_priv(ctx, user.mention)
+    return False
 
 
 async def d_log(message: str = '', source: str = '', error=None) -> bool:

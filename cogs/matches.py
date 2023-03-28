@@ -31,16 +31,22 @@ class MatchesCog(commands.Cog, name="MatchesCog",
     @tasks.loop(count=1)
     async def matches_init(self):
         # clear old match channels if any exist
-        channels_to_delete = []
+        coroutines = []
         text_channels = d_obj.categories['user'].text_channels
         voice_channels = d_obj.categories['user'].voice_channels
         for channel in text_channels:
             if channel.name.startswith('casual'):
-                channels_to_delete.append(channel.delete())
+                coroutines.append(channel.delete())
         for channel in voice_channels:
-            if channel.name.startswith('Casual'):
-                channels_to_delete.append(channel.delete())
-        await asyncio.gather(*channels_to_delete)
+            if channel.name.startswith('Casual') or channel.name.startswith('Ranked'):
+                coroutines.append(channel.delete())
+
+        # Archive old Match Threads
+        for thread in d_obj.channels['dashboard'].threads:
+            coroutines.append(thread.archive(locked=True))
+        ##TODO add ranked match channels to this init
+
+        await asyncio.gather(*coroutines)
 
     @matches_init.before_loop
     async def before_matches_init(self):

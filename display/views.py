@@ -72,8 +72,8 @@ class InviteView(FSBotView):
     def __init__(self, lobby, owner, player):
         super().__init__(timeout=300)
         self.lobby = lobby
-        self.owner: Player = owner
-        self.player = player
+        self.owner: Player = owner  # Player doing the inviting
+        self.player = player # Player getting invited
 
     @discord.ui.button(label="Accept Invite", style=discord.ButtonStyle.green)
     async def accept_button(self, button: discord.Button, inter: discord.Interaction):
@@ -86,7 +86,7 @@ class InviteView(FSBotView):
         match = await self.lobby.accept_invite(self.owner, p)
 
         if match:
-            await disp.INVITE_ACCEPT.edit(inter.message, self.owner.mention, match.text_channel.mention)
+            await disp.INVITE_ACCEPT.edit(inter.message, self.owner.mention, match.thread.mention)
         else:
             await disp.DM_INVITE_INVALID.edit(inter.message)
 
@@ -157,15 +157,14 @@ class InviteView(FSBotView):
         await disp.DM_INVITE_EXPIRED.edit(self.message, self.owner.mention, view=False)
 
         # Show owner invite expired
-        owner_mem = d_obj.guild.get_member(self.owner.id)
-        await disp.DM_INVITE_EXPIRED_INFO.send(owner_mem, self.player.mention)
+        await disp.DM_INVITE_EXPIRED_INFO.send(self.owner.get_member, self.player.mention)
 
         # Decline Invite
         self.lobby.decline_invite(self.owner, self.player)
 
         # Remove Invited Player from lobby
-        if self.owner.lobby:
-            await self.lobby.lobby_leave(self.owner, reason='ignoring invite.')
+        if self.player.lobby:
+            await self.lobby.lobby_leave(self.player, reason='invite timeout')
 
 
 class RegisterPingsView(FSBotView):

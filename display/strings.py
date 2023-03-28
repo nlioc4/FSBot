@@ -20,6 +20,7 @@ class AllStrings(Enum):
     ANY = '{}'
     LOADING = "Loading..."
     NOT_REGISTERED = "You are not registered {}, please go to {} first!"
+    NOT_REGISTERED_2 = "{} is not registered!"
     NOT_PLAYER = "You are not a player {}, please go to {} first!"
     NOT_PLAYER_2 = "{} is not a player!"
     CANT_USE = "You can't use this!"
@@ -31,6 +32,8 @@ class AllStrings(Enum):
     AS = "As {}: {}"
     SERVER_JOIN = "Welcome {}!", fs_join_embed
     GUILD_ONLY = "This can only be used in the Flight School Discord!"
+
+    ADMIN_MATCH_CREATE_ERROR = "One of the players used is already in a match!"
 
     CHECK_FAILURE = "You have failed a check to run this command!"
     INVALID_INTERACTION = "This interaction shouldn't have been allowed!"
@@ -93,14 +96,14 @@ class AllStrings(Enum):
     LOBBY_CANT_INVITE = "You or the player you are trying to invite are not in a lobby!"
     LOBBY_JOIN = "{} you have joined the lobby!"
     LOBBY_LEAVE = "{} you have left the lobby!"
+    LOBBY_LEAVE_REASON = "{} you have left the lobby due to {}!"
     LOBBY_NOT_IN = "{} you are not in this lobby!"
     LOBBY_NOT_IN_2 = "{} is not in same the lobby as you!"
     LOBBY_NOT_OWNER = "You can't invite players to a match you don't own!"
     LOBBY_NO_DM = "{} could not be invited as they are refusing DM's from the bot!"
     LOBBY_NO_DM_ALL = "{} no players could be invited."
-    LOBBY_ALREADY_IN = "{} you are already in this lobby!"
-    LOBBY_ALREADY_MATCH = '{} you are already in a match [{}]({}), leave to join the lobby again.'
-    LOBBY_TIMEOUT = "{} you have been removed from the lobby by timeout!"
+    LOBBY_ALREADY_IN = "{} you are already in a lobby!"
+    LOBBY_ALREADY_MATCH = '{} you are already in match [{}], leave to join this lobby!'
     LOBBY_TIMEOUT_SOON = "{} you will  be timed out from the lobby {}, click above to reset."
     LOBBY_TIMEOUT_ONLINE = "While Online on Discord, you cannot be timed out from the lobby!"
     LOBBY_TIMEOUT_RESET = "{} you have reset your lobby timeout."

@@ -118,7 +118,9 @@ async def init(service_account_path: str, test=False):
 
     await unassigned_online(None)  # Run check to ensure no accounts are online on startup.
 
-    log.info('Initialized Accounts: %s', len(all_accounts))
+    info = f'Initialized Accounts: {len(all_accounts)}'
+    log.info(info)
+    return info
 
 
 def pick_account(a_player: classes.Player) -> classes.Account | bool:
@@ -194,7 +196,7 @@ class ValidateView(views.FSBotView):
         except discord.NotFound:
             log.info("Interaction Not found on Validation Defer")
         try:
-            validated = validate_account(acc=self.acc)
+            validated = await validate_account(acc=self.acc)
         except gspread.exceptions.APIError as e:
             await d_obj.d_log(f"Error logging usage to GSheet for Account: {self.acc.id},"
                               f" user: {inter.user.name}, ID: {inter.user.id}", error=e)
@@ -240,7 +242,7 @@ async def send_account(acc: classes.Account = None, player: classes.Player = Non
     return acc.message
 
 
-def validate_account(acc: classes.Account = None, player: classes.Player = None) -> bool:
+async def validate_account(acc: classes.Account = None, player: classes.Player = None) -> bool:
     """Player accepted account, track usage and update object.  Returns True if validated, usage logged"""
     if not acc and not player:
         raise ValueError("No args provided")
@@ -250,7 +252,7 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
         player = acc.a_player
 
     # update account object, return if already validated
-    if not acc.validate():
+    if acc.is_validated:
         return False
 
     # Update GSheet with Usage
@@ -260,31 +262,27 @@ def validate_account(acc: classes.Account = None, player: classes.Player = None)
     row = acc.id * Y_SKIP  # row of the account to be updated
     column = len(ws.row_values(row)) + 1  # updates via counting row values, instead of below counting nb_uniques
     # column = acc.nb_unique_usages + USAGE_OFFSET # column of the account to be updated
-    cells_list = ws.range(row, column, row + 2, column)
-    date = datetime.now().astimezone(eastern).date().strftime('%m/%d/%Y')
-    cells_list[0].value = date
-    cells_list[1].value = player.name
-    cells_list[2].value = str(player.id)
 
     try:
+        cells_list = ws.range(row, column, row + 2, column)
+        date = datetime.now().astimezone(eastern).date().strftime('%m/%d/%Y')
+        cells_list[0].value = date
+        cells_list[1].value = player.name
+        cells_list[2].value = str(player.id)
+
         ws.update_cells(cells_list, 'USER_ENTERED')  # actually update the sheet
         ws.format(cells_list[0].address,
                   {"numberFormat": {"type": "DATE", "pattern": "mmmm dd"}, "horizontalAlignment": "CENTER"})
     except gspread.exceptions.APIError as e:
-        resp = e.response.text
-        if "exceeds grid limits" in resp:
-            start_index = resp.index('max columns: ') + len('max columns: ')
-            stop_index = resp.index('"', start_index)
-            cols = int(resp[start_index: stop_index])
-            new_cols = cols + 15
-            ws.resize(cols=new_cols)
-            ws.update_cells(cells_list, 'USER_ENTERED')
-            return True
+        resp = str(e)
+        await disp.NONE.edit(acc.message, clear_content=True)
+        if "exceeds grid limits" in resp:  # attempt to resize sheet before retrying
+            ws.add_cols(15)
+            return await validate_account(acc, player)
         raise e
 
     acc.timeout_coro = asyncio.create_task(account_timeout(player, acc))
-
-    return True
+    return acc.validate()
 
 
 async def terminate(acc: classes.Account = None, player: classes.Player = None, view: discord.ui.View | bool = False,

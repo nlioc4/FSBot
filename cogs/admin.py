@@ -17,7 +17,8 @@ from modules import census
 from modules import tools
 from modules import loader
 from classes import Player
-from classes.match import BaseMatch, EndCondition
+from classes.lobby import Lobby
+from classes.match import BaseMatch, EndCondition, RankedMatch
 from display import AllStrings as disp, embeds
 import cogs.register as register
 
@@ -152,7 +153,7 @@ class AdminCog(commands.Cog):
         await match.join_match(p)
         if p.lobby:
             await p.lobby.lobby_leave(player=p, match=match)
-        await disp.MATCH_JOIN_2.send_priv(ctx, p.name, match.text_channel.mention)
+        await disp.MATCH_JOIN_2.send_priv(ctx, p.name, match.thread.mention)
 
     @match_admin.command(name="removeplayer")
     async def remove_player(self, ctx: discord.ApplicationContext,
@@ -161,11 +162,41 @@ class AdminCog(commands.Cog):
         p = Player.get(member.id)
 
         if p.match:
-            await disp.MATCH_LEAVE_2.send_priv(ctx, p.name, p.match.text_channel.mention)
+            await disp.MATCH_LEAVE_2.send_priv(ctx, p.name, p.match.thread.mention)
             await p.match.leave_match(p.active)
 
         else:
             await disp.MATCH_NOT_IN_2.send_priv(ctx, p.name)
+
+    @match_admin.command(name="create")
+    async def create_match(self, ctx: discord.ApplicationContext,
+                           member: discord.Option(discord.Member, "User to add to match",
+                                                  required=True),
+                           owner: discord.Option(discord.Member, "Match Owner, defaults to you",
+                                                  required=False),
+                           match_type: discord.Option(str, "Type of match to create, defaults to Casual",
+                                                      default="casual",
+                                                      choices=["casual", "ranked"])):
+        """Creates a match with the given arguments.  """
+        await ctx.defer(ephemeral=True)
+        # set up Player Objects
+        if not (invited := await d_obj.is_registered(ctx, member))\
+                or not (owner := await d_obj.is_registered(ctx, owner or ctx.user)):
+            return
+        # check / update player status
+        if invited.match or owner.match:
+            return await disp.ADMIN_MATCH_CREATE_ERROR.send_priv(ctx)
+        if invited.lobby:
+            await invited.lobby.lobby_leave(invited)
+        if owner.lobby:
+            await owner.lobby.lobby_leave(owner)
+
+
+        match_class = BaseMatch if match_type == "casual" else RankedMatch
+        lobby = Lobby.get(match_type)
+        match = await lobby.accept_invite(owner, invited)
+        await disp.MATCH_CREATE.send_priv(ctx, match.thread.mention, match.id_str)
+
 
     @match_admin.command(name="end")
     async def end_match(self, ctx: discord.ApplicationContext,
@@ -246,6 +277,14 @@ class AdminCog(commands.Cog):
             await d_obj.d_log(string)
         await ctx.respond(string, ephemeral=True)
 
+    @accounts_admin.command(name='reload')
+    async def accounts_reload(self, ctx: discord.ApplicationContext):
+        """Run the Accounts Initializer Manually"""
+        await ctx.defer(ephemeral=True)
+        info = await accounts.init(cfg.GAPI_SERVICE)
+        await d_obj.d_log(info)
+        await disp.ANY.send_priv(ctx, info)
+
     @commands.message_command(name="Assign Account")
     @commands.max_concurrency(number=1, wait=True)
     async def msg_assign_account(self, ctx: discord.ApplicationContext, message: discord.Message):
@@ -325,12 +364,7 @@ class AdminCog(commands.Cog):
             await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
             return
 
-        if p.account:
-            await accounts.terminate(p.account)
-        if p.match:
-            await p.match.leave_match(p.active)
-        if p.lobby:
-            await p.lobby.lobby_leave(p)
+        await p.clean()
 
         await disp.ADMIN_PLAYER_CLEAN.send_priv(ctx, p.mention)
 
@@ -466,6 +500,13 @@ class AdminCog(commands.Cog):
                 return True
         log.warning("Could not reach REST api during census rest after 5 tries...")
         return False
+
+    @tasks.loop(hours=1)
+    async def wss_restart(self):
+        """Restart the census_watchtower regularly in order to stop it from dying?"""
+        if self.census_watchtower and not self.census_watchtower.done():
+            self.census_watchtower.cancel()
+        self.census_watchtower = self.bot.loop.create_task(census.online_status_updater(Player.map_chars_to_players))
 
     # @census_watchtower.after_loop
     # async def after_census_watchtower(self):

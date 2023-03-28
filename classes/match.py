@@ -1,7 +1,7 @@
 """Holds main match classes"""
-
 # External Imports
 import discord
+from discord import MessageType
 import asyncio
 from logging import getLogger
 from enum import Enum
@@ -105,8 +105,10 @@ class BaseMatch:
             """For Inheritance"""
             pass
 
-        async def in_match_check(self, inter, p: Player) -> bool:
-            if p.active in self.match.players:
+        async def in_match_check(self, inter, p: Player | ActivePlayer) -> bool:
+            if isinstance(p, Player):
+                p = p.active
+            if p in self.match.players:
                 return True
             await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
             return False
@@ -167,18 +169,17 @@ class BaseMatch:
                 await disp.MATCH_NOT_OWNER.send_priv(inter)
                 return
             await inter.response.defer(ephemeral=True)
+            await self.match.toggle_voice_lock()
 
-            if await self.match.toggle_voice_lock():
-                await disp.MATCH_VOICE_PUB.send_priv(inter.response, self.match.voice_channel.mention)
-            else:
-                await disp.MATCH_VOICE_PRIV.send_priv(inter.response, self.match.voice_channel.mention)
 
-    def __init__(self, owner: Player, player: Player):
+
+    def __init__(self, owner: Player, player: Player, lobby):
         # Vars
         global _match_id_counter
         _match_id_counter += 1
         self.__id = _match_id_counter
         self.owner = owner
+        self.__lobby = lobby
         self.start_stamp = tools.timestamp_now()
         self.end_stamp = None
         self.__end_condition = None
@@ -192,7 +193,7 @@ class BaseMatch:
         self._next_update: Coroutine | None = None
 
         # Display
-        self.text_channel: discord.TextChannel | None = None
+        self.thread: discord.Thread | None = None
         self.voice_channel: discord.VoiceChannel | None = None
         self.info_message: discord.Message | None = None
         self.__timeout_message: discord.Message | None = None
@@ -208,6 +209,8 @@ class BaseMatch:
         self.__invited = list()
         self.match_log = list()  # logs recorded as list of tuples, (timestamp, message, Public)
 
+        self.__account_check_task = asyncio.create_task(
+            self._check_accounts_delay(self.__players))  # Task for account checking
         BaseMatch._active_matches[self.id] = self
 
     @classmethod
@@ -220,7 +223,7 @@ class BaseMatch:
 
     @classmethod
     def active_match_channel_ids(cls):
-        return {match.text_channel.id: match for match in BaseMatch._active_matches.values()}
+        return {match.thread.id: match for match in BaseMatch._active_matches.values()}
 
     @classmethod
     async def end_all_matches(cls):
@@ -228,7 +231,7 @@ class BaseMatch:
         await asyncio.gather(*end_coros)
 
     @classmethod
-    async def create(cls, owner: Player, invited: Player, base_class=None) -> Union['BaseMatch', 'RankedMatch']:
+    async def create(cls, owner: Player, invited: Player, *, base_class=None, lobby=None) -> Union['BaseMatch', 'RankedMatch']:
         # init _match_id_counter if first match created
         global _match_id_counter
         if not _match_id_counter:
@@ -238,14 +241,12 @@ class BaseMatch:
 
         # Create Match Object, init channels + first update
         base_class = base_class or cls
-        obj = base_class(owner, invited)
+        obj = base_class(owner, invited, lobby)
         obj.log(f'{owner.name} created the match with {invited.name}')
 
         await obj._make_channels()
 
         await obj.update()
-        if isinstance(obj, BaseMatch): #Create Task if the match is casual, otherwise dont
-            asyncio.create_task(obj._check_accounts_delay(*obj.players))
 
         return obj
 
@@ -254,20 +255,24 @@ class BaseMatch:
 
 
     async def _make_channels(self):
-        overwrites = self._get_overwrites()
         try:
-            # Create text channel, with provided overwrites
-            self.text_channel = await d_obj.categories['user'].create_text_channel(
-                name=f'{self.TYPE}┊{self.id_str}┊',
-                overwrites=overwrites,
-                topic=f'Match channel for {self.TYPE.lower()} Match [{self.id_str}], created by {self.owner.name}'
+            # Create private thread
+            self.thread : discord.Thread = await self.__lobby.channel.create_thread(
+                name=f'{self.TYPE}┊{self.id_str}┊'
             )
+            # Stop players from manually adding users to the thread
+            await self.thread.edit(invitable=False)
+
+            # Add players to thread
+            add_corous = [self.thread.add_user(p.player.get_member) for p in self.__players]
+            await asyncio.gather(*add_corous)
+
             # Create voice channel, with extended overwrites to set channel to private
             self.voice_channel = await d_obj.categories['user'].create_voice_channel(
                 name=f'{self.TYPE}┊{self.id_str}┊Voice',
-                # Same overwrites, except disallow sending messages in text-in-voice
-                overwrites=overwrites
+                overwrites=self._get_overwrites()
             )
+
         except (discord.HTTPException, discord.Forbidden) as e:
             await d_obj.d_log(source=self.owner.name,
                               message=f"Error Creating Match Channel for Match {self.id_str}",
@@ -311,9 +316,9 @@ class BaseMatch:
 
     def _get_overwrites(self):
         overwrites = {
-            d_obj.guild.default_role: discord.PermissionOverwrite(view_channel=False, connect=False),
+            d_obj.guild.default_role: discord.PermissionOverwrite(view_channel=False, connect=False, send_messages=False),
             d_obj.roles['timeout']: discord.PermissionOverwrite(view_channel=False, connect=False),
-            d_obj.roles['app_admin']: discord.PermissionOverwrite(view_channel=True, connect=True),
+            d_obj.roles['app_admin']: discord.PermissionOverwrite(view_channel=True, connect=True, send_messages=True),
             d_obj.roles['admin']: discord.PermissionOverwrite(view_channel=True, connect=True),
             d_obj.roles['mod']: discord.PermissionOverwrite(view_channel=True, connect=True),
             d_obj.roles['bot']: discord.PermissionOverwrite(view_channel=True, connect=True),
@@ -330,14 +335,14 @@ class BaseMatch:
             self.__invited.remove(player)
         self.__players.append(player.on_playing(self))
         await self._channel_update(player, True)
-        await disp.MATCH_JOIN.send(self.text_channel, player.mention)
+        await disp.MATCH_JOIN.send(self.thread, player.mention)
         self.log(f'{player.name} joined the match')
         asyncio.create_task(self._check_accounts_delay(player))
         await self.update()
         return True
 
     async def leave_match(self, player: ActivePlayer):
-        '''Removes a player from a match.  Can end a match if conditions are met'''
+        """Removes a player from a match.  Can end a match if conditions are met"""
         if not self.is_ended:
             # Conditions if player leaves while match is active
 
@@ -366,7 +371,7 @@ class BaseMatch:
             await self.update()
             await self._channel_update(player, None)
             await self._clear_voice()
-            await disp.MATCH_LEAVE.send(self.text_channel, player.mention)
+            await disp.MATCH_LEAVE.send(self.thread, player.mention, allowed_mentions=False)
 
 
 
@@ -380,7 +385,7 @@ class BaseMatch:
             return False
 
         self.owner = player.player
-        await disp.MATCH_NEW_OWNER.send(self.text_channel, player.mention)
+        await disp.MATCH_NEW_OWNER.send(self.thread, player.mention)
         await self.update()
         return player
 
@@ -398,13 +403,17 @@ class BaseMatch:
             self.log('Match Ended')
             self._cancel_update()
 
+            # Cancel Account check if not complete
+            if not self.__account_check_task.done():
+                self.__account_check_task.cancel()
+
             # Display match ended to users
-            await disp.MATCH_END.send(self.text_channel, self.id_str)
+            await disp.MATCH_END.send(self.thread, self.id_str)
             await self.update_embed()
 
             # Update DB with current players, then remove players
             await db.async_db_call(db.set_element, 'matches', self.id, self.get_end_data())
-            with self.text_channel.typing():
+            with self.thread.typing():
                 leave_coroutines = [self.leave_match(player) for player in self.__players]
                 await asyncio.gather(*leave_coroutines)
                 await asyncio.sleep(5)
@@ -416,10 +425,10 @@ class BaseMatch:
                 for i in range(20):
                     del BaseMatch._recent_matches[keys[i]]
 
-            #  Delete channels if not already deleted
+            #  Delete voice channel, lock thread if not already deleted
             try:
                 await asyncio.gather(
-                    self.text_channel.delete(reason='Match Ended'),
+                    self.thread.edit(archived=True, locked=True, reason='Match Ended'),
                     self.voice_channel.delete(reason='Match Ended')
                 )
             except discord.NotFound:
@@ -428,18 +437,17 @@ class BaseMatch:
     def get_end_data(self):
         data = {'_id': self.id, 'type': self.TYPE, 'start_stamp': self.start_stamp, 'end_stamp': self.end_stamp,
                 'end_condition': self.__end_condition.name,
-                'owner': self.owner.id, 'channel_id': 0 if not self.text_channel else self.text_channel.id,
+                'owner': self.owner.id, 'channel_id': 0 if not self.thread else self.thread.id,
                 'current_players': [p.id for p in self.__players],
                 'previous_players': [p.id for p in self.__previous_players],
                 'match_log': self.match_log}
         return data
 
     async def _channel_update(self, player, action: bool | None):
-        """Updates a players access to the Matches channels"""
-        player_member = d_obj.guild.get_member(player.id)
+        """Updates a players access to the Matches channels / threads"""
         await asyncio.gather(
-            self.text_channel.set_permissions(player_member, view_channel=action),
-            self.voice_channel.set_permissions(player_member, view_channel=action, connect=action)
+            self.thread.add_user(player.get_member) if action else self.thread.remove_user(player.get_member),
+            self.voice_channel.set_permissions(player.get_member, view_channel=action, connect=action)
         )
 
     def _new_embed(self):
@@ -454,7 +462,7 @@ class BaseMatch:
     async def send_embed(self):
         if not self.embed_cache:
             self.embed_cache = self._new_embed()
-        self.info_message = await disp.MATCH_INFO.send(self.text_channel, embed=self.embed_cache, view=self.view())
+        self.info_message = await disp.MATCH_INFO.send(self.thread, embed=self.embed_cache, view=self.view())
         await self.info_message.pin()
 
     async def _check_accounts_delay(self, *players_to_check):
@@ -465,21 +473,8 @@ class BaseMatch:
             if not p.has_own_account and not p.account:
                 no_acc.append(p)
         if no_acc:
-            await disp.MATCH_NO_ACCOUNT.send(self.text_channel, ''.join([p.mention for p in no_acc]),
+            await disp.MATCH_NO_ACCOUNT.send(self.thread, ''.join([p.mention for p in no_acc]),
                                              d_obj.channels['register'].mention)
-
-    async def check_player_accounts(self, players_to_check):
-        while True:
-            no_acc = []
-            for p in players_to_check:
-                if not p.has_own_account and not p.account:
-                    no_acc.append(p)
-            if no_acc:
-                await disp.MATCH_NO_ACCOUNT.send(self.text_channel, ''.join([p.mention for p in no_acc]),
-                                             d_obj.channels['register'].mention)
-                await asyncio.sleep(120)
-            else: 
-                return True
 
     async def update_embed(self):
         if self.info_message:
@@ -524,7 +519,7 @@ class BaseMatch:
             elif self.should_timeout and not self.was_timeout:  # Timeout Match
                 self.was_timeout = True
                 self.log("Match timed out for inactivity...")
-                await disp.MATCH_TIMEOUT.send(self.text_channel, self.all_mentions)
+                await disp.MATCH_TIMEOUT.send(self.thread, self.all_mentions)
                 # Use create_task, so that on_update doesn't wait for on_timeout
                 asyncio.create_task(self.end_match(end_condition=EndCondition.TIMEOUT))
                 raise asyncio.CancelledError
@@ -532,7 +527,7 @@ class BaseMatch:
                 self.timeout_warned = True
                 self.log("Unless the timeout is reset, the match will timeout soon...")
                 self.__timeout_message = await disp.MATCH_TIMEOUT_WARN.send(
-                    self.text_channel, self.all_mentions,
+                    self.thread, self.all_mentions,
                     tools.format_time_from_stamp(self.timeout_at, 'R'))
 
     async def update(self):
@@ -558,7 +553,7 @@ class BaseMatch:
             d_obj.bot.loop.call_later(0.1, self._schedule_update_task)
 
     async def _update_task(self):
-        """Task wrapper around update call"""
+        """Task wrapper around update call to add delay"""
         await asyncio.sleep(self.UPDATE_DELAY)
         await self.update()
 
@@ -604,10 +599,6 @@ class BaseMatch:
     @property
     def id_str(self):
         return str(self.__id).zfill(4)
-
-    @staticmethod
-    def max_players():
-        return BaseMatch.max_players
 
     @property
     def players(self):
@@ -762,8 +753,8 @@ class RankedMatch(BaseMatch):
             await self.match.update()
 
 
-    def __init__(self, owner: Player, invited: Player):
-        super().__init__(owner, invited)
+    def __init__(self, owner: Player, invited: Player, lobby):
+        super().__init__(owner, invited, lobby)
 
         # Player Objects
         self.player1 = owner.active
@@ -789,8 +780,8 @@ class RankedMatch(BaseMatch):
         self.__view_class = self.RankedMatchView
 
     @classmethod
-    async def create(cls, owner: Player, invited: Player, base_class=None) -> 'RankedMatch':
-        obj = await super().create(owner, invited, base_class=cls)  # RankedMatch create
+    async def create(cls, owner: Player, invited: Player, *, base_class=None, lobby=None) -> 'RankedMatch':
+        obj = await super().create(owner, invited, base_class=cls, lobby=lobby)  # RankedMatch create
 
         # Set Initial Status
         obj.status = MatchState.PICKING_FACTIONS
@@ -802,7 +793,7 @@ class RankedMatch(BaseMatch):
 
 
         # Start Faction Picker
-        await disp.RM_FACTION_PICK.send(obj.text_channel, obj.first_pick.mention, view=obj.FactionPickView(obj))
+        await disp.RM_FACTION_PICK.send(obj.thread, obj.first_pick.mention, view=obj.FactionPickView(obj))
 
         return obj
 
@@ -938,7 +929,7 @@ class RankedMatch(BaseMatch):
         """Sends message to switch factions, switches match variables"""
         self.player1.assigned_faction_id, self.player2.assigned_faction_id = \
             self.player2.assigned_faction_id, self.player1.assigned_faction_id
-        await disp.RM_FACTION_SWITCH.send(self.text_channel, ping=self.players)
+        await disp.RM_FACTION_SWITCH.send(self.thread, ping=self.players)
         self.log(disp.RM_FACTION_SWITCH())
 
     # Character Detection
@@ -1067,11 +1058,7 @@ class RankedMatch(BaseMatch):
                 # Update Status and run transition specific logic
                 match self.status:
                     case MatchState.PICKING_FACTIONS if self._factions_picked():
-                        #TODO add check that all players have accounts
                         self.status = MatchState.LOGGING_IN
-                        accountcheck = await self.check_player_accounts(self.players)
-                        if accountcheck:
-                            await disp.RM_LOG_IN.send_long(self.text_channel, ping=self.players)
 
                     case MatchState.LOGGING_IN if self._ready_to_play:
                         # Initial round start, both players logged in
@@ -1136,7 +1123,7 @@ class RankedMatch(BaseMatch):
             f"Round [{self.current_round}] Started: {self.player1.assigned_faction_char} vs {self.player2.assigned_faction_char}")
 
         # Send new round message
-        self.__round_message = await disp.RM_ROUND_MESSAGE.send(self.text_channel, self.current_round,
+        self.__round_message = await disp.RM_ROUND_MESSAGE.send(self.thread, self.current_round,
                                                                 self.player1.assigned_faction_display,
                                                                 self.player2.assigned_faction_display,
                                                                 view=self.get_round_view(),
@@ -1153,7 +1140,7 @@ class RankedMatch(BaseMatch):
             pass
 
         # Publish Round winner
-        await disp.RM_ROUND_WINNER.send(self.text_channel, self.__round_winner.mention, self.current_round)
+        await disp.RM_ROUND_WINNER.send(self.thread, self.__round_winner.mention, self.current_round)
         self.log(disp.RM_ROUND_WINNER(self.__round_winner.name, self.current_round))
 
         match_round = Round(
@@ -1214,7 +1201,7 @@ class RankedMatch(BaseMatch):
 
             case EndCondition.TOO_MANY_CONFLICTS:
                 self.log("Match was ended due to excessive score conflicts!")
-                await disp.RM_ENDED_TOO_MANY_CONFLICTS.send(self.text_channel, ping=self.players)
+                await disp.RM_ENDED_TOO_MANY_CONFLICTS.send(self.thread, ping=self.players)
 
 
 
@@ -1238,15 +1225,15 @@ class RankedMatch(BaseMatch):
             # Publish Match Winner
             if self.__match_outcome > 0:
                 # Player 1 Wins
-                await disp.RM_WINNER.send(self.text_channel, self.player1.name, p1_wins, p2_wins)
+                await disp.RM_WINNER.send(self.thread, self.player1.name, p1_wins, p2_wins)
                 self.log(disp.RM_WINNER(self.player1.name, p1_wins, p2_wins))
             elif self.__match_outcome < 0:
                 # Player 2 Wins
-                await disp.RM_WINNER.send(self.text_channel, self.player2.name, p2_wins, p1_wins)
+                await disp.RM_WINNER.send(self.thread, self.player2.name, p2_wins, p1_wins)
                 self.log(disp.RM_WINNER(self.player2.name, p2_wins, p1_wins))
             else:
                 # Match was a draw
-                await disp.RM_DRAW.send(self.text_channel)
+                await disp.RM_DRAW.send(self.thread)
                 self.log(disp.RM_DRAW())
 
 
@@ -1262,7 +1249,7 @@ class RankedMatch(BaseMatch):
 
         else:
             # Nonstandard Ending, warn of no elo saving
-            await disp.RM_ENDED_NO_ELO.send(self.text_channel, ping=self.players)
+            await disp.RM_ENDED_NO_ELO.send(self.thread, ping=self.players)
 
 
         # run original end_match

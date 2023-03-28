@@ -63,7 +63,7 @@ def timestamp_now():
 
 
 def compare_embeds(embed1, embed2) -> bool:
-    """compares embeds (after removing timestamps)"""
+    """Compares embeds (after removing timestamps).  Returns True if Embeds are identical"""
     try:
         embed1dict, embed2dict = embed1.to_dict(), embed2.to_dict()
     except AttributeError:  # case for one of the entries being None / not an embed

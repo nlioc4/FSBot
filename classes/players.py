@@ -267,9 +267,9 @@ class Player:
         return f"<@{self.__id}>"
 
     @property
-    async def get_or_fetch_member(self):
+    def get_member(self):
         from modules import discord_obj
-        return discord_obj.guild.get_member(self.id) or await discord_obj.guild.fetch_member(self.id)
+        return discord_obj.guild.get_member(self.id)
 
     @property
     def ig_names(self):
@@ -414,6 +414,16 @@ class Player:
         self.__match = None
         self.__active = None
         return self
+
+    async def clean(self):
+        """Remove all player commitments """
+        if self.account:
+            from modules.accounts_handler import terminate
+            await terminate(self.account)
+        if self.match:
+            await self.match.leave_match(self.active)
+        if self.lobby:
+            await self.lobby.lobby_leave(self)
 
     async def register(self, char_list: list | None) -> bool:
         """
@@ -563,6 +573,10 @@ class ActivePlayer:
     @property
     def mention(self):
         return self.__player.mention
+
+    @property
+    def get_member(self):
+        return self.__player.get_member
 
     @property
     def ig_names(self):
