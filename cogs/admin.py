@@ -213,7 +213,7 @@ class AdminCog(commands.Cog):
             await disp.MATCH_NOT_FOUND.send_priv(ctx, (match_id or ctx.channel.mention))
 
         await disp.MATCH_END.send_priv(ctx, match.id_str)
-        await match.end_match(EndCondition.EXTERNAL if is_ranked else None)
+        await match.end_match(EndCondition.EXTERNAL)
 
     #########################################################
 
@@ -501,7 +501,7 @@ class AdminCog(commands.Cog):
         log.warning("Could not reach REST api during census rest after 5 tries...")
         return False
 
-    @tasks.loop(hours=1)
+    @tasks.loop(minutes=1)
     async def wss_restart(self):
         """Restart the census_watchtower regularly in order to stop it from dying?"""
         if self.census_watchtower and not self.census_watchtower.done():

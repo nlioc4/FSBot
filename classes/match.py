@@ -198,13 +198,13 @@ class BaseMatch:
         self.info_message: discord.Message | None = None
         self.__timeout_message: discord.Message | None = None
         self.embed_cache: discord.Embed | None = None
-        self.__embed_func = embeds.match_info
+        self._embed_func = embeds.match_info
         self.__view: BaseMatch.MatchInfoView | None = None
-        self.__view_class = self.MatchInfoView
+        self._view_class = self.MatchInfoView
 
         #  Containers
         self.__players: list[ActivePlayer] = [owner.on_playing(self),
-                                              player.on_playing(self)]  # active player list, add owners active_player
+                                              player.on_playing(self)]  # List of ActivePlayer, add owners active_player
         self.__previous_players: list[Player] = list()  # list of Player objects, who have left the match
         self.__invited = list()
         self.match_log = list()  # logs recorded as list of tuples, (timestamp, message, Public)
@@ -244,9 +244,12 @@ class BaseMatch:
         obj = base_class(owner, invited, lobby)
         obj.log(f'{owner.name} created the match with {invited.name}')
 
-        await obj._make_channels()
+        await obj._make_channels()  # Make thread ahd voice channel
 
-        await obj.update()
+        await obj.update()  # Perform initial update, which will send first embed
+
+        # Show match creation message
+        await disp.MATCH_CREATE.send(obj.thread, f'{owner.mention}{invited.mention}', obj.id_str)
 
         return obj
 
@@ -437,7 +440,7 @@ class BaseMatch:
     def get_end_data(self):
         data = {'_id': self.id, 'type': self.TYPE, 'start_stamp': self.start_stamp, 'end_stamp': self.end_stamp,
                 'end_condition': self.__end_condition.name,
-                'owner': self.owner.id, 'channel_id': 0 if not self.thread else self.thread.id,
+                'owner': self.owner.id, 'channel_id': 0 if not self.thread else f'{self.thread.parent_id}/{self.thread.id}',
                 'current_players': [p.id for p in self.__players],
                 'previous_players': [p.id for p in self.__previous_players],
                 'match_log': self.match_log}
@@ -451,17 +454,23 @@ class BaseMatch:
         )
 
     def _new_embed(self):
-        return self.__embed_func(self)
+        return self._embed_func(self)
 
     def view(self, new=False):
+        """Retrieve the current view, or create a new one if needed.
+        :param new: Force a new view to be created
+        """
         if not new and self.__view:
             return self.__view.update()
-        self.__view = self.__view_class(self)
+        self.__view = self._view_class(self)
         return self.__view
 
     async def send_embed(self):
+        """Send a new embed to the match thread"""
         if not self.embed_cache:
             self.embed_cache = self._new_embed()
+        if not self.thread:  # can't find the thread, pass and wait for next update
+            return
         self.info_message = await disp.MATCH_INFO.send(self.thread, embed=self.embed_cache, view=self.view())
         await self.info_message.pin()
 
@@ -477,6 +486,7 @@ class BaseMatch:
                                              d_obj.channels['register'].mention)
 
     async def update_embed(self):
+        """Update the match embed if required.  If no embed found, send a new one."""
         if self.info_message:
             if not tools.compare_embeds(self.embed_cache, new_embed := self._new_embed()):
                 self.embed_cache = new_embed
@@ -490,6 +500,7 @@ class BaseMatch:
             await self.send_embed()
 
     def update_status(self):
+        """Simple status update, check for number of online/logged in players"""
         if len(self.players) < 2:
             self.status = MatchState.INVITING
         elif len(self.online_players) < 2:
@@ -510,8 +521,8 @@ class BaseMatch:
 
     async def update_timeout(self):
         # check timeout, reset if at least 2 players and online_players
-        if self.online_players and len(self.players) >= 2:
-            self.timeout_stamp = None
+        if self.online_players and len(self.players) >= 2 and self.timeout_stamp:
+            asyncio.create_task(self.reset_timeout())  # Reset timeout, create task as this coro uses update lock
         else:
             if not self.timeout_stamp:  # set timeout stamp
                 self.timeout_stamp = tools.timestamp_now()
@@ -753,16 +764,17 @@ class RankedMatch(BaseMatch):
             await self.match.update()
 
 
+
     def __init__(self, owner: Player, invited: Player, lobby):
         super().__init__(owner, invited, lobby)
 
         # Player Objects
-        self.player1 = owner.active
-        self.player2 = invited.active
-        self.__player1_stats: PlayerStats | None = None
-        self.__player2_stats: PlayerStats | None = None
-        self.first_pick = None
-        self.first_picked_faction = ""
+        self.player1 = self.players[0]
+        self.player2 = self.players[1]
+        self._player1_stats: PlayerStats | None = None
+        self._player2_stats: PlayerStats | None = None
+        self.first_pick = None  # ActivePlayer obj of first pick
+        self.first_picked_faction = ""  # string abbreviation for faction first picked
 
         # Match Variables
         self.__round_history: List[Round] = []
@@ -775,9 +787,10 @@ class RankedMatch(BaseMatch):
         self.__p2_submitted_score = None
 
         # Display Objects
-        self.__round_message: discord.Message | None = None
+        self._round_message: discord.Message | None = None
+        self._embed_func = embeds.ranked_match_info
 
-        self.__view_class = self.RankedMatchView
+        self._view_class = self.RankedMatchView
 
     @classmethod
     async def create(cls, owner: Player, invited: Player, *, base_class=None, lobby=None) -> 'RankedMatch':
@@ -787,8 +800,8 @@ class RankedMatch(BaseMatch):
         obj.status = MatchState.PICKING_FACTIONS
 
         # Retrieve Stats PlayerStats
-        obj.__player1_stats = await PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
-        obj.__player2_stats = await PlayerStats.get_from_db(p_id=invited.id, p_name=invited.name)
+        obj._player1_stats = await PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
+        obj._player2_stats = await PlayerStats.get_from_db(p_id=invited.id, p_name=invited.name)
         obj.first_pick = obj._first_faction_pick()
 
 
@@ -803,6 +816,8 @@ class RankedMatch(BaseMatch):
         owner = Player.get(data['owner'])
         invited = Player.get(data['player2_id'])
         obj = await super().create(owner, invited, base_class=cls)
+        #TODO will need to be edited for reopening threads
+
 
         # Set Variables
         obj.set_id(data['_id'])
@@ -810,8 +825,8 @@ class RankedMatch(BaseMatch):
         obj.match_log = data['match_log']
 
         # Retrieve Current Stats Objects
-        obj.__player1_stats = await PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
-        obj.__player2_stats = await PlayerStats.get_from_db(p_id=invited.id, p_name=invited.name)
+        obj._player1_stats = await PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
+        obj._player2_stats = await PlayerStats.get_from_db(p_id=invited.id, p_name=invited.name)
 
         # Fill out round objects
         obj.add_rounds_from_data(*data['round_history'])
@@ -914,14 +929,15 @@ class RankedMatch(BaseMatch):
 
     def _first_faction_pick(self):
         """Determine which player picks faction first.  Player with lower elo, or if elo is identical Owner."""
-        if self.__player1_stats.elo >= self.__player2_stats.elo:
+        if self._player1_stats.elo <= self._player2_stats.elo:
             return self.player1
-        elif self.__player1_stats.elo < self.__player2_stats.elo:
+        elif self._player1_stats.elo > self._player2_stats.elo:
             return self.player2
         else:
             raise tools.UnexpectedError("No first pick chosen!")
 
-    def _factions_picked(self):
+    @property
+    def factions_picked(self):
         """Check whether factions have been picked for the match"""
         return self.player1.assigned_faction_id and self.player2.assigned_faction_id
 
@@ -935,8 +951,8 @@ class RankedMatch(BaseMatch):
     # Character Detection
 
     @property
-    def _ready_to_play(self):
-        # Checks both players online on correct factions
+    def ready_to_play(self):
+        """Checks both players online on correct factions"""
         return self.player1.on_assigned_faction and self.player2.on_assigned_faction
 
     @property
@@ -959,6 +975,12 @@ class RankedMatch(BaseMatch):
     def _check_scores_submitted(self):
         return self.__p1_submitted_score and self.__p2_submitted_score
 
+    def check_player_score_submitted(self, player):
+        if player is self.player1:
+            return self.__p1_submitted_score
+        else:
+            return self.__p2_submitted_score
+
     def _check_scores_equal(self):
         if not self._check_scores_submitted():
             raise tools.UnexpectedError("Scores not submitted on equal check!")
@@ -974,9 +996,9 @@ class RankedMatch(BaseMatch):
 
     @property
     def current_round(self):
-        if self.status in (MatchState.PLAYING, MatchState.SUBMITTING):
-            return len(self.__round_history) + 1
-        return len(self.__round_history)
+        if self.status not in (MatchState.LOGGING_IN, MatchState.PLAYING, MatchState.SUBMITTING):
+            return len(self.__round_history)
+        return len(self.__round_history) + 1
 
     @property
     def round_history(self):
@@ -1006,9 +1028,15 @@ class RankedMatch(BaseMatch):
         return sum(1 for r in self.__round_history if r.winner == 2)
 
     def get_score_string(self):
-        """Return a formatted string displaying the score of the match, along with round history"""
+        """Return a formatted string displaying the score of the match, along with round history
+        Returns empty string if there is no history"""
+
+
         name_line = f"{self.player1.name} - {self.player2.name}\n"
         score_line = f"{self.get_player1_wins()} - {self.get_player2_wins()}".center(len(name_line)) + "\n"
+
+        if len(self.__round_history) == 0:
+            return name_line + score_line
 
         round_lines = ''
         for r in self.__round_history:
@@ -1041,7 +1069,7 @@ class RankedMatch(BaseMatch):
         self.__p2_submitted_score = None
         self.__round_wrong_scores_counter += 1
 
-        await disp.RM_SCORES_WRONG.send_long(self.__round_message, ping=self.players)
+        await disp.RM_SCORES_WRONG.send_long(self._round_message, ping=self.players)
         self.log(disp.RM_SCORES_WRONG())
 
     async def update(self):
@@ -1057,10 +1085,10 @@ class RankedMatch(BaseMatch):
                 await self.update_timeout()
                 # Update Status and run transition specific logic
                 match self.status:
-                    case MatchState.PICKING_FACTIONS if self._factions_picked():
+                    case MatchState.PICKING_FACTIONS if self.factions_picked:
                         self.status = MatchState.LOGGING_IN
 
-                    case MatchState.LOGGING_IN if self._ready_to_play:
+                    case MatchState.LOGGING_IN if self.ready_to_play:
                         # Initial round start, both players logged in
                         self.status = MatchState.PLAYING
                         await self._start_round()
@@ -1099,7 +1127,7 @@ class RankedMatch(BaseMatch):
                             await self.score_mismatch()
 
 
-                    case MatchState.SWITCHING_SIDES if self._ready_to_play:
+                    case MatchState.SWITCHING_SIDES if self.ready_to_play:
                         self.status = MatchState.PLAYING
                         await self._start_round()
 
@@ -1123,11 +1151,11 @@ class RankedMatch(BaseMatch):
             f"Round [{self.current_round}] Started: {self.player1.assigned_faction_char} vs {self.player2.assigned_faction_char}")
 
         # Send new round message
-        self.__round_message = await disp.RM_ROUND_MESSAGE.send(self.thread, self.current_round,
-                                                                self.player1.assigned_faction_display,
-                                                                self.player2.assigned_faction_display,
-                                                                view=self.get_round_view(),
-                                                                ping=self.players)
+        self._round_message = await disp.RM_ROUND_MESSAGE.send(self.thread, self.current_round,
+                                                               self.player1.assigned_faction_display,
+                                                               self.player2.assigned_faction_display,
+                                                               view=self.get_round_view(),
+                                                               ping=self.players)
 
     async def _end_round(self):
         """Ends current round, returns True if Match should also end"""
@@ -1135,7 +1163,7 @@ class RankedMatch(BaseMatch):
 
         # Delete old round message
         try:
-            await self.__round_message.delete()
+            await self._round_message.delete()
         except discord.NotFound:
             pass
 
@@ -1239,11 +1267,11 @@ class RankedMatch(BaseMatch):
 
 
             # Determine Elo Changes
-            self.__player1_stats, self.__player2_stats = await stats_handler.update_elo(self.__player1_stats,
-                                                                                        self.__player2_stats,
-                                                                                        self.id,
-                                                                                        self.__match_outcome,
-                                                                                        self.MATCH_LENGTH)
+            self._player1_stats, self._player2_stats = await stats_handler.update_elo(self._player1_stats,
+                                                                                      self._player2_stats,
+                                                                                      self.id,
+                                                                                      self.__match_outcome,
+                                                                                      self.MATCH_LENGTH)
             # TODO Send embed with match results + elo changes to each player in DM's
 
 

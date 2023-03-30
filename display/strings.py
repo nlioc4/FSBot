@@ -131,8 +131,8 @@ class AllStrings(Enum):
     MATCH_TIMEOUT_RESET = "{} timeout reset!"
     MATCH_TIMEOUT_NO_RESET = "{} timeout can't be reset without 2 or more players!"
     MATCH_TIMEOUT = "{} Match is being closed due to inactivity"
-    MATCH_END = "Match ID: {} Ended, closing match channel..."
-    MATCH_NOT_FOUND = "Match fornot found for {}!"
+    MATCH_END = "Match ID: {} Ended, closing match thread..."
+    MATCH_NOT_FOUND = "Match for not found for {}!"
     MATCH_NOT_OWNER = "Only the match owner can do this!"
     MATCH_NEW_OWNER = "The match owner is now {}!"
     MATCH_NOT_IN = "You are not in match {}."
@@ -145,7 +145,8 @@ class AllStrings(Enum):
                        " otherwise request an account using the button above!"
 
     RM_FACTION_PICK = "{} pick which faction you will play first below!"
-    RM_FACTION_PICKED = "{} chose to play {} first.\n {} has been assigned {}!"
+    RM_FACTION_PICKED = "{} chose to play {} first.\n {} has been assigned {}!\n" \
+                        "Please log in to your assigned faction!"
     RM_FACTION_SWITCH = "Half time, please switch factions!" \
                         "  The match will resume when both players have logged back in."
     RM_FACTION_NOT_PICK = "It's not your turn to pick faction!"
@@ -223,8 +224,9 @@ class AllStrings(Enum):
 
     # `stats` command strings
     STAT_RESPONSE = None, stat_response
-    STAT_NO_MATCHES = "You have not participated in any matches :frowning:."
-    STAT_TOTALS = "You've participated in **{}** matches, over **{}** hours!"
+    STATS_SELF_ONLY = "You must be an admin to check stats that are not your own!"
+    STAT_NO_MATCHES = "{} has not participated in any matches :frowning:."
+    STAT_TOTALS = "{} has participated in **{}** matches, over **{}** hours!"
     STAT_PARTNER_MATCH_COUNT = "<@{}> | {} matches"
 
     def __init__(self, string, embed=None):

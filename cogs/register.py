@@ -46,7 +46,7 @@ class RulesView(views.FSBotView):
             await disp.REGISTER_NEW_PLAYER.send_priv(interaction.response,
                                                      interaction.user.mention,
                                                      d_obj.channels['register'].mention,
-                                                     d_obj.channels['dashboard'].mention)
+                                                     d_obj.channels['casual_lobby'].mention)
         await d_obj.role_update(interaction.user)
 
     @discord.ui.button(label="Hide Category", custom_id="rules-hide", style=discord.ButtonStyle.red)

@@ -279,7 +279,7 @@ class Lobby:
             return self.__view.update()
         return self.__view_func(self)
 
-    async def _dashboard_message(self, action="send", force=False):
+    async def update_dashboard_message(self, action="send", force=False):
         """Either sends a new dashboard message, or edits the existing message if required."""
         new_embed = self._new_embed()
         requires_edit = force or False
@@ -300,14 +300,16 @@ class Lobby:
     async def create_dashboard(self):
         """Purges the channel, and then creates dashboard Embed w/ view"""
         try:
-            msg_id = await db.async_db_call(db.get_field, 'restart_data', 0, 'dashboard_msg_id')
+            msg_ids = await db.async_db_call(db.get_field, 'restart_data', 0, 'dashboard_msg_ids')
+            msg_id = msg_ids[self.name]
             self.dashboard_msg = await self.channel.fetch_message(msg_id)
-            self.dashboard_msg = await self._dashboard_message(action='edit', force=True)
+            self.dashboard_msg = await self.update_dashboard_message(action='edit', force=True)
         except (KeyError, discord.NotFound):
             log.info('No previous embed found for %s, creating new message...', self.name)
-            self.dashboard_msg = await self._dashboard_message()
+            self.dashboard_msg = await self.update_dashboard_message("send")
         finally:
-            await db.async_db_call(db.set_field, 'restart_data', 0, {'dashboard_msg_id': self.dashboard_msg.id})
+            await db.async_db_call(db.set_field, 'restart_data', 0,
+                                   {f'dashboard_msg_ids.{self.name}': self.dashboard_msg.id})
             await self.channel.purge(check=self.dashboard_purge_check)
 
     async def update_dashboard(self):
@@ -322,7 +324,7 @@ class Lobby:
 
         # Edit dashboard message if required, if not editable, send new message
         try:
-            await self._dashboard_message('edit')
+            await self.update_dashboard_message('edit')
         except discord.NotFound as e:
             await d_obj.d_log(f'Unable to edit {self.name} dashboard message, resending...', error=e)
             await self.create_dashboard()
@@ -553,7 +555,7 @@ class Lobby:
             match = await self.__match_type.create(owner, player, lobby=self)
             self.__matches.append(match)
 
-            await disp.MATCH_JOIN.send_temp(match.thread, f'{owner.mention}{player.mention}')
+
             if owner.id in self.__invites:
                 self.__invites[owner.id].remove(player)
                 for other_player in self.__invites[owner.id]:

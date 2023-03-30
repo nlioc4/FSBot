@@ -32,7 +32,7 @@ async def save_state(loop):
     if census.EVENT_CLIENT.websocket:
         await census.EVENT_CLIENT.close()
 
-    # save dm threads to DB, likely unnecesssary as threads are saved on creation/deletion
+    # save dm threads to DB, likely unnecessary as threads are saved on creation/deletion
     dm_dict = cogs.direct_messages.dm_threads_to_str()
     db.set_field('restart_data', 0, {'dm_threads': dm_dict})
 

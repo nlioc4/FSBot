@@ -25,12 +25,6 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog"):
     def __init__(self, bot):
         #  Statics
         self.bot = bot
-        self.dashboard_channel: discord.TextChannel = d_obj.channels['dashboard']
-        # Dynamics
-        self.dashboard_msg: discord.Message | None = None
-        self.dashboard_embed = None
-
-        self.guild_ids = [cfg.general["guild_id"]]
 
         asyncio.create_task(self.lobby_startup())
 
@@ -38,14 +32,15 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog"):
         player = Player.get(ctx.user.id)
         return True if player else False
 
-    async def lobby_startup(self):
+    @staticmethod
+    async def lobby_startup():
         """Startup Task that creates lobby objects.  Waits until bot is ready to proceed"""
         await d_obj.loaded.wait()
         if Lobby.all_lobbies.get("casual"):
             return
-        casual_lobby = await Lobby.create_lobby("casual", d_obj.channels['dashboard'], timeout_minutes=30)
+        casual_lobby = await Lobby.create_lobby("casual", d_obj.channels['casual_lobby'], timeout_minutes=30)
 
-        ranked_lobby = await Lobby.create_lobby("ranked", d_obj.guild.get_channel(1061989011092144138),
+        ranked_lobby = await Lobby.create_lobby("ranked", d_obj.channels['ranked_lobby'],
                                                 timeout_minutes=30, match_type=RankedMatch)
 
 

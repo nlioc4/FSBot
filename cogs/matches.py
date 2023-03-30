@@ -30,27 +30,27 @@ class MatchesCog(commands.Cog, name="MatchesCog",
 
     @tasks.loop(count=1)
     async def matches_init(self):
-        # clear old match channels if any exist
+        await d_obj.loaded.wait()
+
+        # clear old match channels/threads if any exist
         coroutines = []
-        text_channels = d_obj.categories['user'].text_channels
+
+        # delete old match voice channels
         voice_channels = d_obj.categories['user'].voice_channels
-        for channel in text_channels:
-            if channel.name.startswith('casual'):
-                coroutines.append(channel.delete())
         for channel in voice_channels:
-            if channel.name.startswith('Casual') or channel.name.startswith('Ranked'):
+            if (channel.name.startswith('Casual') or channel.name.startswith('Ranked')) \
+                    and channel not in d_obj.channels.values():
                 coroutines.append(channel.delete())
 
-        # Archive old Match Threads
-        for thread in d_obj.channels['dashboard'].threads:
+        # Archive old match Threads
+        # Epic list comprehension
+        threads = [thread for thread in
+                   [*d_obj.channels['casual_lobby'].threads, *d_obj.channels['ranked_lobby'].threads] if not thread.archived]
+        for thread in threads:
             coroutines.append(thread.archive(locked=True))
-        ##TODO add ranked match channels to this init
+
 
         await asyncio.gather(*coroutines)
-
-    @matches_init.before_loop
-    async def before_matches_init(self):
-        await self.bot.wait_until_ready()
 
     @commands.Cog.listener('on_message')
     async def matches_message_listener(self, message: discord.Message):
@@ -60,10 +60,11 @@ class MatchesCog(commands.Cog, name="MatchesCog",
 
         if not (match := BaseMatch.active_match_channel_ids().get(message.channel.id)):
             return
+        image = f"<Image:{[img.url for img in message.attachments]}>" if message.attachments else ""
 
         if p := Player.get(message.author.id):
             match.log(
-                f'{p.name}: {message.clean_content}', public=False
+                f'{p.name}: {message.clean_content}{image}', public=False
             )
 
 

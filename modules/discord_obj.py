@@ -51,7 +51,7 @@ def init(client):
             raise KeyError(f'Missing Discord Channel for {channel}')
     log.info("Initialized Channels: %s", {channel_name: channel.name for channel_name, channel in channels.items()})
 
-    categories['user'] = channels['dashboard'].category
+    categories['user'] = channels['casual_lobby'].category
     categories['admin'] = channels['staff'].category
 
     global colin

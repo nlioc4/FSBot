@@ -97,7 +97,6 @@ def set_field(collection: str, e_id: int, doc: dict):
     else:
         raise DatabaseError(f"set_field: Element {e_id} doesn't exist in collection {collection}")
 
-
 def unset_field(collection: str, e_id: int, doc: dict):
     """
     Unset (remove) the field of an element. In other words, update an element.

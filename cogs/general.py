@@ -81,11 +81,17 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
         await disp.USAGE_PSB.send_priv(ctx, player=p, start_stamp=start_stamp, end_stamp=end_stamp, usages=usages)
 
     @commands.slash_command(name="stats")
-    async def stats_command(self, ctx: discord.ApplicationContext):
+    async def stats_command(self, ctx: discord.ApplicationContext,
+                            user: discord.Option(discord.Member, "User to check stats for", required=False)):
         """View your dueling stats"""
+        if (user := user or ctx.user) is not ctx.user and not d_obj.is_admin(ctx.user):
+            return await disp.STATS_SELF_ONLY.send_priv(ctx)    # Check if admin for requests on other users
 
-        if not (player := d_obj.is_player(ctx.user)):
-            return await disp.NOT_PLAYER.send_priv(ctx, ctx.user.mention, d_obj.channels['register'].mention)
+        if not (player := d_obj.is_player(user)):
+            if user is ctx.user:
+                return await disp.NOT_PLAYER.send_priv(ctx, user.mention, d_obj.channels['register'].mention)
+            else:
+                return await disp.NOT_PLAYER_2.send_priv(ctx, user.mention)
 
         await ctx.defer(ephemeral=True)
 
@@ -112,8 +118,10 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
         player_match_count = len(player_matches)
 
         if player_match_count == 0:
-            return await disp.STAT_NO_MATCHES.send_priv(ctx)
+            return await disp.STAT_NO_MATCHES.send_priv(ctx, user.mention)
 
+
+        # Sum match time and count times partners appear across all matches
         total_duel_sec = 0
         partners = {}
 
@@ -136,11 +144,36 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
                 else:
                     partners[player_id] = 1
 
+
+        #  Count up top 3 duel partners
+        highest_partner = None
+        duel_partners = ""
+
+        for i in range(3):
+            if len(partners) == 0:
+                break
+
+            # Find the partner with which we've had the most matches
+            for partner_id, match_count in partners.items():
+                if highest_partner is None or highest_partner[1] < match_count:
+                    highest_partner = (partner_id, match_count)
+
+            # Check if we selected a new highest partner
+            if highest_partner is None or highest_partner[0] not in partners:
+                continue
+
+            # We've found a new highest partner. Add them and move on
+            duel_partners += disp.STAT_PARTNER_MATCH_COUNT.value.format(highest_partner[0], highest_partner[1])
+            duel_partners += "\n"
+            partners.pop(highest_partner[0])
+
+
         return await disp.STAT_RESPONSE.send_priv(
             ctx,
+            player=player,
             match_count=player_match_count,
             total_duel_sec=total_duel_sec,
-            duel_partner_frequencies=partners)
+            duel_partners=duel_partners)
 
     @tasks.loop(seconds=5)
     async def activity_update(self):

@@ -204,38 +204,18 @@ def psb_account_usage(player, start_stamp, end_stamp, usages) -> Embed:
     return embed
 
 
-def stat_response(match_count: int, total_duel_sec: int, duel_partner_frequencies: dict) -> Embed:
+def stat_response(player: Player, match_count: int, total_duel_sec: int, duel_partners: str) -> Embed:
     # Local import to avoid circular dependency
     from display import AllStrings
 
     embed = Embed(
         colour=Colour.blurple(),
-        title="Match Statistics",
-        description=AllStrings.STAT_TOTALS.value.format(match_count, round(total_duel_sec / 60 / 60, 1))
+        title=f"Match Statistics for {player.name}",
+        description=AllStrings.STAT_TOTALS.value.format(player.mention, match_count, round(total_duel_sec / 60 / 60, 1))
     )
 
-    highest_partner = None
-    duel_partners = ""
 
-    for i in range(3):
-        if len(duel_partner_frequencies) == 0:
-            break
-
-        # Find the partner with which we've had the most matches
-        for partner_id, match_count in duel_partner_frequencies.items():
-            if highest_partner is None or highest_partner[1] < match_count:
-                highest_partner = (partner_id, match_count)
-
-        # Check if we selected a new highest partner
-        if highest_partner is None or highest_partner[0] not in duel_partner_frequencies:
-            continue
-
-        # We've found a new highest partner. Add them and move on
-        duel_partners += AllStrings.STAT_PARTNER_MATCH_COUNT.value.format(highest_partner[0], highest_partner[1])
-        duel_partners += "\n"
-        duel_partner_frequencies.pop(highest_partner[0])
-
-    if duel_partners != "":
+    if duel_partners:
         embed.add_field(
             name="Top Duel Partners",
             value=duel_partners
@@ -441,12 +421,12 @@ def match_info(match) -> Embed:
                       f"Match Started: {format_stamp(match.start_stamp, 'R')} at {format_stamp(match.start_stamp)}\n"
                       )
 
-    if match.timeout_at:
-        match_info_str += f"Match will timeout {format_stamp(match.timeout_at, 'R')}\n"
-        match_info_str += f"Match timeout will be reset on login to Jaeger\n"
-
     if match.end_stamp:
         match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}\n'
+
+    elif match.timeout_at:
+        match_info_str += f"Match will timeout {format_stamp(match.timeout_at, 'R')}\n"
+        match_info_str += f"Match timeout will be reset on login to Jaeger\n"
 
     if match.voice_channel:
         match_info_str += f'Match Voice Channel: {match.voice_channel.mention} ' \
@@ -521,16 +501,20 @@ def match_info(match) -> Embed:
 
 def ranked_match_info(match) -> Embed:
     """Match Info Embed, tailored to ranked matches."""
-    match match.status.name:
-        case 'PICKING_FACTIONS':
+    from classes.match import MatchState
+    from classes.match import RankedMatch
+    match: RankedMatch
+
+    match match.status:
+        case MatchState.PICKING_FACTIONS:
             colour = Colour.blue()
-        case 'LOGGING_IN' | 'SWITCHING_SIDES':
+        case MatchState.LOGGING_IN | MatchState.SWITCHING_SIDES:
             colour = Colour.yellow()
-        case 'SUBMITTING':
+        case MatchState.SUBMITTING:
             colour = Colour.og_blurple()
-        case 'PLAYING':
+        case MatchState.PLAYING:
             colour = Colour.green()
-        case 'ENDED':
+        case MatchState.ENDED:
             colour = Colour.red()
         case _:
             colour = Colour.dark_grey()
@@ -548,12 +532,13 @@ def ranked_match_info(match) -> Embed:
                       f"Match Started: {format_stamp(match.start_stamp, 'R')} at {format_stamp(match.start_stamp)}\n"
                       )
 
-    if match.timeout_at:
-        match_info_str += f"Match will timeout {format_stamp(match.timeout_at, 'R')}\n"
-        match_info_str += f"Match timeout will be reset on login to Jaeger\n"
 
     if match.end_stamp:
         match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}\n'
+
+    elif match.timeout_at:
+        match_info_str += f"Match will timeout {format_stamp(match.timeout_at, 'R')}\n"
+        match_info_str += f"Match timeout will be reset on login to Jaeger\n"
 
     if match.voice_channel:
         match_info_str += f'Match Voice Channel: {match.voice_channel.mention} ' \
@@ -570,15 +555,38 @@ def ranked_match_info(match) -> Embed:
 
     # Current Round
     online, offline = "🟢", "🔴"
-    if match.status.name in ("LOGGING_IN", "PLAYING", "SWITCHING_SIDES", "SUBMITTING"):
+    if match.factions_picked:  # check if a faction has been picked
         player1_online = online if match.player1.on_assigned_faction else offline
         player2_online = online if match.player2.on_assigned_faction else offline
-        round_string = f"Current Round: [{match.current_round}]\n" \
-                       f"{match.player1.name}: {player1_online}{match.player1.assigned_char_display}\n" \
-                       f"{match.player2.name}: {player2_online}{match.player2.assigned_char_display}\n"
-        embed.add_field(name="Match Score",
+
+        player1_submitted = "✉️" if match.check_player_score_submitted(match.player1) else ""
+        player2_submitted = "✉️" if match.check_player_score_submitted(match.player2) else ""
+
+        round_string = \
+            f"{match.player1.name}: {player1_online}{match.player1.assigned_char_display}{player1_submitted}\n" \
+            f"{match.player2.name}: {player2_online}{match.player2.assigned_char_display}{player2_submitted}\n"
+        embed.add_field(name=f"Current Round: [{match.current_round}]",
                         value=round_string,
                         inline=False)
+
+    if match.recent_logs:
+        log_string = ''
+        title = "Match Logs"
+        for log in match.recent_logs:
+            if log[2]:
+                next_string = f"[{format_stamp(log[0], 'T')}]{log[1]}\n"
+                if len(log_string) + len(next_string) > 1000:
+                    embed.add_field(name=title,
+                                    value=log_string,
+                                    inline=False)
+                    log_string = ''
+                    title = '\u200b'
+                log_string = log_string + next_string
+
+        if log_string:
+            embed.add_field(name=title,
+                            value=log_string,
+                            inline=False)
 
     return fs_author(embed)
 
@@ -729,7 +737,7 @@ def fsbot_info_embed() -> Embed:
 
     embed.add_field(
         name="Lobby",
-        value=f"The duel lobby remains in <#{cfg.channels['dashboard']}> where a constantly updated embed shows the "
+        value=f"The duel lobby remains in <#{cfg.channels['casual_lobby']}> where a constantly updated embed shows the "
               "currently lobbied players, along with their preferences, and gives buttons and a dropdown to interact "
               "with the lobby.  The select menu can be used to invite any number of players to a match, though you "
               "obviously can not invite yourself. The select menu can also be used by a match owner to invite new "

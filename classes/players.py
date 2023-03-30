@@ -616,17 +616,19 @@ class ActivePlayer:
     def assigned_faction_abv(self):
         if self.assigned_faction_id:
             return cfg.factions[self.assigned_faction_id]
-        return "N/A"
+        return "NO FACTION"
 
     @property
     def assigned_faction_char(self):
+        if not self.has_own_account and not self.account:
+            return "NO ACCOUNT"
         return self.ig_names[self.assigned_faction_id - 1]
 
     @property
     def assigned_char_display(self):
-        """Gives a string with (FactionEmoji)(AssignedCharacter)"""
+        """Gives a string with <FactionEmoji><AssignedCharacter>"""
         if not self.assigned_faction_id:
-            return "n/a"
+            return "NO FACTION"
         return f"{cfg.emojis[self.assigned_faction_abv]}{self.assigned_faction_char}"
 
     @property
@@ -634,7 +636,7 @@ class ActivePlayer:
         """Returns string of Player Name / Faction String / Faction Emoji / Assigned Character string"""
         if not self.assigned_faction_id:
             return f"{self.name} has no Faction Assigned!"
-        return f"{self.name}({self.assigned_faction_abv}" \
+        return f"{self.name}({self.assigned_faction_abv}" + \
                f"{cfg.emojis[self.assigned_faction_abv]}{self.assigned_faction_char})"
 
     def on_quit(self):
