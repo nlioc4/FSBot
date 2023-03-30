@@ -55,9 +55,7 @@ def init(client):
     categories['admin'] = channels['staff'].category
 
     global colin
-    colin = guild.get_member(123702146247032834)  # this should function as somewhat of a (childish) deadman's switch
-    if not colin:
-        sys.exit("No Colin Found")
+    colin = guild.get_member(123702146247032834) # For pinging myself
     loaded.set()
 
 
