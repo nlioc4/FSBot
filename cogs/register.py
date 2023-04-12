@@ -8,9 +8,9 @@ from discord.ext import commands
 from logging import getLogger
 
 # Internal Imports
-import display.views
 import modules.config as cfg
 import classes
+import modules.accounts_handler as accounts_handler
 from classes.players import Player, SkillLevel
 import modules.database as db
 from display import AllStrings as disp, views, embeds
@@ -190,6 +190,8 @@ class RegisterCharacterModal(discord.ui.Modal):
         if len(char_list) == 1 or len(char_list) == 3:  # if base char name, or individual names provided
             try:
                 registered = await p.register(char_list)
+
+                # Remove player account if successfully registered
                 if registered and p.account:
                     await p.account.terminate()
                 # match/case to allow proxy registration responses
@@ -214,6 +216,8 @@ class RegisterCharacterModal(discord.ui.Modal):
                 await disp.REG_NOT_JAEGER.send_priv(inter, e.char)
             except classes.players.CharNotFound as e:
                 await disp.REG_CHAR_NOT_FOUND.send_priv(inter, e.char)
+            except classes.players.CharBotAccount as e:
+                await disp.REG_CHAR_PROTECTED.send_priv(inter, e.char)
             except (auraxium.errors.MaintenanceError, auraxium.errors.ServiceUnavailableError):
                 log.info("Auraxium Error when trying to register characters for %s", inter.name)
                 await disp.REG_NO_CENSUS.send_priv(inter)

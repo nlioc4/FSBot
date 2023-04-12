@@ -79,6 +79,7 @@ class DashboardView(views.FSBotView):
             if owner.match and owner.match.owner != owner:
                 await disp.LOBBY_NOT_OWNER.send_priv(inter)
                 return
+            ## TODO Add check that lobby type matches
             already_invited = self.lobby.already_invited(owner, invited_players)
             if already_invited:
                 await disp.LOBBY_INVITED_ALREADY.send_priv(inter, ' '.join([p.mention for p in already_invited]))
@@ -282,17 +283,16 @@ class Lobby:
     async def update_dashboard_message(self, action="send", force=False):
         """Either sends a new dashboard message, or edits the existing message if required."""
         new_embed = self._new_embed()
-        requires_edit = force or False
         if not tools.compare_embeds(new_embed, self.dashboard_embed):
             self.dashboard_embed = new_embed
-            requires_edit = True
+            force = True
 
         match action:
             case "send":
                 return await self.channel.send(content="",
                                                embed=self.dashboard_embed,
                                                view=self.view())
-            case "edit" if requires_edit:
+            case "edit" if force:
                 return await self.dashboard_msg.edit(content="",
                                                      embed=self.dashboard_embed,
                                                      view=self.view())
@@ -306,7 +306,7 @@ class Lobby:
             self.dashboard_msg = await self.update_dashboard_message(action='edit', force=True)
         except (KeyError, discord.NotFound):
             log.info('No previous embed found for %s, creating new message...', self.name)
-            self.dashboard_msg = await self.update_dashboard_message("send")
+            self.dashboard_msg = await self.update_dashboard_message()
         finally:
             await db.async_db_call(db.set_field, 'restart_data', 0,
                                    {f'dashboard_msg_ids.{self.name}': self.dashboard_msg.id})

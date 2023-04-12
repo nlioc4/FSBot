@@ -69,14 +69,15 @@ class AllStrings(Enum):
     DM_THREAD_CLOSE = "This DM thread has been closed.  A new instance must be created" \
                       " for further messages to be conveyed."
 
-    REG_SUCCESSFUL_CHARS = "Successfully registered with characters: {}, {}, {}."
+    REG_SUCCESSFUL_CHARS = "Successfully registered with characters: `{}`, `{}`, `{}`."
     REG_SUCCESFUL_NO_CHARS = 'Successfully registered with no Jaeger Account'
-    REG_ALREADY_CHARS = "Already registered with characters: {}, {}, {}."
+    REG_ALREADY_CHARS = "Already registered with characters: `{}`, `{}`, `{}`."
     REG_ALREADY_NO_CHARS = "Already Registered with no Jaeger Account."
     REG_MISSING_FACTION = "Registration Failed: Missing a character for faction {}."
-    REG_CHAR_REGISTERED = "Registration Failed: Character: {} already registered by {}."
-    REG_CHAR_NOT_FOUND = "Registration Failed: Character: {} not found in the Census API."
-    REG_NOT_JAEGER = "Registration Failed: Character: {} is not from Jaeger!"
+    REG_CHAR_REGISTERED = "Registration Failed: Character: `{}` already registered by {}."
+    REG_CHAR_PROTECTED = "Registration Failed: Character: `{}` is protected and may not be registered!"
+    REG_CHAR_NOT_FOUND = "Registration Failed: Character: `{}` not found in the Census API."
+    REG_NOT_JAEGER = "Registration Failed: Character: `{}` is not from Jaeger!"
     REG_WRONG_FORMAT = "Incorrect Character Entry Format! Enter either 1 character for each faction separated by ',' " \
                        "or a space, or one character without a faction suffix and suffixes will be added for you."
     REG_NO_CENSUS = "DBG's Census API is currently unavailable, cannot register characters.  Please try again soon!" \

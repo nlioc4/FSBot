@@ -498,10 +498,10 @@ class AdminCog(commands.Cog):
         for _ in range(5):
             if await census.online_status_rest(Player.map_chars_to_players()):
                 return True
-        log.warning("Could not reach REST api during census rest after 5 tries...")
+        log.warning("Could not reach REST api during census REST after 5 tries...")
         return False
 
-    @tasks.loop(minutes=1)
+    @tasks.loop(minutes=30)
     async def wss_restart(self):
         """Restart the census_watchtower regularly in order to stop it from dying?"""
         if self.census_watchtower and not self.census_watchtower.done():

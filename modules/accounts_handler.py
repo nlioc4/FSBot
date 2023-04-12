@@ -26,7 +26,7 @@ eastern = pytz.timezone('US/Eastern')
 _busy_accounts = dict()
 _available_accounts = dict()
 all_accounts = None
-account_char_ids = dict()  # maps to account objects, consider mapping directly to char_names
+account_char_ids = dict()  # dict of account_char_id : account obj
 
 UNASSIGNED_ONLINE_WARN = True
 MAX_TIME = 10800  # Maximum time for account assignments (limit is ignored if user is in a match)

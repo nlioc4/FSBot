@@ -50,25 +50,42 @@ class SkillLevel(tools.AutoNumber):
 
 
 class CharInvalidWorld(Exception):
+    """Attempted to register Character on wrong world"""
+
     def __init__(self, char):
         self.char = char
         super().__init__(f'{char} is from the wrong world')
 
 
 class CharAlreadyRegistered(Exception):
+    """Character is already registered to another player!"""
+
     def __init__(self, player, char):
         self.player = player
         self.char = char
         super().__init__(f'{char} already registered by {player.name}')
 
 
+class CharBotAccount(Exception):
+    """Attempted to register Character belonging to an FSBot Account"""
+
+    def __init__(self, account, char):
+        self.account = account
+        self.char = char
+        super().__init__(f'{char} is registered to FSBot Account {account.ig_name}')
+
+
 class CharMissingFaction(Exception):
+    """Registration failed to find a character for each required Faction"""
+
     def __init__(self, faction):
         self.faction = faction
         super().__init__(f'Missing character from faction: {faction}')
 
 
 class CharNotFound(Exception):
+    """One of the characters provided was not found during registration"""
+
     def __init__(self, char):
         self.char = char
         super().__init__(f'{char} not found in the Census API')
@@ -498,6 +515,10 @@ class Player:
                 p = Player._name_checking[faction - 1][char_id]
                 if p != self:
                     raise CharAlreadyRegistered(p, char_name)
+            # check if char ID matches FSBot account chars
+            from modules.accounts_handler import account_char_ids
+            if account := account_char_ids.get(char_id):
+                raise CharBotAccount(account, char)
 
             # add id and name to list
             new_ids[faction - 1] = char_id
@@ -637,7 +658,7 @@ class ActivePlayer:
         if not self.assigned_faction_id:
             return f"{self.name} has no Faction Assigned!"
         return f"{self.name}({self.assigned_faction_abv}" + \
-               f"{cfg.emojis[self.assigned_faction_abv]}{self.assigned_faction_char})"
+            f"{cfg.emojis[self.assigned_faction_abv]}{self.assigned_faction_char})"
 
     def on_quit(self):
         return self.player.on_quit()
