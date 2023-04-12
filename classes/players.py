@@ -96,7 +96,7 @@ class Player:
     """
 
     _all_players = dict()
-    _name_checking = [dict(), dict(), dict()]
+    _name_checking = [dict(), dict(), dict(), dict()]
 
     @classmethod
     def get(cls, p_id) -> 'Player':
@@ -110,12 +110,12 @@ class Player:
 
     @classmethod
     def name_check_add(cls, p):
-        for i in range(3):
+        for i in range(4 if p.has_ns_character else 3):
             cls._name_checking[i][p.ig_ids[i]] = p
 
     @classmethod
     def name_check_remove(cls, p):
-        for i in range(3):
+        for i in range(4 if p.has_ns_character else 3):
             try:
                 del cls._name_checking[i][p.ig_ids[i]]
             except KeyError:
@@ -161,8 +161,8 @@ class Player:
         self.__id = p_id
         self.__has_own_account = False
         self.__account = None
-        self.__ig_names = ["N/A", "N/A", "N/A"]
-        self.__ig_ids = [0, 0, 0]
+        self.__ig_names = ["N/A", "N/A", "N/A", "N/A"]
+        self.__ig_ids = [0, 0, 0, 0]
         self.online_id = None
         self.__is_registered = False
         self.__hidden = False
@@ -196,8 +196,8 @@ class Player:
             Player.name_check_add(obj)
         else:
             obj.__has_own_account = False
-            obj.__ig_names = ["N/A", "N/A", "N/A"]
-            obj.__ig_ids = [0, 0, 0]
+            obj.__ig_names = ["N/A", "N/A", "N/A", "N/A"]
+            obj.__ig_ids = [0, 0, 0, 0]
         if 'timeout' in data:
             obj.__timeout = data['timeout']
         if 'hidden' in data:
@@ -290,11 +290,11 @@ class Player:
 
     @property
     def ig_names(self):
-        return self.__ig_names
+        return self.__ig_names if self.has_ns_character else self.__ig_names[:-1]
 
     @property
     def ig_ids(self):
-        return self.__ig_ids
+        return self.__ig_ids if self.has_ns_character else self.__ig_ids[:-1]
 
     @property
     def is_registered(self):
@@ -303,6 +303,10 @@ class Player:
     @property
     def has_own_account(self):
         return self.__has_own_account
+
+    @property
+    def has_ns_character(self):
+        return self.__has_own_account and self.__ig_ids[3]
 
     @property
     def account(self):
@@ -365,11 +369,15 @@ class Player:
 
     @property
     def online_name(self):
-        if self.online_id:
-            return self.ig_names[self.ig_ids.index(self.online_id)]
-        elif self.account and self.account.online_id:
-            return self.account.online_name
-        else:
+        try:
+            if self.online_id:
+                return self.ig_names[self.ig_ids.index(self.online_id)]
+            elif self.account and self.account.online_id:
+                return self.account.online_name
+            else:
+                return False
+        except ValueError:
+            log.warning(f"Registration Changed during online_name call for {self.name}")
             return False
 
     def online_name_by_id(self, char_id):
@@ -455,8 +463,8 @@ class Player:
                 # Player had in game data, remove now
                 Player.name_check_remove(self)
 
-                self.__ig_names = ["N/A", "N/A", "N/A"]
-                self.__ig_ids = [0, 0, 0]
+                self.__ig_names = ["N/A", "N/A", "N/A", "N/A"]
+                self.__ig_ids = [0, 0, 0, 0]
                 self.__has_own_account = False
 
                 # update db
@@ -488,23 +496,25 @@ class Player:
     async def _add_characters(self, char_list: list) -> bool:
         """
         Checks a list of chars provided for faction and world, adds them to the player object.
-        :param char_list: list of chars to check and add. Must either be 3 factioned chars, or one generic char name.
+        :param char_list: list of chars to check and add. Must either be 3/4 factioned chars, or one generic char name.
         :return: True if characters updated, false if not
         """
         # if only one char name, add suffixes.
         if len(char_list) == 1:
             char_name = char_list[0]
-            if char_name[-2:].lower() in ['vs', 'nc', 'tr']:
+            if char_name[-2:].lower() in ['vs', 'nc', 'tr', 'ns']:
                 char_name = char_name[:-2]
-            char_list = [char_name + 'VS', char_name + 'NC', char_name + 'TR']
+            char_list = [char_name + 'VS', char_name + 'NC', char_name + 'TR', char_name + 'NS']
 
         updated = False
-        new_names = ["N/A", "N/A", "N/A"]
-        new_ids = [0, 0, 0]
+        new_names = ["N/A", "N/A", "N/A", "N/A"]
+        new_ids = [0, 0, 0, 0]
 
         for char in char_list:
             char_info = await census.get_char_info(char)
             if not char_info:
+                if "NS" == char[-2:]:  # skip CharNotFound if char is NS
+                    continue
                 raise CharNotFound(char)
             char_name, char_id, faction, world_id = [char_info[i] for i in range(4)]
             # check world
@@ -518,7 +528,7 @@ class Player:
             # check if char ID matches FSBot account chars
             from modules.accounts_handler import account_char_ids
             if account := account_char_ids.get(char_id):
-                raise CharBotAccount(account, char)
+                raise CharBotAccount(account, char_name)
 
             # add id and name to list
             new_ids[faction - 1] = char_id
@@ -527,9 +537,9 @@ class Player:
             # change updated if updated
             updated = updated or new_ids[faction - 1] != self.__ig_ids[faction - 1]
 
-        # check one char per faction submitted
-        for i in range(3):
-            if new_ids[i] == 0:
+        # check one char per faction submitted. NS optional
+        for i in range(4):
+            if new_ids[i] == 0 and i != 3:
                 raise CharMissingFaction(cfg.factions[i + 1])
 
         if updated:

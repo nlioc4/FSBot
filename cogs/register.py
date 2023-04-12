@@ -194,19 +194,23 @@ class RegisterCharacterModal(discord.ui.Modal):
                 # Remove player account if successfully registered
                 if registered and p.account:
                     await p.account.terminate()
+                # Reset login status if player was online
+                if registered and p.online_id:
+                    p.online_id = None
+                char_string = ', '.join(p.ig_names)
                 # match/case to allow proxy registration responses
                 match registered:
                     case True if not self.p:
-                        await disp.REG_SUCCESSFUL_CHARS.send_priv(inter, *p.ig_names)
+                        await disp.REG_SUCCESSFUL_CHARS.send_priv(inter, char_string)
 
                     case True if self.p:
-                        await disp.AS.send_priv(inter, p.mention, disp.REG_SUCCESSFUL_CHARS(*p.ig_names))
+                        await disp.AS.send_priv(inter, p.mention, disp.REG_SUCCESSFUL_CHARS(char_string))
 
                     case _ if self.p:
-                        await disp.AS.send_priv(inter, p.mention, disp.REG_ALREADY_NO_CHARS(*p.ig_names))
+                        await disp.AS.send_priv(inter, p.mention, disp.REG_ALREADY_CHARS(char_string))
 
                     case _:
-                        await disp.REG_ALREADY_CHARS.send_priv(inter, *p.ig_names)
+                        await disp.REG_ALREADY_CHARS.send_priv(inter, char_string)
 
             except classes.players.CharMissingFaction as e:
                 await disp.REG_MISSING_FACTION.send_priv(inter, e.faction)

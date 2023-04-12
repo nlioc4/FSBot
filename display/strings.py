@@ -69,9 +69,9 @@ class AllStrings(Enum):
     DM_THREAD_CLOSE = "This DM thread has been closed.  A new instance must be created" \
                       " for further messages to be conveyed."
 
-    REG_SUCCESSFUL_CHARS = "Successfully registered with characters: `{}`, `{}`, `{}`."
+    REG_SUCCESSFUL_CHARS = "Successfully registered with characters: `{}`."
     REG_SUCCESFUL_NO_CHARS = 'Successfully registered with no Jaeger Account'
-    REG_ALREADY_CHARS = "Already registered with characters: `{}`, `{}`, `{}`."
+    REG_ALREADY_CHARS = "Already registered with characters: `{}`."
     REG_ALREADY_NO_CHARS = "Already Registered with no Jaeger Account."
     REG_MISSING_FACTION = "Registration Failed: Missing a character for faction {}."
     REG_CHAR_REGISTERED = "Registration Failed: Character: `{}` already registered by {}."

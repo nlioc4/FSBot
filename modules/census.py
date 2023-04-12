@@ -155,7 +155,7 @@ async def _logout(char_id, acc_char_ids, player_char_ids):
     # Player Section
     if char_id in player_char_ids:
         p = player_char_ids[char_id]
-        if not p.online_id:  # if already offline
+        if not p.online_id or p.online_id != char_id:  # if already offline or offline character != currently online
             return
         if p.match:
             await p.match.char_logout(user=p, char_name=p.online_name)
