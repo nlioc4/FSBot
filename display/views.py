@@ -152,19 +152,23 @@ class InviteView(FSBotView):
             await disp.INVITE_DECLINE_REASON.send(inter, reason)
 
     async def on_timeout(self) -> None:
-        # Show player invite as expired
-        self.disable_all_items()
-        await disp.DM_INVITE_EXPIRED.edit(self.message, self.owner.mention, view=False)
-
         # Show owner invite expired
         await disp.DM_INVITE_EXPIRED_INFO.send(self.owner.get_member, self.player.mention)
 
         # Decline Invite
         self.lobby.decline_invite(self.owner, self.player)
 
-        # Remove Invited Player from lobby
+        # Disable invite buttons
+        self.disable_all_items()
+
+        # If Player Lobbied - Remove Invited Player from lobby
         if self.player.lobby:
             await self.lobby.lobby_leave(self.player, reason='invite timeout')
+            await disp.DM_INVITE_EXPIRED_LOBBY_REMOVE.edit(self.message, self.owner.mention, view=False)
+
+        # Else simply show expired invite Show player invite as expired
+        else:
+            await disp.DM_INVITE_EXPIRED.edit(self.message, self.owner.mention, view=False)
 
 
 class RegisterPingsView(FSBotView):

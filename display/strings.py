@@ -56,6 +56,7 @@ class AllStrings(Enum):
     DM_INVITED = "{} you have been invited to a match by {}! Accept or decline below!\n" \
                  "This invite expires {}, expiry will remove you from the lobby!"
     DM_INVITE_EXPIRED = "This invite from {} has expired!"
+    DM_INVITE_EXPIRED_LOBBY_REMOVE = "This invite from {} has expired, which has removed you from the lobby!"
     DM_INVITE_EXPIRED_INFO = "Your invite to {} has expired!"
     DM_INVITE_INVALID = "This invite is invalid!"
     DM_ALREADY = "You already have a Modmail thread started! Simple send a message to the bot to respond!"
