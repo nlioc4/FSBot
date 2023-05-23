@@ -96,6 +96,20 @@ async def init(service_account_path: str, test=False):
         all_chars.extend(all_accounts[acc_id].ig_names)
     # get mapping of char_name: (char_id, char_faction) for existing chars
     char_id_map = await census.get_ids_facs_from_chars(all_chars)
+
+    # Report Failure and set up retry if census API fails
+    if not char_id_map:
+        await d_obj.d_log(message=f'{d_obj.roles["app_admin"].mention}\n'
+                                  f'Failed to retrieve character information from Census API.  '
+                                  f'Retrying in 30 seconds...')
+        await asyncio.sleep(30)
+        char_id_map = await census.get_ids_facs_from_chars(all_chars)
+        if not char_id_map:
+            await d_obj.d_log(message=f'{d_obj.roles["app_admin"].mention}\n'
+                                      f'Failed to retrieve character information from Census API.  '
+                                      f'Characters have not been checked, please run account init when possible!.')
+            return
+
     # List comprehension, for all acc_id, for all char_names per acc_id
     for acc_id, char_name in [(acc_id, char_name) for acc_id in all_accounts
                               for char_name in all_accounts[acc_id].ig_names]:
@@ -122,7 +136,7 @@ async def init(service_account_path: str, test=False):
     await unassigned_online(None)  # Run check to ensure no accounts are online on startup.
 
     info = f'Initialized Accounts: {len(all_accounts)}'
-    log.info(info)
+    await d_obj.d_log(info)
     return info
 
 

@@ -107,7 +107,7 @@ async def get_ids_facs_from_chars(chars_list) -> dict[str, tuple[int, int]] | bo
         return char_dict
 
 
-async def _login(char_id, acc_char_ids, player_char_ids):
+async def login(char_id, acc_char_ids, player_char_ids):
     # Account Section
     if char_id in acc_char_ids:
         acc = acc_char_ids[char_id]
@@ -134,7 +134,7 @@ async def _login(char_id, acc_char_ids, player_char_ids):
         return p.ig_ids
 
 
-async def _logout(char_id, acc_char_ids, player_char_ids):
+async def logout(char_id, acc_char_ids, player_char_ids):
     # Account Section
     if char_id in acc_char_ids:
         acc = accounts.account_char_ids[char_id]
@@ -176,11 +176,11 @@ async def online_status_updater(chars_players_map_func):
 
     async def login_action(evt: auraxium.event.PlayerLogin):
         player_char_ids = chars_players_map_func()
-        await _login(evt.character_id, acc_char_ids, player_char_ids)
+        await login(evt.character_id, acc_char_ids, player_char_ids)
 
     async def logout_action(evt: auraxium.event.PlayerLogout):
         player_char_ids = chars_players_map_func()
-        await _logout(evt.character_id, acc_char_ids, player_char_ids)
+        await logout(evt.character_id, acc_char_ids, player_char_ids)
 
     # noinspection PyTypeChecker
     login_trigger = auraxium.Trigger(auraxium.event.PlayerLogin, worlds=[WORLD_ID], action=login_action)
@@ -228,7 +228,7 @@ async def online_status_rest(chars_players_map):
     #  Gather login coroutines for online chars
     login_coros = []
     for char_id in online_ids:
-        login_coros.append(_login(char_id, acc_char_ids, chars_players_map))
+        login_coros.append(login(char_id, acc_char_ids, chars_players_map))
     #  no_logout marks other chars of currently logged in accounts/users, so they are not logged out
     no_logout = await asyncio.gather(*login_coros)
 
@@ -240,5 +240,5 @@ async def online_status_rest(chars_players_map):
     #
     offline_ids = set(offline_ids) - set(no_logout)
     for char_id in offline_ids:
-        await _logout(char_id, acc_char_ids, chars_players_map)
+        await logout(char_id, acc_char_ids, chars_players_map)
     return True

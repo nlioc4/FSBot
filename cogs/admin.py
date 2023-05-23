@@ -25,6 +25,19 @@ import cogs.register as register
 log = getLogger('fs_bot')
 
 
+def player_chars_autocomplete(ctx: discord.AutocompleteContext):
+    """Return a list of possible character choices, based on whether a player is found or has an account"""
+    user_id = ctx.options.get("member") or ctx.interaction.user.id
+    if user_id and (p := Player.get(int(user_id))):
+        if p.account:
+            options = [char for char in p.account.ig_names if char.lower().find(ctx.value.lower()) > 0]
+            return options or p.account.ig_names
+        elif p.has_own_account:
+            options = [char for char in p.ig_names if char.lower().find(ctx.value.lower()) > 0]
+            return options or p.ig_names
+    return ["No Characters Found"]
+
+
 class AdminCog(commands.Cog):
     def __init__(self, bot):
         self.bot: discord.Bot = bot
@@ -76,7 +89,7 @@ class AdminCog(commands.Cog):
                              action: discord.Option(str, "Enable, Disable, or check status of the Census Loop",
                                                     choices=("Enable", "Disable", "Status"),
                                                     required=False)):
-        """Control the Census loop"""
+        """Control the REST Census loop"""
 
         match action:
 
@@ -91,7 +104,6 @@ class AdminCog(commands.Cog):
                 await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Running", "stopped")
             case _:
                 await disp.CENSUS_LOOP_STATUS.send_priv(ctx, "Running" if self.census_rest.is_running() else "Stopped")
-
 
     @admin.command(name="rulesinit")
     async def rulesinit(self, ctx: discord.ApplicationContext,
@@ -173,14 +185,14 @@ class AdminCog(commands.Cog):
                            member: discord.Option(discord.Member, "User to add to match",
                                                   required=True),
                            owner: discord.Option(discord.Member, "Match Owner, defaults to you",
-                                                  required=False),
+                                                 required=False),
                            match_type: discord.Option(str, "Type of match to create, defaults to Casual",
                                                       default="casual",
                                                       choices=["casual", "ranked"])):
         """Creates a match with the given arguments.  """
         await ctx.defer(ephemeral=True)
         # set up Player Objects
-        if not (invited := await d_obj.is_registered(ctx, member))\
+        if not (invited := await d_obj.is_registered(ctx, member)) \
                 or not (owner := await d_obj.is_registered(ctx, owner or ctx.user)):
             return
         # check / update player status
@@ -191,19 +203,14 @@ class AdminCog(commands.Cog):
         if owner.lobby:
             await owner.lobby.lobby_leave(owner)
 
-
         match_class = BaseMatch if match_type == "casual" else RankedMatch
         lobby = Lobby.get(match_type)
         match = await lobby.accept_invite(owner, invited)
         await disp.MATCH_CREATE.send_priv(ctx, match.thread.mention, match.id_str)
 
-
     @match_admin.command(name="end")
     async def end_match(self, ctx: discord.ApplicationContext,
-                        match_id: discord.Option(int, "Match ID to end",
-                                                 required=False),
-                                                 is_ranked: discord.Option(bool, "Is match a ranked match?",
-                                                 required=False)):
+                        match_id: discord.Option(int, "Match ID to end", required=False)):
         """End a given match forcibly.  Uses current channel if no ID provided"""
         await ctx.defer(ephemeral=True)
         match = BaseMatch.active_matches_dict().get(match_id) or BaseMatch.active_match_channel_ids().get(
@@ -222,10 +229,11 @@ class AdminCog(commands.Cog):
     )
 
     @accounts_admin.command(name="assign")
-    async def assign(self, ctx: discord.ApplicationContext,
-                     member: discord.Option(discord.Member, "Recipients @mention", required=True),
-                     acc_id: discord.Option(int, "A specific account ID to assign, 1-24", min_value=1, max_value=24,
-                                            required=False)):
+    async def account_assign(self, ctx: discord.ApplicationContext,
+                             member: discord.Option(discord.Member, "Recipients @mention", required=True),
+                             acc_id: discord.Option(int, "A specific account ID to assign, 1-24", min_value=1,
+                                                    max_value=24,
+                                                    required=False)):
         """Assign an account to a user, with optional specific account ID"""
         await ctx.defer(ephemeral=True)
         p = Player.get(member.id)
@@ -249,6 +257,25 @@ class AdminCog(commands.Cog):
         else:
             await disp.ACCOUNT_DM_FAILED.send_priv(ctx, p.mention)
 
+    @accounts_admin.command(name="terminate")
+    async def account_terminate(self, ctx: discord.ApplicationContext,
+                                member: discord.Option(discord.Member, "Player who's account to terminate",
+                                                       required=True),
+                                clean: discord.Option(bool, "Should the account be cleaned?", default=False)):
+        """Terminate a player's account"""
+        await ctx.defer(ephemeral=True)
+        p = Player.get(member.id)
+        if not p:
+            await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+            return
+        if acc := p.account:
+            await accounts.terminate(acc, force_clean=clean)
+            cleaned_str = "Cleaned Account" if acc.is_clean else f"Account was not cleaned, " \
+                                                                 f"player is online on {acc.online_name}"
+            await disp.ACCOUNT_TERMINATED.send_priv(ctx, acc.id, cleaned_str)
+        else:
+            await disp.ACCOUNT_NOT_ASSIGNED.send_priv(ctx, p.mention)
+
     @accounts_admin.command(name='info')
     async def account_info(self, ctx: discord.ApplicationContext):
         """Provide info on FSBot's connected Jaeger Accounts"""
@@ -262,7 +289,8 @@ class AdminCog(commands.Cog):
     @accounts_admin.command(name='watchtower')
     async def watchtower_toggle(self, ctx: discord.ApplicationContext,
                                 action: discord.Option(str,
-                                                       "Enable, Disable or check status of the accounts watchtower",
+                                                       "Enable, Disable or check status of the Unassigned Online "
+                                                       "Tracker",
                                                        choices=("Enable", "Disable", "Status"), required=True)
                                 ):
         """Accounts Watchtower Control"""
@@ -376,6 +404,30 @@ class AdminCog(commands.Cog):
         await p.clean()
 
         await disp.ADMIN_PLAYER_CLEAN.send_priv(ctx, p.mention)
+
+    @player_admin.command(name='setcharacter')
+    async def player_set_character(self, ctx: discord.ApplicationContext,
+                                   member: discord.Option(discord.Member,
+                                                          "@mention to modify online status. Defaults to you",
+                                                          required=False),
+                                   character: discord.Option(str,
+                                                             "Character to show as online. Defaults to logout.",
+                                                             autocomplete=player_chars_autocomplete,
+                                                             required=False)):
+        """Set a player's online status to one of their characters, or offline."""
+        member = member or ctx.user
+        if not (p := await d_obj.is_registered(ctx, member)):
+            return
+        if character and (char_id := p.char_id_by_name(character)):
+            await census.login(char_id, accounts.account_char_ids, Player.map_chars_to_players())
+            await disp.ADMIN_PLAYER_LOGIN_SET.send_priv(ctx, p.mention, character)
+        elif p.online_id and not character:
+            await census.logout(p.online_id, accounts.account_char_ids, Player.map_chars_to_players())
+            await disp.ADMIN_PLAYER_LOGOUT_SET.send_priv(ctx, p.mention)
+        elif character:
+            await disp.ADMIN_PLAYER_CHAR_NOT_FOUND.send_priv(ctx, character, p.mention)
+        else:
+            await disp.ADMIN_PLAYER_LOGOUT_ALREADY.send_priv(ctx, p.mention)
 
     register_admin = admin.create_subgroup(
         name="register", description="Admin Registration Commands"

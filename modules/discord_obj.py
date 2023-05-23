@@ -109,14 +109,19 @@ async def is_registered(ctx, user: discord.Member | discord.User | classes.Playe
 
 async def d_log(message: str = '', source: str = '', error=None) -> bool:
     """Utility function to send logs to #logs channel and fsbot Log"""
-    if error:
-        msg = await disp.LOG_ERROR.send(channels['logs'], source, message, error, ping=roles['app_admin'])
-        log.error(msg.clean_content, exc_info=error)
-        return msg
+    try:
+        if error:
+            msg = await disp.LOG_ERROR.send(channels['logs'], source, message, error, ping=roles['app_admin'])
+            log.error(msg.clean_content, exc_info=error)
+            return msg
 
-    msg = await disp.LOG_GENERAL.send(channels['logs'], message, error)
-    log.info(msg.clean_content)
-    return msg
+        msg = await disp.LOG_GENERAL.send(channels['logs'], message, error)
+        log.info(msg.clean_content)
+        return msg
+    except (discord.HTTPException, discord.Forbidden) as error_2:
+        log.error("Could not send message to logs channel", exc_info=error_2)
+        log.error(message, exc_info=error)
+    return False
 
 
 async def role_update(member: discord.Member = None, player: classes.Player = None, reason="FSBot Role Update"):

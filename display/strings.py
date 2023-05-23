@@ -34,6 +34,10 @@ class AllStrings(Enum):
     GUILD_ONLY = "This can only be used in the Flight School Discord!"
 
     ADMIN_MATCH_CREATE_ERROR = "One of the players used is already in a match!"
+    ADMIN_PLAYER_LOGIN_SET = "{}'s online character has been set to {}!"
+    ADMIN_PLAYER_LOGOUT_SET = "{} has been set to offline!"
+    ADMIN_PLAYER_LOGOUT_ALREADY = "{} is already offline!"
+    ADMIN_PLAYER_CHAR_NOT_FOUND = "Character {} not found in relation to player {}!"
 
     CHECK_FAILURE = "You have failed a check to run this command!"
     INVALID_INTERACTION = "This interaction shouldn't have been allowed!"
@@ -175,7 +179,6 @@ class AllStrings(Enum):
     INVITE_DECLINE_INFO = "{} has declined your match invitation."
     INVITE_DECLINE_INFO_REASON = "{} has declined your match invitation with reason:\n{}"
 
-
     REGISTER_NEW_PLAYER = "Welcome {}, you have accepted the rules." \
                           "  Set up your preferences in {} before dueling in {}!"
     REGISTER_RENAME = "{} has been renamed to {} successfully!"
@@ -190,6 +193,8 @@ class AllStrings(Enum):
     ACCOUNT_ALREADY_2 = "{} already has been assigned an account, ID: {}"
     ACCOUNT_SENT = "You have been sent an account, check your DM's <{}>."
     ACCOUNT_SENT_2 = "{} has been sent account ID: {}."
+    ACCOUNT_TERMINATED = "Account ID: {} has been terminated!  Account Status is: {}."
+    ACCOUNT_NOT_ASSIGNED = "{} doesn't have an account assigned to them!"
     ACCOUNT_TERM_LOG = "Your FSBot Account session has ended, please log out of {}!"
     ACCOUNT_TERM = "Your FSBot Account session has ended!"
     ACCOUNT_LOGOUT_WARN = "This session has ended, please log out of {} now!"

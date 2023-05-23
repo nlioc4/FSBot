@@ -107,7 +107,7 @@ async def on_ready():
     log.info(f"Logged in as {bot.user} (ID: {bot.user.id})")
     modules.signal.init(bot)
     d_obj.init(bot)
-    await modules.accounts_handler.init(cfg.GAPI_SERVICE, cfg.TEST)
+    bot.loop.create_task(modules.accounts_handler.init(cfg.GAPI_SERVICE, cfg.TEST), name="Accounts Handler Init")
     loader.load_secondary(bot)
     loader.unlock_all()
 

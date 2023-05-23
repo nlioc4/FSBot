@@ -297,19 +297,19 @@ class Player:
         return self.__ig_ids if self.has_ns_character else self.__ig_ids[:-1]
 
     @property
-    def is_registered(self):
+    def is_registered(self) -> bool:
         return self.__is_registered
 
     @property
-    def has_own_account(self):
+    def has_own_account(self) -> bool:
         return self.__has_own_account
 
     @property
-    def has_ns_character(self):
+    def has_ns_character(self) -> bool:
         return self.__has_own_account and self.__ig_ids[3]
 
     @property
-    def account(self):
+    def account(self) -> Account | None:
         return self.__account
 
     @property
@@ -380,9 +380,22 @@ class Player:
             log.warning(f"Registration Changed during online_name call for {self.name}")
             return False
 
-    def online_name_by_id(self, char_id):
-        if char_id in self.ig_ids:
+    def char_name_by_id(self, char_id) -> str | None:
+        """Fetch a player or their accounts character name by id. Returns None if char not found"""
+        if self.account and char_id in self.account.ig_ids:
+            return self.account.ig_names[self.account.ig_ids.index(char_id)]
+        elif char_id in self.ig_ids:
             return self.ig_names[self.ig_ids.index(char_id)]
+        return None
+
+    def char_id_by_name(self, char_name) -> int | None:
+        """Fetch a player or their accounts character id by name. Returns None if char not found"""
+        if self.account and char_name in self.account.ig_names:
+            return self.account.ig_ids[self.account.ig_names.index(char_name)]
+        elif char_name in self.ig_names:
+            return self.ig_ids[self.ig_names.index(char_name)]
+        return None
+
 
     @property
     def current_ig_id(self):
