@@ -166,7 +166,7 @@ class Player:
         self.online_id = None
         self.__is_registered = False
         self.__hidden = False
-        self.__timeout: dict = {'stamp': 0, "msg_id": 0, "reason": "", "mod_id": 0}
+        self.__timeout: dict = {'stamp': 0, "msg_id": 0, "reason": "", "mod_id": 0}  # this should be a named tuple
         self.__lobby_timeout_stamp = 0
         self.__lobbied_stamp = 0
         self.__active = None

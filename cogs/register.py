@@ -178,7 +178,7 @@ class RegisterCharacterModal(discord.ui.Modal):
     async def callback(self, inter: discord.Interaction):
         p: classes.Player = self.p or classes.Player.get(inter.user.id)
         # remove leading/trailing whitespaces, replace " " or "/n" with "," if user used spaces instead of
-        # commmas to seperate chars.
+        # commas to separate chars.
         char_list = self.children[0].value.strip().replace(' ', ',').replace('\n', ',').split(',')
         for char in char_list:
             char.strip()
@@ -193,7 +193,7 @@ class RegisterCharacterModal(discord.ui.Modal):
 
                 # Remove player account if successfully registered
                 if registered and p.account:
-                    await p.account.terminate()
+                    await accounts_handler.terminate(player=p)
                 # Reset login status if player was online
                 if registered and p.online_id:
                     p.online_id = None

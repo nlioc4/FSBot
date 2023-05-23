@@ -196,6 +196,7 @@ class AllStrings(Enum):
     ACCOUNT_TOKEN_EXPIRED = "After 5 minutes this account token has expired, please request another" \
                             " if you still need an account."
     ACCOUNT_NO_DMS = "You must allow the bot to send you DM's in order to receive an account!"
+    ACCOUNT_DM_FAILED = "Failed to send account to {}, DM's are likely closed!"
     ACCOUNT_NO_ACCOUNT = "Sorry, there are no accounts available at the moment.  Please ping Colin!"
     ACCOUNT_EMBED = None, account
     ACCOUNT_EMBED_FETCH = "Fetching account...", account

@@ -242,8 +242,12 @@ class AdminCog(commands.Cog):
                 await disp.ACCOUNT_IN_USE.send_priv(ctx, acc.id)
                 return
             accounts.set_account(p, acc)
-        await accounts.send_account(acc, p)
-        await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
+        if await accounts.send_account(acc, p):
+            await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
+
+        # if DM's failed
+        else:
+            await disp.ACCOUNT_DM_FAILED.send_priv(ctx, p.mention)
 
     @accounts_admin.command(name='info')
     async def account_info(self, ctx: discord.ApplicationContext):
@@ -314,9 +318,14 @@ class AdminCog(commands.Cog):
             return
 
         # if all checks passed, send account
-        await accounts.send_account(acc, p)
-        await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
-        await message.add_reaction("\u2705")
+        if await accounts.send_account(acc, p):
+            await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
+            await message.add_reaction("\u2705")
+
+        # if DM's failed
+        else:
+            await disp.ACCOUNT_DM_FAILED.send_priv(ctx, p.mention)
+            await message.add_reaction("\u274C")
 
     @msg_assign_account.error
     async def msg_assign_account_concurrency_error(self, ctx, error):

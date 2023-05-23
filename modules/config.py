@@ -123,7 +123,6 @@ def get_config(config_path, test=False):
 
     if not os.path.isfile(file):
         raise ConfigError(f"{file} not found!")
-    print(file)
     log.info('Loaded config from file: %s', file)
 
     config = ConfigParser()

@@ -41,6 +41,9 @@ log = getLogger('fs_bot')
 
 
 async def init(service_account_path: str, test=False):
+    """Initializes the account handler.  Pulls account information from the Google sheet
+    and creates/updates Account objects for each account.  Checks for missing characters.  Can be called after bot startup
+    to refresh account information."""
     if test:  # Disable Unassigned Online Warnings if bot in test mode
         global UNASSIGNED_ONLINE_WARN
         UNASSIGNED_ONLINE_WARN = False
@@ -229,9 +232,9 @@ async def send_account(acc: classes.Account = None, player: classes.Player = Non
     """Sends account to player, provide either account or player"""
     if not acc and not player:
         raise ValueError("No args provided")
-    if not acc:
-        acc = player.account
-    user = d_obj.bot.get_user(acc.a_player.id)
+    acc = acc or player.account
+    player = player or acc.a_player
+    user = d_obj.bot.get_user(player.id)
     for _ in range(3):
         try:
             acc.message = await disp.ACCOUNT_EMBED.send(user, acc=acc, view=ValidateView(acc))
@@ -239,7 +242,13 @@ async def send_account(acc: classes.Account = None, player: classes.Player = Non
                 break
         except discord.Forbidden:
             continue
-    return acc.message
+
+    if not acc.message:
+        await d_obj.d_log(f"Error sending account to User: {player.mention}({player.name}), DM's are likely closed.")
+        await clean_account(acc)
+        return False
+    else:
+        return acc.message
 
 
 async def validate_account(acc: classes.Account = None, player: classes.Player = None) -> bool:
@@ -294,7 +303,7 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
         player = acc.a_player
     if not acc and not player:
         raise ValueError("No args provided")
-    if not acc:
+    if not acc:  # this would fire if the account was terminated by another process subsequently
         return await d_obj.d_log(message=f"Terminating {player.name}'s account failed, no account object.")
 
     if not acc.is_terminated:
@@ -308,11 +317,11 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
             for _ in range(3):
                 try:
                     if await send_coro:
+                        await disp.ACCOUNT_EMBED.edit(acc.message, acc=acc,
+                                                      view=view)  # use acc.message context to edit
                         break
                 except discord.Forbidden:
                     continue
-
-    await disp.ACCOUNT_EMBED.edit(acc.message, acc=acc, view=view)  # use acc.message context to edit
 
     # Clean if already offline or forced
     if not acc.online_id or force_clean:
@@ -322,7 +331,7 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
 
 
 async def terminate_all():
-    """Terminates all currently assigned accounts"""
+    """Terminates all currently assigned accounts, forcing clean whether online or not"""
     terminate_coroutines = [terminate(acc, force_clean=True) for acc in _busy_accounts.values()]
     await asyncio.gather(*terminate_coroutines)
 
@@ -347,7 +356,7 @@ async def unassigned_online(newest_login):
     if not UNASSIGNED_ONLINE_WARN:  # Disable if needed
         return
 
-    online = [acc for acc in _available_accounts.values() if acc.online_name]
+    online = [acc for acc in _available_accounts.values() if acc.online_id]
 
     if online:
         await disp.UNASSIGNED_ONLINE.send(d_obj.channels['logs'],
@@ -372,28 +381,28 @@ async def account_timeout(player: classes.Player, acc: classes.Account):
 async def logout_reminder(acc: classes.Account):
     """Looping coroutine to remind a player to logout of an account after it is terminated.
     Sends warning to log channel if players continue to stay on account."""
+    try:
 
-    await asyncio.sleep(300)
+        await asyncio.sleep(300)
 
-    if acc.online_id:
-        await disp.ACCOUNT_LOGOUT_WARN.send(acc.message, acc.online_name, ping=acc.a_player.mention)
+        if acc.online_id:
+            await disp.ACCOUNT_LOGOUT_WARN.send(acc.message, acc.online_name, ping=acc.a_player.mention)
 
-        acc.logout_reminders += 1
-        if acc.logout_reminders % 3 == 0 or acc.logout_reminders == 1:
-            await d_obj.d_log(f'User: {acc.a_player.mention} has not logged out of their Jaeger account'
-                              f' {acc.logout_reminders * 5} minutes after their session ended!')
+            acc.logout_reminders += 1
+            if acc.logout_reminders % 3 == 0 or acc.logout_reminders == 1:
+                await d_obj.d_log(f'User: {acc.a_player.mention} has not logged out of their Jaeger account'
+                                  f' {acc.logout_reminders * 5} minutes after their session ended!')
 
-        asyncio.create_task(logout_reminder(acc))
-    else:
+            asyncio.create_task(logout_reminder(acc))
+        else:
+            pass
+    except asyncio.CancelledError:
         pass
+    except discord.Forbidden:
+        await d_obj.d_log(f'Unable to DM {acc.a_player.mention} to log out of their Jaeger account.\n'
+                          f'Force cleaning account...')
+        await clean_account(acc)
 
-
-def has_account(a_player):
-    for acc in _busy_accounts.values():
-        if acc.a_player == a_player:
-            return True
-    else:
-        return False
 
 
 def accounts_info() -> tuple[int, int, list]:
