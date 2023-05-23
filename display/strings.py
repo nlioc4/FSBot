@@ -207,8 +207,8 @@ class AllStrings(Enum):
     ACCOUNT_EMBED_FETCH = "Fetching account...", account
     ACCOUNT_IN_USE = "Account ID: {} is already in use, please pick another account!"
     ACCOUNT_INFO = "", accountcheck
-    ACCOUNT_VALIDATE_ERROR = "There was an error logging this usage.  Please try again, and if the " \
-                             "issue persists please ask for help!"
+    ACCOUNT_VALIDATE_ERROR = "There was an error logging this usage, the account cannot be validated." \
+                             "  Please try again, and if the issue persists please ask for help!"
 
     TIMEOUT_UNTIL = "{}({}) is timed out, their timeout will expire {}, at {}."
     TIMEOUT_NOT = "{}({}) is not timed out."

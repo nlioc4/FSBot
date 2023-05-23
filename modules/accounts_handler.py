@@ -215,8 +215,6 @@ class ValidateView(views.FSBotView):
         try:
             validated = await validate_account(acc=self.acc)
         except gspread.exceptions.APIError as e:
-            await d_obj.d_log(f"Error logging usage to GSheet for Account: {self.acc.id},"
-                              f" user: {inter.user.name}, ID: {inter.user.id}", error=e)
             await disp.ACCOUNT_VALIDATE_ERROR.send_priv(inter)
             return
         button.disabled = True
@@ -302,6 +300,8 @@ async def validate_account(acc: classes.Account = None, player: classes.Player =
         if "exceeds grid limits" in resp:  # attempt to resize sheet before retrying
             ws.add_cols(15)
             return await validate_account(acc, player)
+        await d_obj.d_log(f"Error logging usage to GSheet for Account: {acc.id},"
+                          f" user: {acc.a_player.id}, ID: {acc.a_player.id}", error=e)
         raise e
 
     acc.timeout_coro = asyncio.create_task(account_timeout(player, acc))
