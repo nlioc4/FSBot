@@ -112,15 +112,15 @@ async def d_log(message: str = '', source: str = '', error=None) -> bool:
     try:
         if error:
             msg = await disp.LOG_ERROR.send(channels['logs'], source, message, error, ping=roles['app_admin'])
-            log.error(msg.clean_content, exc_info=error)
+            log.error(msg.clean_content[5:], exc_info=error)
             return msg
 
         msg = await disp.LOG_GENERAL.send(channels['logs'], message, error)
-        log.info(msg.clean_content)
+        log.info(msg.clean_content[5:])
         return msg
     except (discord.HTTPException, discord.Forbidden) as error_2:
         log.error("Could not send message to logs channel", exc_info=error_2)
-        log.error(message, exc_info=error)
+        log.error(message[5:], exc_info=error)
     return False
 
 
