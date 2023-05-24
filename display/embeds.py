@@ -234,7 +234,8 @@ def player_info(player) -> Embed:
 
     if player.has_own_account:
         embed.add_field(name="Registered Characters",
-                        value='\n'.join([f'{player.ig_names[i]}{cfg.emojis[cfg.factions[i + 1]]}' for i in range(3)]),
+                        value='\n'.join([f'{player.ig_names[i]}{cfg.emojis[cfg.factions[i + 1]]}'
+                                         for i in range(len(player.ig_names))]),
                         inline=False)
     elif player.is_registered:
         embed.add_field(name="Registered Characters",

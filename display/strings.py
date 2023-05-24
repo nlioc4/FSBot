@@ -37,7 +37,7 @@ class AllStrings(Enum):
     ADMIN_PLAYER_LOGIN_SET = "{}'s online character has been set to {}!"
     ADMIN_PLAYER_LOGOUT_SET = "{} has been set to offline!"
     ADMIN_PLAYER_LOGOUT_ALREADY = "{} is already offline!"
-    ADMIN_PLAYER_CHAR_NOT_FOUND = "Character {} not found in relation to player {}!"
+    ADMIN_PLAYER_CHAR_NOT_FOUND = "Character `{}` not found in relation to player {}!"
 
     CHECK_FAILURE = "You have failed a check to run this command!"
     INVALID_INTERACTION = "This interaction shouldn't have been allowed!"

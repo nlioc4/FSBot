@@ -25,15 +25,13 @@ import cogs.register as register
 log = getLogger('fs_bot')
 
 
-def player_chars_autocomplete(ctx: discord.AutocompleteContext):
+def player_chars_autocomplete(ctx: discord.AutocompleteContext = None, member_id: int = 0, value: str = ''):
     """Return a list of possible character choices, based on whether a player is found or has an account"""
-    user_id = ctx.options.get("member") or ctx.interaction.user.id
+    user_id = member_id or ctx.options.get("member") or ctx.interaction.user.id
+    value = value.lower() or ctx.value.lower()
     if user_id and (p := Player.get(int(user_id))):
-        if p.account:
-            options = [char for char in p.account.ig_names if char.lower().find(ctx.value.lower()) > 0]
-            return options or p.account.ig_names
-        elif p.has_own_account:
-            options = [char for char in p.ig_names if char.lower().find(ctx.value.lower()) > 0]
+        if p.account or p.has_own_account:
+            options = [char for char in p.ig_names if char.lower().find(value) > 0]
             return options or p.ig_names
     return ["No Characters Found"]
 
@@ -418,6 +416,7 @@ class AdminCog(commands.Cog):
         member = member or ctx.user
         if not (p := await d_obj.is_registered(ctx, member)):
             return
+        character = [char for char in p.ig_names if char.lower().find(character.lower()) > 0][0] if character else None
         if character and (char_id := p.char_id_by_name(character)):
             await census.login(char_id, accounts.account_char_ids, Player.map_chars_to_players())
             await disp.ADMIN_PLAYER_LOGIN_SET.send_priv(ctx, p.mention, character)

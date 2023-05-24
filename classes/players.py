@@ -191,8 +191,8 @@ class Player:
 
         if 'ig_ids' in data:
             obj.__has_own_account = True
-            obj.__ig_names = data['ig_names']
-            obj.__ig_ids = data['ig_ids']
+            obj.__ig_names = data['ig_names'] if len(data['ig_names']) > 3 else data['ig_names'] + ["N/A"]
+            obj.__ig_ids = data['ig_ids'] if len(data['ig_ids']) > 3 else data['ig_ids'] + [0]
             Player.name_check_add(obj)
         else:
             obj.__has_own_account = False
@@ -290,10 +290,16 @@ class Player:
 
     @property
     def ig_names(self):
+        """Returns the players character names, or their assigned accounts characters names."""
+        if self.account:
+            return self.account.ig_names
         return self.__ig_names if self.has_ns_character else self.__ig_names[:-1]
 
     @property
     def ig_ids(self):
+        """Returns the players character ids, or their assigned accounts characters ids."""
+        if self.account:
+            return self.account.ig_ids
         return self.__ig_ids if self.has_ns_character else self.__ig_ids[:-1]
 
     @property
@@ -306,6 +312,7 @@ class Player:
 
     @property
     def has_ns_character(self) -> bool:
+        """Return whether the user has a NS character registered, by ID != 0."""
         return self.__has_own_account and self.__ig_ids[3]
 
     @property
@@ -395,7 +402,6 @@ class Player:
         elif char_name in self.ig_names:
             return self.ig_ids[self.ig_names.index(char_name)]
         return None
-
 
     @property
     def current_ig_id(self):
@@ -509,7 +515,8 @@ class Player:
     async def _add_characters(self, char_list: list) -> bool:
         """
         Checks a list of chars provided for faction and world, adds them to the player object.
-        :param char_list: list of chars to check and add. Must either be 3/4 factioned chars, or one generic char name.
+        :param char_list: list of chars to check and add. Must either be 3/4 faction specific chars,
+         or one generic char name.
         :return: True if characters updated, false if not
         """
         # if only one char name, add suffixes.
@@ -542,6 +549,10 @@ class Player:
             from modules.accounts_handler import account_char_ids
             if account := account_char_ids.get(char_id):
                 raise CharBotAccount(account, char_name)
+
+            # skip if a character was already found for this faction (NS named duplicates)
+            if new_ids[faction - 1] != 0:
+                continue
 
             # add id and name to list
             new_ids[faction - 1] = char_id
@@ -583,7 +594,6 @@ class ActivePlayer:
 
     def __init__(self, player: Player):
         self.__player = player
-        self.online_id = player.online_id
         self.assigned_faction_id = None
         # TODO None of the below are used, remove or refactor??
         self.round_wins = 0
@@ -639,6 +649,10 @@ class ActivePlayer:
             return self.account.ig_ids
         else:
             return False
+
+    @property
+    def online_id(self):
+        return self.player.online_id
 
     @property
     def online_name(self):

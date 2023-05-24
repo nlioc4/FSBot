@@ -186,9 +186,11 @@ class RegisterCharacterModal(discord.ui.Modal):
         # remove any blank entries in char_list
         char_list = list(filter(len, char_list))
         await inter.response.defer(ephemeral=True)
+        original_inter = inter
         inter = inter.followup
         if len(char_list) == 1 or len(char_list) == 3:  # if base char name, or individual names provided
             try:
+                await original_inter.channel.trigger_typing()
                 registered = await p.register(char_list)
 
                 # Remove player account if successfully registered

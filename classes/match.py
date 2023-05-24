@@ -505,19 +505,22 @@ class BaseMatch:
             self.status = MatchState.PLAYING
 
     async def reset_timeout(self):
-        """Resets the matches current timeout, deletes old timeout warning"""
+        """Resets the matches current timeout if one is set, deletes old timeout warning"""
         if self.__timeout_message:
             try:
                 await self.__timeout_message.delete()
             except discord.errors.NotFound:
                 log.error("No timeout warning message found for match %s", self.id_str)
-        self.timeout_stamp = None
-        self.log("Match Timeout Reset")
-        await self.update()
+        if self.timeout_stamp:  # only reset if timeout_stamp is set
+            self.timeout_stamp = None
+            if self.timeout_warned:  # only log if warned
+                self.timeout_warned = False
+                self.log("Match Timeout Reset")
+            await self.update()
 
     async def update_timeout(self):
         # check timeout, reset if at least 2 players and online_players
-        if self.online_players and len(self.players) >= 2 and self.timeout_stamp:
+        if self.online_players and len(self.players) >= 2:
             asyncio.create_task(self.reset_timeout())  # Reset timeout, create task as this coro uses update lock
         else:
             if not self.timeout_stamp:  # set timeout stamp
