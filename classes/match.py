@@ -684,9 +684,9 @@ class RankedMatch(BaseMatch):
             -> appeal
             -> submitting
     """
-    MATCH_LENGTH = 8
-    MAX_PLAYERS = 2
-    WRONG_SCORE_LIMIT = 3
+    MATCH_LENGTH = 8   # Number of Rounds in a Match
+    MAX_PLAYERS = 2    # Number of Players in a Match
+    WRONG_SCORE_LIMIT = 3   # Number of times a player can submit a wrong score before the match is cancelled
     TYPE = 'Ranked'
 
     class RankedMatchView(BaseMatch.MatchInfoView):
@@ -991,6 +991,7 @@ class RankedMatch(BaseMatch):
 
     @property
     def current_round(self):
+        """Return the current round number if a round is in progress, otherwise return the next round number."""
         if self.status not in (MatchState.LOGGING_IN, MatchState.PLAYING, MatchState.SUBMITTING):
             return len(self.__round_history)
         return len(self.__round_history) + 1
@@ -1046,6 +1047,7 @@ class RankedMatch(BaseMatch):
 
     @property
     def wins_required(self):
+        """Returns the number of wins required to win the match"""
         return self.MATCH_LENGTH // 2 + 1
 
     def submit_score(self, player, score):
@@ -1133,7 +1135,7 @@ class RankedMatch(BaseMatch):
             d_obj.bot.loop.call_later(0.1, self._schedule_update_task)
 
     async def _start_round(self):
-        # TODO add active round variable?
+        """Starts a new round, resets round variables"""
 
         #  Reset score variables
         self.__round_wrong_scores_counter = 0
@@ -1141,7 +1143,8 @@ class RankedMatch(BaseMatch):
         self.__p1_submitted_score, self.__p2_submitted_score = None, None
 
         self.log(
-            f"Round [{self.current_round}] Started: {self.player1.assigned_faction_char} vs {self.player2.assigned_faction_char}")
+            f"Round [{self.current_round}] "
+            f"Started: {self.player1.assigned_faction_char} vs {self.player2.assigned_faction_char}")
 
         # Send new round message
         self._round_message = await disp.RM_ROUND_MESSAGE.send(self.thread, self.current_round,

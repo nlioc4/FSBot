@@ -389,17 +389,13 @@ class Player:
 
     def char_name_by_id(self, char_id) -> str | None:
         """Fetch a player or their accounts character name by id. Returns None if char not found"""
-        if self.account and char_id in self.account.ig_ids:
-            return self.account.ig_names[self.account.ig_ids.index(char_id)]
-        elif char_id in self.ig_ids:
+        if char_id in self.ig_ids:
             return self.ig_names[self.ig_ids.index(char_id)]
         return None
 
     def char_id_by_name(self, char_name) -> int | None:
         """Fetch a player or their accounts character id by name. Returns None if char not found"""
-        if self.account and char_name in self.account.ig_names:
-            return self.account.ig_ids[self.account.ig_names.index(char_name)]
-        elif char_name in self.ig_names:
+        if char_name in self.ig_names:
             return self.ig_ids[self.ig_names.index(char_name)]
         return None
 
