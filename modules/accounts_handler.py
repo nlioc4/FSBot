@@ -213,19 +213,14 @@ class ValidateView(views.FSBotView):
         except discord.NotFound:
             log.info("Interaction Not found on Validation Defer")
         try:
-            validated = await validate_account(acc=self.acc)
+            if await validate_account(acc=self.acc):
+                button.disabled = True
+                button.style = discord.ButtonStyle.grey
+                self.end_session_button.disabled = False
+                self.timeout = None
+                await disp.ACCOUNT_EMBED.edit(self.acc.message, clear_content=True, acc=self.acc, view=self)
         except gspread.exceptions.APIError as e:
             await disp.ACCOUNT_VALIDATE_ERROR.send_priv(inter)
-            return
-        button.disabled = True
-        button.style = discord.ButtonStyle.grey
-        self.end_session_button.disabled = False
-        self.timeout = None
-        await disp.ACCOUNT_EMBED.edit(self.acc.message, clear_content=True, acc=self.acc, view=self)
-        if validated:
-            log.info(f'Account [{self.acc.id}] sent to player: ID: [{p.id}], name: [{p.name}]')
-            await disp.LOG_ACCOUNT.send(d_obj.channels['logs'], self.acc.id, p.id, p.mention,
-                                        p.name, allowed_mentions=False)
 
     @discord.ui.button(label="End Session", style=discord.ButtonStyle.red)
     async def end_session_button(self, button: discord.Button, inter: discord.Interaction):
@@ -272,7 +267,7 @@ async def validate_account(acc: classes.Account = None, player: classes.Player =
     if not player:
         player = acc.a_player
 
-    # update account object, return if already validated
+    # Check if already validated
     if acc.is_validated:
         return False
 
@@ -304,8 +299,13 @@ async def validate_account(acc: classes.Account = None, player: classes.Player =
                           f" user: {acc.a_player.id}, ID: {acc.a_player.id}", error=e)
         raise e
 
-    acc.timeout_coro = asyncio.create_task(account_timeout(player, acc))
-    return acc.validate()
+    log.info(f'Account [{acc.id}] sent to player: ID: [{player.id}], name: [{player.name}]')  # Log validation
+    await disp.LOG_ACCOUNT.send(d_obj.channels['logs'], acc.id, player.id, player.mention,
+                                player.name, allowed_mentions=False)
+
+    acc.validate()  # update account object, at the end to ensure validation was successful
+    acc.timeout_coro = asyncio.create_task(account_timeout(player, acc))  # Start countdown to account timeout
+    return True
 
 
 async def terminate(acc: classes.Account = None, player: classes.Player = None, view: discord.ui.View | bool = False,
