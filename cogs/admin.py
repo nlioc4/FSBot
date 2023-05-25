@@ -102,6 +102,8 @@ class AdminCog(commands.Cog):
                 await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Running", "stopped")
             case _:
                 await disp.CENSUS_LOOP_STATUS.send_priv(ctx, "Running" if self.census_rest.is_running() else "Stopped")
+                return
+        await d_obj.d_log(f"{ctx.user.display_name} {action}d the Census Loop.")
 
     @admin.command(name="rulesinit")
     async def rulesinit(self, ctx: discord.ApplicationContext,
@@ -204,6 +206,7 @@ class AdminCog(commands.Cog):
         match_class = BaseMatch if match_type == "casual" else RankedMatch
         lobby = Lobby.get(match_type)
         match = await lobby.accept_invite(owner, invited)
+        match.log(f"Admin Created Match: {ctx.user.display_name}")
         await disp.MATCH_CREATE.send_priv(ctx, match.thread.mention, match.id_str)
 
     @match_admin.command(name="end")
@@ -416,7 +419,8 @@ class AdminCog(commands.Cog):
         member = member or ctx.user
         if not (p := await d_obj.is_registered(ctx, member)):
             return
-        character = [char for char in p.ig_names if char.lower().find(character.lower()) > 0][0] if character else None
+        found_chars = [char for char in p.ig_names if char.lower().find(character.lower()) >= 0] if character else False
+        character = found_chars[0] if found_chars else character
         if character and (char_id := p.char_id_by_name(character)):
             await census.login(char_id, accounts.account_char_ids, Player.map_chars_to_players())
             await disp.ADMIN_PLAYER_LOGIN_SET.send_priv(ctx, p.mention, character)

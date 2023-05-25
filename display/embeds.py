@@ -214,7 +214,6 @@ def stat_response(player: Player, match_count: int, total_duel_sec: int, duel_pa
         description=AllStrings.STAT_TOTALS.value.format(player.mention, match_count, round(total_duel_sec / 60 / 60, 1))
     )
 
-
     if duel_partners:
         embed.add_field(
             name="Top Duel Partners",
@@ -343,7 +342,7 @@ def duel_dashboard(lobby) -> Embed:
             string = f'{p.mention}({p.name}) [{preferred_facs}][{p.skill_level.rank}][{req_skill_levels}][{f_lobbied_stamp}]\n '
             players_string += timeout_warn + string
 
-    embed.add_field(name="-"*(70 - len(lobby.name)//2),
+    embed.add_field(name="-" * 70,
                     value=players_string,
                     inline=False)
 
@@ -367,6 +366,54 @@ def duel_dashboard(lobby) -> Embed:
                     inline=False)
     return fs_author(embed)
 
+def ranked_duel_dashboard(lobby) -> Embed:
+    """Ranked Duel Dashboard, shows currently looking duelers and their rank"""
+    colour = Colour.blurple() if lobby.lobbied else Colour.greyple()
+    embed: Embed = Embed(
+        colour=colour,
+        title="Flight School Bot Ranked Duel Dashboard",
+        description="Matches started in this lobby are ranked, and will affect your recorded ELO score!",
+        timestamp=dt.now()
+    )
+
+    # Player List Header
+    embed.add_field(
+        name=f'{lobby.name.capitalize()} Lobby'.center(70, '-'),
+        value='@Mention [ELO][Time]\n',
+        inline=False
+    )
+
+    players_string = 'No players currently in lobby...'
+    if lobby.lobbied:
+        players_string = ''
+        for p in lobby.lobbied:
+            timeout_warn = '⏳' if p in lobby.warned else ''
+            f_lobbied_stamp = format_stamp(p.lobbied_stamp)
+            string = f'{p.mention}({p.name}) [{p.elo}][{f_lobbied_stamp}]\n '
+            players_string += timeout_warn + string
+
+    embed.add_field(name="-" * 70,
+                    value=players_string,
+                    inline=False)
+
+    if lobby.matches:
+        matches_str = ''
+        for match in lobby.matches:
+            matches_str += f"Match: {match.id_str} [Owner: {match.owner.mention}, " \
+                           f"Players: {', '.join([p.mention for p in match.players if p is not match.owner.active])}]\n"
+        embed.add_field(
+            name='Active Matches',
+            value=matches_str,
+            inline=False
+        )
+
+    log_str = '' if lobby.logs_recent else 'None in the last 3 hours...'
+    for log in lobby.logs_recent:
+        time_formatted = format_stamp(log[0], 'T')
+        log_str += f'[{time_formatted}]{log[1]}\n'
+    embed.add_field(name="Recent Activity",
+                    value=log_str,
+                    inline=False)
 
 def longer_lobby_logs(logs: list[(int, str)]) -> Embed:
     """Extended lobby history available on button press"""
@@ -500,6 +547,7 @@ def match_info(match) -> Embed:
 
     return fs_author(embed)
 
+
 def ranked_match_info(match) -> Embed:
     """Match Info Embed, tailored to ranked matches."""
     from classes.match import MatchState
@@ -533,7 +581,6 @@ def ranked_match_info(match) -> Embed:
                       f"Match Started: {format_stamp(match.start_stamp, 'R')} at {format_stamp(match.start_stamp)}\n"
                       )
 
-
     if match.end_stamp:
         match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}\n'
 
@@ -556,7 +603,7 @@ def ranked_match_info(match) -> Embed:
 
     # Current Round
     online, offline = "🟢", "🔴"
-    if match.factions_picked:  # check if a faction has been picked
+    if match.factions_picked and not match.is_ended:  # check if match is in progress
         player1_online = online if match.player1.on_assigned_faction else offline
         player2_online = online if match.player2.on_assigned_faction else offline
 

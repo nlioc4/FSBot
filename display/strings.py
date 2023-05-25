@@ -52,7 +52,7 @@ class AllStrings(Enum):
     ADMIN_PLAYER_CLEAN = "{} has been cleaned."
 
     LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], mention: [{}], name: [{}]"
-    LOG_ERROR = "{} has run into an error, {} {}."
+    LOG_ERROR = "Error: Source {} Error: {} {}."
     LOG_GENERAL = "Log: {}"
     LOG_GENERAL_ERROR = "An error has occurred, {}"
 

@@ -1,7 +1,6 @@
-'''
-
+"""
 Class to represent Jaeger Accounts available to the app
-'''
+"""
 import modules.tools as tools
 
 
@@ -101,6 +100,7 @@ class Account:
         return self.__cleaned
 
     def clean(self):
+        """Reset account usage variables"""
         self.a_player = None
         self.__last_usage = {"account_id": self.id}
         self.__validated = False
@@ -112,6 +112,7 @@ class Account:
         self.__cleaned = True
 
     def add_usage(self, player):
+        """Add a new usage to the account, includes only initial usage data."""
         self.__cleaned = False
         self.a_player = player
         self.__last_usage.update({"user_id": self.a_player.id,
@@ -127,13 +128,16 @@ class Account:
         return True
 
     def terminate(self):
+        """Mark account as terminated, add end time to last usage."""
         self.__terminated = True
         self.__last_usage['end_time'] = tools.timestamp_now()
 
     def login(self):
+        """Add login usage to last usage."""
         if self.a_player:
             self.last_usage['character_usage'].append(f"Login:{self.online_name}:{tools.timestamp_now()}")
 
     def logout(self):
+        """Add logout usage to last usage."""
         if self.a_player:
             self.last_usage['character_usage'].append(f"Logout:{self.online_name}:{tools.timestamp_now()}")

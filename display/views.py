@@ -247,21 +247,21 @@ class RemoveTimeoutView(FSBotView):
 
 class ConfirmView(FSBotView):
     # TODO BUILD func for creating confirmations and sending them, with countdowns until timeout etc.
-    def __init__(self, timeout=60, response="Action", coroutine=None):
+    def __init__(self, timeout=60, coroutine=None):
         super().__init__(timeout=timeout)
-        self.response = response
         self.coroutine = coroutine
         self.confirmed = asyncio.Future()
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
     async def confirm_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        await inter.response.defer()
         self.confirmed.set_result(True)
         self.stop()
         self.disable_all_items()
         self.cancel_button.style = discord.ButtonStyle.grey
-        await disp.CONFIRMED.send_priv(inter, self.response)
         try:
-            self.message.edit(view=self)
+            await self.message.edit(view=self)
+            await self.message.delete(delay=5)
         except discord.NotFound:
             pass
         if self.coroutine:
@@ -269,13 +269,14 @@ class ConfirmView(FSBotView):
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
     async def cancel_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        await inter.response.defer()
         self.confirmed.set_result(False)
         self.stop()
         self.disable_all_items()
         self.confirm_button.style = discord.ButtonStyle.grey
-        await disp.CANCELLED.send_priv(inter, self.response)
         try:
-            self.message.edit(view=self)
+            await self.message.edit(view=self)
+            await self.message.delete(delay=5)
         except discord.NotFound:
             pass
 
@@ -285,7 +286,8 @@ class ConfirmView(FSBotView):
         self.disable_all_items()
         self.confirm_button.style = discord.ButtonStyle.grey
         try:
-            self.message.delete(delay=10)
+            await self.message.edit(content=f"**TIMED OUT**\n{self.message.content}", view=self)
+            await self.message.delete(delay=10)
         except (discord.NotFound, discord.HTTPException):
             pass
 

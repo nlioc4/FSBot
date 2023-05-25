@@ -26,6 +26,8 @@ _match_id_counter = 0
 
 
 class Round(NamedTuple):
+    """Represents a single round of a match"""
+    round_number: int
     p1_id: int
     p2_id: int
     winner: int | Literal[1, 2]
@@ -112,14 +114,18 @@ class BaseMatch:
             await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
             return False
 
-        @discord.ui.button(label="Leave Match", style=discord.ButtonStyle.red)
-        async def leave_button(self, button: discord.Button, inter: discord.Interaction):
+        async def leave_button_callback(self, button: discord.Button, inter: discord.Interaction):
+            """Callback for leave button"""
             p = Player.get(inter.user.id)
             if not await d_obj.is_registered(inter, p) or not await self.in_match_check(inter, p):
                 return
 
             await disp.MATCH_LEAVE.send_priv(inter, p.mention)
             await self.match.leave_match(p.active)
+
+        @discord.ui.button(label="Leave Match", style=discord.ButtonStyle.red)
+        async def leave_button(self, button: discord.Button, inter: discord.Interaction):
+            await self.leave_button_callback(button, inter)
 
         @discord.ui.button(label="Reset Timeout", style=discord.ButtonStyle.green)
         async def reset_timeout_button(self, button: discord.Button, inter: discord.Interaction):
@@ -684,9 +690,9 @@ class RankedMatch(BaseMatch):
             -> appeal
             -> submitting
     """
-    MATCH_LENGTH = 8   # Number of Rounds in a Match
-    MAX_PLAYERS = 2    # Number of Players in a Match
-    WRONG_SCORE_LIMIT = 3   # Number of times a player can submit a wrong score before the match is cancelled
+    MATCH_LENGTH = 8  # Number of Rounds in a Match
+    MAX_PLAYERS = 2  # Number of Players in a Match
+    WRONG_SCORE_LIMIT = 3  # Number of times a player can submit a wrong score before the match is cancelled
     TYPE = 'Ranked'
 
     class RankedMatchView(BaseMatch.MatchInfoView):
@@ -695,7 +701,8 @@ class RankedMatch(BaseMatch):
             super().__init__(match)
             self.match = match
 
-        async def leave_button(self, button: discord.Button, inter: discord.Interaction):
+        async def leave_button_callback(self, button: discord.Button, inter: discord.Interaction):
+            """Ranked Match Specific Leave button callback"""
             p = Player.get(inter.user.id)
             if not await d_obj.is_registered(inter, p) or not await self.in_match_check(inter, p):
                 return
@@ -712,15 +719,14 @@ class RankedMatch(BaseMatch):
                 await self.match.end_match(end_condition=EndCondition.CANCELLED, leaving_player=p)
 
             else:
-                confirm = views.ConfirmView(timeout=30,
-                                            response="Match Left",
-                                            coroutine=self.match.leave_match(p.active))
+                confirm = views.ConfirmView(timeout=30)
 
                 await disp.RM_FORFEIT_CONFIRM.send_priv(inter, ping=p,
                                                         view=confirm)
                 if await confirm.confirmed:
                     self.match.log(f"Match is ending due to {p.name} leaving early!")
-                    await self.match.end_match(EndCondition.FORFEIT)  # will do nothing if leaving player was owner
+                    await self.match.leave_match(p.active)
+                    await self.match.end_match(EndCondition.FORFEIT, leaving_player=p)
 
         @discord.ui.button(label="Appeal", style=discord.ButtonStyle.red)
         async def appeal_button(self, button: discord.Button, inter: discord.Interaction):
@@ -786,7 +792,6 @@ class RankedMatch(BaseMatch):
         # Display Objects
         self._round_message: discord.Message | None = None
         self._embed_func = embeds.ranked_match_info
-
         self._view_class = self.RankedMatchView
 
     @classmethod
@@ -1035,8 +1040,9 @@ class RankedMatch(BaseMatch):
 
         round_lines = ''
         for r in self.__round_history:
+            round_lines += f"[{r.round_number}]"
             if r.defaulted:
-                round_lines += f"Defaulted - {self.player1.name if r.winner == 1 else self.player2.name} Given Win"
+                round_lines += f"Defaulted - {self.player1.name if r.winner == 2 else self.player2.name} Given Win\n"
             else:
                 p1_bold = "**" if r.winner == 1 else ""
                 p2_bold = "**" if r.winner == 2 else ""
@@ -1168,6 +1174,7 @@ class RankedMatch(BaseMatch):
         self.log(disp.RM_ROUND_WINNER(self.__round_winner.name, self.current_round))
 
         match_round = Round(
+            round_number=self.current_round,
             winner=1 if self.__round_winner is self.player1 else 2,
             p1_id=self.player1.id,
             p2_id=self.player2.id,
@@ -1205,6 +1212,7 @@ class RankedMatch(BaseMatch):
                     for i in range(self.wins_required - self.get_player1_wins()):
                         self.__round_history.append(
                             Round(
+                                round_number=self.current_round,
                                 winner=1,
                                 p1_id=self.player1.id,
                                 p2_id=self.player2.id,
@@ -1217,6 +1225,7 @@ class RankedMatch(BaseMatch):
                     for i in range(self.wins_required - self.get_player2_wins()):
                         self.__round_history.append(
                             Round(
+                                round_number=self.current_round,
                                 winner=2,
                                 p1_id=self.player1.id,
                                 p2_id=self.player2.id,

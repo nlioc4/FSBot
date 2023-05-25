@@ -350,13 +350,12 @@ async def terminate_all():
     await asyncio.gather(*terminate_coroutines)
 
 
-async def clean_account(acc):
+async def clean_account(acc: classes.Account):
+    if acc.is_clean:  # Check if account is already clean
+        return
     if acc.is_validated:
         # Update DB Usage, only if account was actually used
         await db.async_db_call(db.add_element, 'account_usages', acc.last_usage)
-
-    if acc.is_clean:  # Check if account is already clean
-        return
 
     # Adjust player & account objects, return to available directory.
     acc.a_player.set_account(None)
