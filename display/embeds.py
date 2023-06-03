@@ -639,6 +639,25 @@ def ranked_match_info(match) -> Embed:
     return fs_author(embed)
 
 
+def elo_change(match, player, new_elo: int, elo_delta: int) -> Embed:
+    """Embed to show players their elo change after a match."""
+    from classes.match import RankedMatch
+    match: RankedMatch
+
+    # Green if positive elo change, Red if negative
+    colour = Colour.green() if elo_delta >= 0 else Colour.red()
+
+    embed = Embed(
+        colour=colour,
+        title=f'Ranked Match {match.id_str} Elo Change',
+        description=f'{player.mention} versus {match.get_opponent(player).mention} has ended.\n'
+                    f'The scoreline was {match.get_score_string()}\n'
+                    f'{player.mention}\'s elo has changed by ``{elo_delta}`` points.\n'
+                    f'{player.mention}\'s elo is now ``{new_elo}`` points.\n'
+    )
+    return fs_author(embed)
+
+
 def to_staff_dm_embed(author: 'discord.User', msg: str) -> Embed:
     author_disc = author.name + "#" + author.discriminator
     embed = Embed(

@@ -481,7 +481,7 @@ class BaseMatch:
         await asyncio.sleep(300)  # run check after 5 minutes
         no_acc = []
         for p in players_to_check:
-            if not p.has_own_account and not p.account:
+            if not p.has_own_account and not p.account and p.match == self:
                 no_acc.append(p)
         if no_acc:
             await disp.MATCH_NO_ACCOUNT.send(self.thread, ''.join([p.mention for p in no_acc]),
@@ -967,6 +967,16 @@ class RankedMatch(BaseMatch):
             return True
         return False
 
+    # Utility
+    def get_opponent(self, player):
+        """Pass a player object to get the opposite player object"""
+        if player is self.player1:
+            return self.player2
+        elif player is self.player2:
+            return self.player1
+        else:
+            raise tools.UnexpectedError("Player not in match!")
+
     # Score Analysis
 
     def _check_one_score_submitted(self):
@@ -1140,6 +1150,16 @@ class RankedMatch(BaseMatch):
             # schedule next update
             d_obj.bot.loop.call_later(0.1, self._schedule_update_task)
 
+    # Admin Functions
+    async def force_score_submit(self, winner: ActivePlayer):
+        """Submits scores for both players, setting the winner to the given player"""
+        if winner == self.player1:
+            self.__p1_submitted_score, self.__p2_submitted_score = 1, -1
+        elif winner == self.player2:
+            self.__p1_submitted_score, self.__p2_submitted_score = -1, 1
+        else:
+            raise ValueError("Invalid player given to decide_round")
+
     async def _start_round(self):
         """Starts a new round, resets round variables"""
 
@@ -1251,10 +1271,14 @@ class RankedMatch(BaseMatch):
             # Publish Match Winner
             if self.__match_outcome > 0:
                 # Player 1 Wins
+                if p1_wins < self.wins_required:
+                    log.error(f"Match ID: {self.id} was ended with a winner but not enough wins!")
                 await disp.RM_WINNER.send(self.thread, self.player1.name, p1_wins, p2_wins)
                 self.log(disp.RM_WINNER(self.player1.name, p1_wins, p2_wins))
             elif self.__match_outcome < 0:
                 # Player 2 Wins
+                if p2_wins < self.wins_required:
+                    log.error(f"Match ID: {self.id} was ended with a winner but not enough wins!")
                 await disp.RM_WINNER.send(self.thread, self.player2.name, p2_wins, p1_wins)
                 self.log(disp.RM_WINNER(self.player2.name, p2_wins, p1_wins))
             else:
@@ -1263,12 +1287,20 @@ class RankedMatch(BaseMatch):
                 self.log(disp.RM_DRAW())
 
             # Determine Elo Changes
-            self._player1_stats, self._player2_stats = await stats_handler.update_elo(self._player1_stats,
-                                                                                      self._player2_stats,
-                                                                                      self.id,
-                                                                                      self.__match_outcome,
-                                                                                      self.MATCH_LENGTH)
-            # TODO Send embed with match results + elo changes to each player in DM's
+            player1_elo_delta, player2_elo_delta = await stats_handler.update_elo(self._player1_stats,
+                                                                                  self._player2_stats,
+                                                                                  self.id,
+                                                                                  self.__match_outcome,
+                                                                                  self.wins_required)
+
+            # Send players Elo Changes
+            await asyncio.gather(
+                disp.ELO_DM_UPDATE.send(self.player1, match=self, player=self.player1,
+                                        new_elo=self._player1_stats.int_elo, elo_delta=round(player1_elo_delta)),
+                disp.ELO_DM_UPDATE.send(self.player2, match=self, player=self.player2,
+                                        new_elo=self._player2_stats.int_elo, elo_delta=round(player2_elo_delta))
+            )
+
 
         else:
             # Nonstandard Ending, warn of no elo saving

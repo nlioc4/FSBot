@@ -31,12 +31,12 @@ class PlayerStats:
             self.__match_draws = data['match_draws']
 
         else:
-            self.__match_ids = list()  # list of Int match ID's
-            self.__elo_history = dict()  # Dict of elo changes, by match_id: eloDelta
-            self.__elo = 1000  # Players Elo
+            self.__match_ids: list[str] = list()  # list of Int match ID's
+            self.__elo_history: dict[str, float] = dict()  # Dict of elo changes, by match_id: eloDelta
+            self.__elo: float = 1000  # Players Elo
             self.__match_wins = 0  # Number of Matches Won
             self.__match_losses = 0  # Number of Matches lost
-            self.__match_draws = 0 # Number of Matches Drawn
+            self.__match_draws = 0  # Number of Matches Drawn
 
     def get_data(self):
         data = {
@@ -86,11 +86,15 @@ class PlayerStats:
     def elo(self):
         return self.__elo
 
+    @property
+    def int_elo(self):
+        return int(self.__elo)
+
     def add_match(self, match_id, elo_delta, result):
         """Add a match to a player stats set.
         Result should be 1 if match won, 0.5 if match drawn, or 0 if match lost"""
-        self.__match_ids.append(match_id)
-        self.__elo_history[match_id] = elo_delta
+        self.__match_ids.append(str(match_id))
+        self.__elo_history[str(match_id)] = elo_delta
         self.__elo = self.__elo + elo_delta
         if result > 0.5:
             self.__match_wins += 1

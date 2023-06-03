@@ -7,6 +7,7 @@ from enum import Enum
 import inspect
 from logging import getLogger
 
+import classes
 # Internal Imports
 import modules.config as cfg
 from .embeds import *
@@ -173,6 +174,8 @@ class AllStrings(Enum):
     RM_ENDED_NO_ELO = "The match was not completed properly, results will not be stored..."
     RM_ENDED_TOO_MANY_CONFLICTS = "The match is automatically being appealed due to too many score conflicts..."
 
+    ELO_DM_UPDATE = None, elo_change
+
     INVITE_ACCEPT = "You have accepted the invite from {}, join {}."
     INVITE_DECLINE = "You have declined the invite from {}."
     INVITE_DECLINE_REASON = "Decline Reason:\n{}"
@@ -288,6 +291,12 @@ class AllStrings(Enum):
 
         match type(ctx):
             case discord.User | discord.Member | discord.TextChannel | discord.VoiceChannel | discord.Thread:
+                return await getattr(ctx, action)(**args_dict)
+
+            case classes.Player | classes.ActivePlayer:
+                # Test case to send directly to player objects
+                import modules.discord_obj as d_obj
+                ctx = await d_obj.bot.get_or_fetch_user(ctx.id)
                 return await getattr(ctx, action)(**args_dict)
 
             case discord.Message:
