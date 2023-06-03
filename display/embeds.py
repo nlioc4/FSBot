@@ -366,6 +366,7 @@ def duel_dashboard(lobby) -> Embed:
                     inline=False)
     return fs_author(embed)
 
+
 def ranked_duel_dashboard(lobby) -> Embed:
     """Ranked Duel Dashboard, shows currently looking duelers and their rank"""
     colour = Colour.blurple() if lobby.lobbied else Colour.greyple()
@@ -414,6 +415,7 @@ def ranked_duel_dashboard(lobby) -> Embed:
     embed.add_field(name="Recent Activity",
                     value=log_str,
                     inline=False)
+
 
 def longer_lobby_logs(logs: list[(int, str)]) -> Embed:
     """Extended lobby history available on button press"""
@@ -649,14 +651,39 @@ def elo_change(match, player, new_elo: int, elo_delta: int) -> Embed:
 
     embed = Embed(
         colour=colour,
-        title=f'Ranked Match {match.id_str} Elo Change',
+        title=f'Ranked Match [{match.id_str}] Elo Change',
         description=f'{player.mention} versus {match.get_opponent(player).mention} has ended.\n'
-                    f'The scoreline was {match.get_score_string()}\n'
+                    f'**Scoreline**\n{match.get_score_string()}\n'
                     f'{player.mention}\'s elo has changed by ``{elo_delta}`` points.\n'
                     f'{player.mention}\'s elo is now ``{new_elo}`` points.\n'
     )
     return fs_author(embed)
 
+
+def elo_summary(player_stats):
+    """Embed to show players their current ELO and history"""
+    from classes.player_stats import PlayerStats
+    player_stats: PlayerStats
+    last_five = 'No Matches Recorded'
+    if player_stats.last_five_changes:
+        last_five = ''
+        for match_id, change in player_stats.last_five_changes:
+            last_five += f'[{match_id}]: ``{change}``\n'
+
+
+    embed = Embed(
+        colour=Colour.dark_gold(),
+        title=f'Ranked Elo Summary for {player_stats.name}',
+        description=
+        f"Current Elo: {player_stats.elo}\n"
+        f"Match Wins: {player_stats.match_wins}\n"
+        f"Match Losses: {player_stats.match_losses}\n"
+        f"Match Draws: {player_stats.match_draws}\n"
+        f"Total Matches: {player_stats.total_matches}\n"
+        f"Last Five Match Results: {last_five}\n"
+
+    )
+    return fs_author(embed)
 
 def to_staff_dm_embed(author: 'discord.User', msg: str) -> Embed:
     author_disc = author.name + "#" + author.discriminator

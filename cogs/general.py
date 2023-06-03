@@ -9,7 +9,7 @@ import asyncio
 # Internal Imports
 from modules import discord_obj as d_obj, tools, bot_status, trello, account_usage
 from display import AllStrings as disp, views
-from classes import Player
+from classes import Player, PlayerStats
 from classes.match import EndCondition
 from modules import database as db
 
@@ -85,7 +85,7 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
                             user: discord.Option(discord.Member, "User to check stats for", required=False)):
         """View your dueling stats"""
         if (user := user or ctx.user) is not ctx.user and not d_obj.is_admin(ctx.user):
-            return await disp.STATS_SELF_ONLY.send_priv(ctx)    # Check if admin for requests on other users
+            return await disp.STATS_SELF_ONLY.send_priv(ctx)  # Check if admin for requests on other users
 
         if not (player := d_obj.is_player(user)):
             if user is ctx.user:
@@ -120,7 +120,6 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
         if player_match_count == 0:
             return await disp.STAT_NO_MATCHES.send_priv(ctx, user.mention)
 
-
         # Sum match time and count times partners appear across all matches
         total_duel_sec = 0
         partners = {}
@@ -144,7 +143,6 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
                 else:
                     partners[player_id] = 1
 
-
         #  Count up top 3 duel partners
         highest_partner = None
         duel_partners = ""
@@ -167,13 +165,22 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
             duel_partners += "\n"
             partners.pop(highest_partner[0])
 
-
         return await disp.STAT_RESPONSE.send_priv(
             ctx,
             player=player,
             match_count=player_match_count,
             total_duel_sec=total_duel_sec,
             duel_partners=duel_partners)
+
+    @commands.slash_command(name="elo")
+    async def elo_command(self, ctx: discord.ApplicationContext):
+        """View your own ELO and ELO history"""
+        if not (p := await d_obj.is_registered(ctx, ctx.user)):
+            return
+
+        await ctx.defer(ephemeral=True)
+        player_stats = await PlayerStats.get_from_db(p.id, p.name)
+        await disp.ELO_SUMMARY.send_priv(ctx, player_stats=player_stats)
 
     @tasks.loop(seconds=5)
     async def activity_update(self):
