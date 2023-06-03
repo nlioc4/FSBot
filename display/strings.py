@@ -175,6 +175,7 @@ class AllStrings(Enum):
     RM_ENDED_TOO_MANY_CONFLICTS = "The match is automatically being appealed due to too many score conflicts..."
 
     ELO_DM_UPDATE = None, elo_change
+    ELO_SUMMARY = None, elo_summary
 
     INVITE_ACCEPT = "You have accepted the invite from {}, join {}."
     INVITE_DECLINE = "You have declined the invite from {}."

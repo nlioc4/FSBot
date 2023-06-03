@@ -38,7 +38,7 @@ class PlayerStats:
             self.__match_losses = 0  # Number of Matches lost
             self.__match_draws = 0  # Number of Matches Drawn
 
-    def get_data(self):
+    def _get_data(self):
         data = {
             '_id': self.__id,
             'matches': self.__match_ids,
@@ -51,7 +51,7 @@ class PlayerStats:
         return data
 
     async def push_to_db(self):
-        data = self.get_data()
+        data = self._get_data()
         await db.async_db_call(db.set_element, cfg.database['collections']['user_stats'], self.__id, data)
 
     @property
@@ -83,12 +83,24 @@ class PlayerStats:
         return self.__match_draws
 
     @property
+    def total_matches(self):
+        return len(self.__match_ids)
+
+    @property
     def elo(self):
         return self.__elo
 
     @property
     def int_elo(self):
         return int(self.__elo)
+
+    @property
+    def last_five_changes(self):
+        """Helper to return list of last five match results w/ match ID.  Tuples of (match_id, elo_delta)"""
+        last_five = dict()
+        for match_id in self.__match_ids[-5:]:
+            last_five[match_id] = self.__elo_history[match_id]
+        return last_five.items()
 
     def add_match(self, match_id, elo_delta, result):
         """Add a match to a player stats set.
