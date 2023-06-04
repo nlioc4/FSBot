@@ -2,6 +2,8 @@
 
 # External Imports
 import discord
+from logging import getLogger
+import asyncio
 
 from discord.ext import commands, tasks
 
@@ -17,33 +19,38 @@ from modules.spam_detector import is_spam
 import modules.accounts_handler as accounts
 
 
+log = getLogger('fs_bot')
+
 class MatchesCog(commands.Cog, name="MatchesCog",
                  command_attrs=dict(guild_ids=cfg.general['guild_id'], default_permission=True)):
 
-    def __init__(self, bot):
+    def __init__(self, bot: discord.Bot):
         self.bot = bot
         self.matches_init.start()
-        self.matches_loop.start()
 
     @tasks.loop(count=1)
     async def matches_init(self):
-        # clear old match channels if any exist
-        channels = d_obj.categories['user'].text_channels
-        for channel in channels:
-            if channel.name.startswith('casual'):
-                await channel.delete()
+        await d_obj.loaded.wait()
 
-    @tasks.loop(seconds=30)
-    async def matches_loop(self):
-        # update match info embeds
-        try:
-            for match in BaseMatch.active_matches_list():
-                # only iterate on matches that have started > 5 seconds ago, and are not stopped
-                if match.start_stamp > tools.timestamp_now() - 5 or match.end_stamp:
-                    continue
-                await match.update_match()
-        except:  # TODO this is far too broad.
-            pass
+        # clear old match channels/threads if any exist
+        coroutines = []
+
+        # delete old match voice channels
+        voice_channels = d_obj.categories['user'].voice_channels
+        for channel in voice_channels:
+            if (channel.name.startswith('Casual') or channel.name.startswith('Ranked')) \
+                    and channel not in d_obj.channels.values():
+                coroutines.append(channel.delete())
+
+        # Archive old match Threads
+        # Epic list comprehension
+        threads = [thread for thread in
+                   [*d_obj.channels['casual_lobby'].threads, *d_obj.channels['ranked_lobby'].threads] if not thread.archived]
+        for thread in threads:
+            coroutines.append(thread.archive(locked=True))
+
+
+        await asyncio.gather(*coroutines)
 
     @commands.Cog.listener('on_message')
     async def matches_message_listener(self, message: discord.Message):
@@ -51,14 +58,14 @@ class MatchesCog(commands.Cog, name="MatchesCog",
         if message.author == self.bot.user:
             return
 
-        match_channel_dict = BaseMatch.active_match_channel_ids()
-        if message.channel.id not in match_channel_dict:
+        if not (match := BaseMatch.active_match_channel_ids().get(message.channel.id)):
             return
+        image = f"<Image:{[img.url for img in message.attachments]}>" if message.attachments else ""
 
-        match_channel_dict[message.channel.id].log(
-            f'{message.author.name}: {message.content}', public=False
-        )
-        await match_channel_dict[message.channel.id].update_match()
+        if p := Player.get(message.author.id):
+            match.log(
+                f'{p.name}: {message.clean_content}{image}', public=False
+            )
 
 
 def setup(client):

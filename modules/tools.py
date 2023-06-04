@@ -2,6 +2,7 @@
 
 from datetime import datetime as dt
 from typing import Literal
+from enum import Enum
 
 import discord
 
@@ -9,17 +10,36 @@ from logging import getLogger
 
 log = getLogger("fs_bot")
 
+# Timezones and their offset from UTC in seconds
 TZ_OFFSETS = {
-    "CEST": +7200,
-    "BST": +3600,
-    "EDT": -14400,
-    "CDT": -18000,
-    "MDT": -21600,
+    "PST": -28800,
     "PDT": -25200,
+    "MDT": -21600,
+    "CDT": -18000,
+    "EST": -18000,
+    "EDT": -14400,
+    "UTC": 0,
+    "BST": +3600,
+    "CEST": +7200,
     "MSK": +10800,
+    "CST": +28800,
     "AEST": +36000,
-    "CST": +28800
+
 }
+
+
+# def tz_discord_options():
+#     return [discord.OptionChoice(name=f"{abv}: UTC{(offset // 3600):+}", value=abv)
+#             for abv, offset in TZ_OFFSETS.items()]
+
+def pytz_discord_options():
+    return [discord.OptionChoice("UTC"),
+            discord.OptionChoice("Pacific NA", "US/Pacific"),
+            discord.OptionChoice("Eastern NA", "US/Eastern"),
+            discord.OptionChoice("Western European", "WET"),
+            discord.OptionChoice("Central European", "CET"),
+            discord.OptionChoice("Eastern European", "EST")
+            ]
 
 
 class UnexpectedError(Exception):
@@ -30,12 +50,20 @@ class UnexpectedError(Exception):
         super().__init__(message)
 
 
+class AutoNumber(Enum):
+    def __new__(cls, *args):
+        rank = len(cls.__members__) + 1
+        obj = object.__new__(cls)
+        obj._rank = rank
+        return obj
+
+
 def timestamp_now():
     return int(dt.timestamp(dt.now()))
 
 
 def compare_embeds(embed1, embed2) -> bool:
-    """compares embeds (after removing timestamps)"""
+    """Compares embeds (after removing timestamps).  Returns True if Embeds are identical"""
     try:
         embed1dict, embed2dict = embed1.to_dict(), embed2.to_dict()
     except AttributeError:  # case for one of the entries being None / not an embed
@@ -47,7 +75,7 @@ def compare_embeds(embed1, embed2) -> bool:
 def format_time_from_stamp(timestamp: int, type_str: Literal["f", "F", "d", "D", "t", "T", "R"] = "t") -> str:
     """converts a timestamp into a time formatted for discord.
     type indicates what format will be used, options are
-    t| 22:57 |Short Time
+    t| 22:57 |Short Time **default
     T| 22:57:58 |Long Time
     d| 17/05/2016| Short Date
     D| 17 May 2016 |Long Date
@@ -55,8 +83,7 @@ def format_time_from_stamp(timestamp: int, type_str: Literal["f", "F", "d", "D",
     F| Tuesday, 17 May 2016 22:57 |Long Date Time
     R| 5 years ago| Relative Time
     """
-    time = dt.fromtimestamp(timestamp)
-    return discord.utils.format_dt(time, type_str)
+    return f"<t:{int(timestamp)}:{type_str}>"
 
 
 def time_diff(timestamp):

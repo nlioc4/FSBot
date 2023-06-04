@@ -1,8 +1,8 @@
-pytz~=2022.1
-gspread~=5.3.2
-numpy~=1.21.5
+pytz==2023.3
+gspread==5.8.0
+numpy
 asyncio~=3.4.3
 auraxium>=0.2.2
-pymongo[tls,srv]==4.1.1
+pymongo[tls,srv]==4.3.3
 dnspython
-py-cord>=2.0.0rc1
+py-cord==2.4.1

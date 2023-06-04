@@ -65,10 +65,11 @@ Scripts/
 /Scripts/
 
 .idea/
-Scripts/
 .tmp.driveupload/
 /.tmp.driveupload/
 /.tmp.drivedownload/
 
 
 /fs_bot_logs - Shortcut.lnk
+/Scripts/
+.vscode/launch.json

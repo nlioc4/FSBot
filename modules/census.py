@@ -6,6 +6,7 @@ Census module for tracking Jaeger players.  Currently used to ensure FS block ac
 # External Imports
 import auraxium
 from logging import getLogger
+import asyncio
 
 # Internal Imports
 import modules.config as cfg
@@ -14,6 +15,8 @@ import modules.accounts_handler as accounts
 log = getLogger('fs_bot')
 
 WORLD_ID = 19
+EVENT_CLIENT = None
+
 
 
 def get_account_chars_list(account_dict: dict):
@@ -104,66 +107,80 @@ async def get_ids_facs_from_chars(chars_list) -> dict[str, tuple[int, int]] | bo
         return char_dict
 
 
-async def _login(char_id, acc_char_ids, player_char_ids):
+async def login(char_id, acc_char_ids, player_char_ids):
     # Account Section
     if char_id in acc_char_ids:
         acc = acc_char_ids[char_id]
-        if acc.online_id == char_id:  # if already online
-            return
-        acc.online_id = char_id
-        if acc.a_player and acc.a_player.match:
-            await acc.a_player.match.update_match(login=acc.a_player)
-        log.debug(f'Login detected: {char_id}: {acc.online_name}')
+        if acc.online_id != char_id:  # if not already online
+            acc.online_id = char_id
+            acc.login()
+            if acc.a_player and acc.a_player.match:  # Match Login Event
+                await acc.a_player.match.char_login(user=acc.a_player)
+
+            if not acc.a_player:  # Unassigned Login
+                await accounts.unassigned_online(acc)
+
+            log.info(f'Login detected: {char_id}: {acc.online_name}')
+        return acc.ig_ids
 
     # Player Section
     if char_id in player_char_ids:
         p = player_char_ids[char_id]
-        if p.online_id == char_id:  # if already online
-            return
-        p.online_id = char_id
-        if p.match:
-            await p.match.update_match(login=p)
-        log.debug(f'Login detected: {char_id}: {p.online_name}')
+        if p.online_id != char_id:  # if not already online
+            p.online_id = char_id
+            if p.match:
+                await p.match.char_login(user=p)
+            log.info(f'Login detected: {char_id}: {p.online_name}')
+        return p.ig_ids
 
 
-async def _logout(char_id, acc_char_ids, player_char_ids):
+async def logout(char_id, acc_char_ids, player_char_ids):
     # Account Section
     if char_id in acc_char_ids:
         acc = accounts.account_char_ids[char_id]
         if not acc.online_id:  # if already offline
             return
-        log.debug(f'Logout detected: {char_id}: {acc.online_name}')
-        acc.online_id = None
+
         if acc.a_player and acc.a_player.match:
-            await acc.a_player.match.update_match()
-        if acc.is_terminated:
+            await acc.a_player.match.char_logout(user=acc.a_player, char_name=acc.online_name)
+
+        log.info(f'Logout detected: {char_id}: {acc.online_name}')
+        acc.logout()
+        acc.online_id = None
+
+        if acc.is_terminated:  # last to avoid issues with unassigned login detection
             await accounts.clean_account(acc)
+        return
 
     # Player Section
     if char_id in player_char_ids:
         p = player_char_ids[char_id]
-        if not p.online_id:  # if already offline
+        if not p.online_id or p.online_id != char_id:  # if already offline or offline character != currently online
             return
-        log.debug(f'Logout detected: {char_id}: {p.online_name}')
-        p.online_id = None
         if p.match:
-            await p.match.update_match()
+            await p.match.char_logout(user=p, char_name=p.online_name)
+
+        log.info(f'Logout detected: {char_id}: {p.online_name}')
+        p.online_id = None
+        return
 
 
 async def online_status_updater(chars_players_map_func):
-    """Responsible for updating active player and account objects with their currently
+    """Responsible for updating player and account objects with their currently
     online characters"""
     acc_char_ids = accounts.account_char_ids
 
     client = auraxium.event.EventClient(service_id=cfg.general['api_key'])
+    global EVENT_CLIENT
+    EVENT_CLIENT = client
 
     async def login_action(evt: auraxium.event.PlayerLogin):
         player_char_ids = chars_players_map_func()
-        await _login(evt.character_id, acc_char_ids, player_char_ids)
+        await login(evt.character_id, acc_char_ids, player_char_ids)
 
     async def logout_action(evt: auraxium.event.PlayerLogout):
         player_char_ids = chars_players_map_func()
-        await _logout(evt.character_id, acc_char_ids, player_char_ids)
+        await logout(evt.character_id, acc_char_ids, player_char_ids)
 
     # noinspection PyTypeChecker
     login_trigger = auraxium.Trigger(auraxium.event.PlayerLogin, worlds=[WORLD_ID], action=login_action)
@@ -176,6 +193,9 @@ async def online_status_updater(chars_players_map_func):
 
 
 async def online_status_rest(chars_players_map):
+    if len(chars_players_map) == 0:
+        return True
+
     acc_char_ids = accounts.account_char_ids
 
     tracked_ids = list(acc_char_ids.keys()) + list(chars_players_map.keys())
@@ -186,14 +206,14 @@ async def online_status_rest(chars_players_map):
         query.add_term('character_id', ids_string)
         query.create_join('characters_online_status')
         query.show('character_id')
-        query.limit(1000)
+        query.limit(5000)
         try:
             data = await client.request(query)
-        except auraxium.errors.ServiceUnavailableError:
-            log.error('API unreachable during online status init')
-            return False
-        if data["returned"] == 0 or 'character_id_join_characters_online_status' not in data['character_list'][0]:
-            log.error('API unreachable during online status init')
+            # Manual error addition if response returned is invalid
+            if data["returned"] == 0 or 'character_id_join_characters_online_status' not in data['character_list'][0]:
+                raise auraxium.errors.ResponseError
+        except (auraxium.errors.ServiceUnavailableError, auraxium.errors.ResponseError):
+            log.debug('API Unreachable REST Online Check')
             return False
 
     # pull data from dict response
@@ -205,12 +225,20 @@ async def online_status_rest(chars_players_map):
         else:
             online_ids.append(int(a_return['character_id']))
 
-    log.debug(f"Online IDs: {online_ids}")
-    log.debug(f"Offline IDs: {offline_ids}")
-
-    for char_id in offline_ids:
-        await _logout(char_id, acc_char_ids, chars_players_map)
+    #  Gather login coroutines for online chars
+    login_coros = []
     for char_id in online_ids:
-        await _login(char_id, acc_char_ids, chars_players_map)
+        login_coros.append(login(char_id, acc_char_ids, chars_players_map))
+    #  no_logout marks other chars of currently logged in accounts/users, so they are not logged out
+    no_logout = await asyncio.gather(*login_coros)
 
+    #  convert list of lists to list of all items
+    no_logout = [item for sublist in no_logout for item in sublist]
+
+    # gather offline chars, except those owned by accs/players with another char online
+    # Sequential rather than gather to avoid multiple logout events for the same account
+    #
+    offline_ids = set(offline_ids) - set(no_logout)
+    for char_id in offline_ids:
+        await logout(char_id, acc_char_ids, chars_players_map)
     return True

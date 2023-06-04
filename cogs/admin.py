@@ -1,31 +1,46 @@
 """Admin cog, handles admin functions of FSBot"""
 
 # External Imports
+import auraxium
 import discord
 from discord.ext import commands, tasks
 from logging import getLogger
 import asyncio
-from datetime import datetime as dt, time, timezone
+from datetime import datetime as dt, time, timedelta
+from pytz import timezone
 
 # Internal Imports
 import modules.config as cfg
 import modules.accounts_handler as accounts
 import modules.discord_obj as d_obj
-import modules.census as census
-import modules.loader as loader
-import modules.tools as tools
-from classes import Player, ActivePlayer
-from classes.match import BaseMatch
-from display import AllStrings as disp, views, embeds
+from modules import census
+from modules import tools
+from modules import loader
+from classes import Player
+from classes.lobby import Lobby
+from classes.match import BaseMatch, EndCondition, RankedMatch
+from display import AllStrings as disp, embeds
 import cogs.register as register
 
 log = getLogger('fs_bot')
+
+
+def player_chars_autocomplete(ctx: discord.AutocompleteContext = None, member_id: int = 0, value: str = ''):
+    """Return a list of possible character choices, based on whether a player is found or has an account"""
+    user_id = member_id or ctx.options.get("member") or ctx.interaction.user.id
+    value = value.lower() or ctx.value.lower()
+    if user_id and (p := Player.get(int(user_id))):
+        if p.account or p.has_own_account:
+            options = [char for char in p.ig_names if char.lower().find(value) > 0]
+            return options or p.ig_names
+    return ["No Characters Found"]
 
 
 class AdminCog(commands.Cog):
     def __init__(self, bot):
         self.bot: discord.Bot = bot
         self.online_cache = set()
+        self.census_watchtower: asyncio.Task | None = None
 
     admin = discord.SlashCommandGroup(
         name='admin',
@@ -33,37 +48,22 @@ class AdminCog(commands.Cog):
         guild_ids=[cfg.general['guild_id']]
     )
 
-    # @discord.slash_command(name='admin',
-    #                            description='Admin Only Commands',
-    #                            guild_ids=[cfg.general['guild_id']]
-    #                            )
-    # async def admin(self, ctx: discord.ApplicationContext):
-    #     if ctx.user == d_obj.colin:
-    #         await disp.HELLO.send(ctx, f'glorious creator {d_obj.colin.mention}')
-    #     else:
-    #         await disp.HELLO.send(ctx, ctx.user.mention)
-
     @admin.command()
     async def loader(self, ctx: discord.ApplicationContext,
-                     action: discord.Option(str, "Lock or Unlock FSBot", choices=("Unlock", "Lock", "Reload"),
+                     action: discord.Option(str, "Lock or Unlock FSBot", choices=("Unlock", "Lock"),
                                             required=True)):
-        """Unlock, Lock or Reload all bot extensions other than the Admin cog."""
+        """Unlock or Lock bot.  Only admins will be able to use any features."""
         match action:
             case "Unlock":
-                await loader.unlock_all(self.bot)
+                loader.unlock_all()
                 await disp.LOADER_TOGGLE.send_priv(ctx, action)
             case "Lock":
-                loader.lock_all(self.bot)
-                await disp.LOADER_TOGGLE.send_priv(ctx, action)
-            case "Reload":
-                loader.lock_all(self.bot)
-                await asyncio.sleep(1)
-                await loader.unlock_all(self.bot)
+                loader.lock_all()
                 await disp.LOADER_TOGGLE.send_priv(ctx, action)
 
     @admin.command()
     async def contentplug(self, ctx: discord.ApplicationContext,
-                          action: discord.Option(str, "Enable, Disable or check statusof the #contentplug filter",
+                          action: discord.Option(str, "Enable, Disable or check status of the #contentplug filter",
                                                  choices=("Enable", "Disable", "Status"),
                                                  required=True)):
         """Enable or disable the #contentplug filter"""
@@ -76,7 +76,36 @@ class AdminCog(commands.Cog):
         await d_obj.d_log(f"{action}ed {channel.mention}'s content filter")
         await ctx.respond(f"{action}ed {channel.mention}'s content filter", ephemeral=True)
 
-    @admin.command(name="rulesinit", )
+    @admin.command(name="censusonlinecheck")
+    async def manual_census(self, ctx: discord.ApplicationContext):
+        """Runs a REST census online check, to catch any login/logouts that the websocket may have missed"""
+        ran = await self.census_rest()
+        await disp.MANUAL_CENSUS.send_priv(ctx, "successful." if ran else "failed.")
+
+    @admin.command(name='census')
+    async def census_control(self, ctx: discord.ApplicationContext,
+                             action: discord.Option(str, "Enable, Disable, or check status of the Census Loop",
+                                                    choices=("Enable", "Disable", "Status"),
+                                                    required=False)):
+        """Control the REST Census loop"""
+
+        match action:
+
+            case "Enable" if self.census_rest.is_running():
+                self.census_rest.restart()
+                await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Running", "restarted")
+            case "Enable":
+                self.census_rest.start()
+                await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Stopped", "started")
+            case "Disable" if self.census_rest.is_running():
+                self.census_rest.stop()
+                await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Running", "stopped")
+            case _:
+                await disp.CENSUS_LOOP_STATUS.send_priv(ctx, "Running" if self.census_rest.is_running() else "Stopped")
+                return
+        await d_obj.d_log(f"{ctx.user.display_name} {action}d the Census Loop.")
+
+    @admin.command(name="rulesinit")
     async def rulesinit(self, ctx: discord.ApplicationContext,
                         message_id: discord.Option(str, "Existing FSBot Rules message", required=False)):
         """Posts Rules Message in current channel or replaces message at given ID"""
@@ -104,7 +133,8 @@ class AdminCog(commands.Cog):
             except discord.Forbidden:
                 await ctx.respond(content="Selected Message not owned by the bot!", ephemeral=True)
                 return
-        await ctx.channel.send(content="", view=register.RegisterView(), embed=embeds.fsbot_info_embed())
+        else:
+            await ctx.channel.send(content="", view=register.RegisterView(), embed=embeds.fsbot_info_embed())
         await ctx.respond(content="Register and Settings Message Posted", ephemeral=True)
 
     ##########################################################
@@ -115,11 +145,14 @@ class AdminCog(commands.Cog):
 
     @match_admin.command(name="addplayer")
     async def add_player(self, ctx: discord.ApplicationContext,
+                         member: discord.Option(discord.Member, "User to invite to match", required=True),
                          match_channel: discord.Option(discord.TextChannel, "Match Channel to invite member to",
-                                                       required=True),
-                         member: discord.Option(discord.Member, "User to invite to match", required=True)):
-        """Add a player to a given match."""
+                                                       required=False)
+                         ):
+        """Add a player to a match. If a channel isn't provided, current is used."""
         p = Player.get(member.id)
+        match_channel = match_channel or ctx.channel
+
         try:
             match = BaseMatch.active_match_channel_ids()[match_channel.id]
         except KeyError:
@@ -130,57 +163,158 @@ class AdminCog(commands.Cog):
             return
 
         await match.join_match(p)
-        await disp.MATCH_JOIN_2.send_priv(ctx, p.name, match.text_channel.mention)
+        if p.lobby:
+            await p.lobby.lobby_leave(player=p, match=match)
+        await disp.MATCH_JOIN_2.send_priv(ctx, p.name, match.thread.mention)
 
     @match_admin.command(name="removeplayer")
     async def remove_player(self, ctx: discord.ApplicationContext,
-                            match_channel: discord.Option(discord.TextChannel, "Match Channel to remove member from",
-                                                          required=True),
                             member: discord.Option(discord.Member, "User to remove from match", required=True)):
-        """Remove a player from a given match.  If the owner is removed from a match, the match will end."""
+        """Remove a player from a match.  If the owner is removed from a match, the match will end."""
         p = Player.get(member.id)
-        try:
-            match = BaseMatch.active_match_channel_ids()[match_channel.id]
-        except KeyError:
-            await disp.MATCH_NOT_FOUND.send_priv(ctx, match_channel.mention)
-            return
-        if p.match == match:
-            await match.leave_match(p.active)
-            await disp.MATCH_LEAVE_2.send_priv(ctx, p.name, match.text_channel.mention)
+
+        if p.match:
+            await disp.MATCH_LEAVE_2.send_priv(ctx, p.name, p.match.thread.mention)
+            await p.match.leave_match(p.active)
+
         else:
-            await disp.MATCH_NOT_IN.send_priv(ctx, p.name, match.text_channel.mention)
+            await disp.MATCH_NOT_IN_2.send_priv(ctx, p.name)
+
+    @match_admin.command(name="create")
+    async def create_match(self, ctx: discord.ApplicationContext,
+                           member: discord.Option(discord.Member, "User to add to match",
+                                                  required=True),
+                           owner: discord.Option(discord.Member, "Match Owner, defaults to you",
+                                                 required=False),
+                           match_type: discord.Option(str, "Type of match to create, defaults to Casual",
+                                                      default="casual",
+                                                      choices=["casual", "ranked"])):
+        """Creates a match with the given arguments.  """
+        await ctx.defer(ephemeral=True)
+        # set up Player Objects
+        if not (invited := await d_obj.registered_check(ctx, member)) \
+                or not (owner := await d_obj.registered_check(ctx, owner or ctx.user)):
+            return
+        # check / update player status
+        if invited.match or owner.match:
+            return await disp.ADMIN_MATCH_CREATE_ERROR.send_priv(ctx)
+        if invited.lobby:
+            await invited.lobby.lobby_leave(invited)
+        if owner.lobby:
+            await owner.lobby.lobby_leave(owner)
+
+        match_class = BaseMatch if match_type == "casual" else RankedMatch
+        lobby = Lobby.get(match_type)
+        match = await lobby.accept_invite(owner, invited)
+        match.log(f"Admin Created Match: {ctx.user.display_name}")
+        await disp.MATCH_CREATE.send_priv(ctx, match.thread.mention, match.id_str)
 
     @match_admin.command(name="end")
     async def end_match(self, ctx: discord.ApplicationContext,
-                        match_id: discord.Option(int, "Match ID to end",
-                                                 required=True)):
-        """End a given match forcibly."""
-        ctx.defer(ephemeral=True)
-        try:
-            match = BaseMatch.active_matches_dict()[match_id]
-        except KeyError:
-            await disp.MATCH_NOT_FOUND.send_priv(ctx, match_id)
-            return
+                        match_id: discord.Option(int, "Match ID to end", required=False)):
+        """End a given match forcibly.  Uses current channel if no ID provided"""
+        await ctx.defer(ephemeral=True)
+        match = BaseMatch.active_matches_dict().get(match_id) or BaseMatch.active_match_channel_ids().get(
+            ctx.channel_id)
 
-        await match.end_match()
+        if not match:
+            await disp.MATCH_NOT_FOUND.send_priv(ctx, (match_id or ctx.channel.mention))
+
         await disp.MATCH_END.send_priv(ctx, match.id_str)
+        await match.end_match(EndCondition.EXTERNAL)
 
     #########################################################
+    # Lobby Admin Commands
+    lobby_admin = admin.create_subgroup(
+        name="lobby", description="Admin Lobby Commands"
+    )
 
-    accounts = admin.create_subgroup(
+    @lobby_admin.command(name="lock")
+    async def lobby_lock(self, ctx: discord.ApplicationContext,
+                         action: discord.Option(str, "Lock or Unlock the Lobby", required=True,
+                                                choices=["lock", "unlock"]),
+                         lobby_choice: discord.Option(str, "Lobby to lock or unlock", required=False,
+                                                      choices=["casual", "ranked"])):
+        """Lock or Unlock the Lobby"""
+        lobby = Lobby.get(lobby_choice) or Lobby.channel_to_lobby(ctx.channel)
+
+        if not lobby:
+            await disp.LOBBY_NOT_FOUND.send_priv(ctx, lobby_choice or ctx.channel.mention)
+            return
+
+        await ctx.defer(ephemeral=True)
+
+        if action == "lock":
+            await lobby.disable()
+            await disp.LOBBY_DISABLED.send_priv(ctx, lobby.name)
+        else:
+            await lobby.enable()
+            await disp.LOBBY_ENABLED.send_priv(ctx, lobby.name)
+
+    @lobby_admin.command(name="addplayer")
+    async def lobby_addplayer(self, ctx: discord.ApplicationContext,
+                              member: discord.Option(discord.Member, "Member to add to lobby", required=True),
+                              lobby_choice: discord.Option(str, "Lobby to add member to", required=False,
+                                                           choices=["casual", "ranked"])):
+        """Add a player to a lobby"""
+        lobby = Lobby.get(lobby_choice) or Lobby.channel_to_lobby(ctx.channel)
+        if not lobby:
+            await disp.LOBBY_NOT_FOUND.send_priv(ctx, lobby_choice or ctx.channel.mention)
+            return
+
+        if not (p := await d_obj.registered_check(ctx, member)):
+            return
+
+        await ctx.defer(ephemeral=True)
+
+        if p.lobby:
+            await p.lobby.lobby_leave(p)
+        joined = await lobby.lobby_join(p)
+        if joined:
+            await disp.LOBBY_PLAYER_ADDED.send_priv(ctx, p.name, lobby.name)
+        else:
+            await disp.LOBBY_PLAYER_CANT_ADD.send_priv(ctx, p.name, lobby.name)
+
+    @lobby_admin.command(name="removeplayer")
+    async def lobby_removeplayer(self, ctx: discord.ApplicationContext,
+                                 member: discord.Option(discord.Member, "Member to remove from Lobby, required=True"),
+                                 lobby_choice: discord.Option(str, "Lobby to remove member from", required=False,
+                                                              choices=["casual", "ranked"])):
+        """Remove a player from a lobby"""
+        lobby = Lobby.get(lobby_choice) or Lobby.channel_to_lobby(ctx.channel)
+        if not lobby:
+            await disp.LOBBY_NOT_FOUND.send_priv(ctx, lobby_choice or ctx.channel.mention)
+            return
+
+        if not (p := await d_obj.registered_check(ctx, member)):
+            return
+
+        await ctx.defer(ephemeral=True)
+
+        if p.lobby != lobby:
+            await disp.LOBBY_PLAYER_NOT_IN.send_priv(ctx, p.name, lobby.name)
+            return
+
+        await lobby.lobby_leave(p)
+        await disp.LOBBY_PLAYER_REMOVED.send_priv(ctx, p.name, lobby.name)
+
+    #########################################################
+    # Accounts Admin Commands
+    accounts_admin = admin.create_subgroup(
         name="accounts", description="Admin Accounts Commands"
     )
 
-    @accounts.command(name="assign")
-    async def assign(self, ctx: discord.ApplicationContext,
-                     member: discord.Option(discord.Member, "Recipients @mention", required=True),
-                     acc_id: discord.Option(int, "A specific account ID to assign, 1-24", min_value=1, max_value=24,
-                                            required=False)):
+    @accounts_admin.command(name="assign")
+    async def account_assign(self, ctx: discord.ApplicationContext,
+                             member: discord.Option(discord.Member, "Recipients @mention", required=True),
+                             acc_id: discord.Option(int, "A specific account ID to assign, 1-24", min_value=1,
+                                                    max_value=24,
+                                                    required=False)):
         """Assign an account to a user, with optional specific account ID"""
         await ctx.defer(ephemeral=True)
         p = Player.get(member.id)
         if not p:
-            await disp.NOT_PLAYER.send_priv(ctx, member.mention)
+            await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
             return
         if p.account:
             await accounts.terminate(p.account)
@@ -192,17 +326,72 @@ class AdminCog(commands.Cog):
                 await disp.ACCOUNT_IN_USE.send_priv(ctx, acc.id)
                 return
             accounts.set_account(p, acc)
-        await accounts.send_account(acc, p)
-        await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
+        if await accounts.send_account(acc, p):
+            await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
 
-    @accounts.command(nane='info')
-    async def info(self, ctx: discord.ApplicationContext):
+        # if DM's failed
+        else:
+            await disp.ACCOUNT_DM_FAILED.send_priv(ctx, p.mention)
+
+    @accounts_admin.command(name="terminate")
+    async def account_terminate(self, ctx: discord.ApplicationContext,
+                                member: discord.Option(discord.Member, "Player who's account to terminate",
+                                                       required=True),
+                                clean: discord.Option(bool, "Should the account be cleaned?", default=False)):
+        """Terminate a player's account"""
+        await ctx.defer(ephemeral=True)
+        p = Player.get(member.id)
+        if not p:
+            await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+            return
+        if acc := p.account:
+            await accounts.terminate(acc, force_clean=clean)
+            cleaned_str = "Cleaned Account" if acc.is_clean else f"Account was not cleaned, " \
+                                                                 f"player is online on {acc.online_name}"
+            await disp.ACCOUNT_TERMINATED.send_priv(ctx, acc.id, cleaned_str)
+        else:
+            await disp.ACCOUNT_NOT_ASSIGNED.send_priv(ctx, p.mention)
+
+    @accounts_admin.command(name='info')
+    async def account_info(self, ctx: discord.ApplicationContext):
+        """Provide info on FSBot's connected Jaeger Accounts"""
         num_available = len(accounts._available_accounts)
         assigned = accounts._busy_accounts.values()
         num_used = len(assigned)
         online = [acc for acc in accounts.all_accounts.values() if acc.online_id]
         await disp.ACCOUNT_INFO.send_priv(ctx, num_available=num_available, num_used=num_used, assigned=assigned,
                                           online=online)
+
+    @accounts_admin.command(name='watchtower')
+    async def watchtower_toggle(self, ctx: discord.ApplicationContext,
+                                action: discord.Option(str,
+                                                       "Enable, Disable or check status of the Unassigned Online "
+                                                       "Tracker",
+                                                       choices=("Enable", "Disable", "Status"), required=True)
+                                ):
+        """Accounts Watchtower Control"""
+        running = accounts.UNASSIGNED_ONLINE_WARN
+        changed = False
+
+        if action == "Enable" and not running:
+            accounts.UNASSIGNED_ONLINE_WARN = True
+            changed = True
+        elif action == "Disable" and running:
+            accounts.UNASSIGNED_ONLINE_WARN = False
+            changed = True
+        string = f"Accounts watchtower was {'running' if running else 'stopped'}."
+        if changed:
+            string += f" It is now {'started' if accounts.UNASSIGNED_ONLINE_WARN else 'stopped'}."
+            await d_obj.d_log(string)
+        await ctx.respond(string, ephemeral=True)
+
+    @accounts_admin.command(name='reload')
+    async def accounts_reload(self, ctx: discord.ApplicationContext):
+        """Run the Accounts Initializer Manually"""
+        await ctx.defer(ephemeral=True)
+        info = await accounts.init(cfg.GAPI_SERVICE)
+        await d_obj.d_log(info)
+        await disp.ANY.send_priv(ctx, info)
 
     @commands.message_command(name="Assign Account")
     @commands.max_concurrency(number=1, wait=True)
@@ -212,9 +401,12 @@ class AdminCog(commands.Cog):
         """
         await ctx.defer(ephemeral=True)
 
+        if not d_obj.is_admin(ctx.user):
+            return await disp.CANT_USE.send_priv(ctx)
+
         p = Player.get(message.author.id)
         if not p:  # if not a player
-            await disp.NOT_PLAYER.send_priv(ctx, message.author.mention)
+            await disp.NOT_PLAYER_2.send_priv(ctx, message.author.mention)
             await message.add_reaction("\u274C")
             return
 
@@ -230,67 +422,248 @@ class AdminCog(commands.Cog):
             return
 
         # if all checks passed, send account
-        await accounts.send_account(acc, p)
-        await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
-        await message.add_reaction("\u2705")
+        if await accounts.send_account(acc, p):
+            await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
+            await message.add_reaction("\u2705")
+
+        # if DM's failed
+        else:
+            await disp.ACCOUNT_DM_FAILED.send_priv(ctx, p.mention)
+            await message.add_reaction("\u274C")
 
     @msg_assign_account.error
     async def msg_assign_account_concurrency_error(self, ctx, error):
         if isinstance(error, commands.MaxConcurrencyReached):
             await ctx.respond('Someone else is using this command right now, try again soon!', ephemeral=True)
 
+    ##########################################################
+
+    player_admin = admin.create_subgroup(
+        name="player", description="Admin Player Commands"
+    )
+
+    @player_admin.command(name='info')
+    async def player_info(self, ctx: discord.ApplicationContext,
+                          member: discord.Option(discord.Member, "@mention to get info on", required=True)):
+        """Provide info on a given player"""
+        p = Player.get(member.id)
+        if not p:
+            await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+            return
+
+        await disp.REG_INFO.send_priv(ctx, player=p)
+
+    @player_admin.command(name='rename')
+    async def player_rename(self, ctx: discord.ApplicationContext,
+                            member: discord.Option(discord.Member, "@mention to get info on", required=True),
+                            name: discord.Option(str, "New name for Player, must be alphanumeric", required=True)):
+        """Rename a given player"""
+        p = Player.get(member.id)
+        if not p:
+            await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+            return
+        if p.rename(name):
+            await disp.REGISTER_RENAME.send_priv(ctx, member.mention, name)
+            return
+        await disp.REGISTER_INVALID_NAME.send_priv(ctx, name)
+
+    @player_admin.command(name='clean')
+    async def player_clean(self, ctx: discord.ApplicationContext,
+                           member: discord.Option(discord.Member, "@mention to clean", required=True)):
+        """Remove a player from their active commitments: lobbies, matches, accounts."""
+        await ctx.defer(ephemeral=True)
+        p = Player.get(member.id)
+        if not p:
+            await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+            return
+
+        await p.clean()
+
+        await disp.ADMIN_PLAYER_CLEAN.send_priv(ctx, p.mention)
+
+    @player_admin.command(name='setcharacter')
+    async def player_set_character(self, ctx: discord.ApplicationContext,
+                                   member: discord.Option(discord.Member,
+                                                          "@mention to modify online status. Defaults to you",
+                                                          required=False),
+                                   character: discord.Option(str,
+                                                             "Character to show as online. Defaults to logout.",
+                                                             autocomplete=player_chars_autocomplete,
+                                                             required=False)):
+        """Set a player's online status to one of their characters, or offline."""
+        member = member or ctx.user
+        if not (p := await d_obj.registered_check(ctx, member)):
+            return
+        # Auto-complete character name from players characters
+        found_chars = [char for char in p.ig_names if char.lower().find(character.lower()) >= 0] if character else False
+        character = found_chars[0] if found_chars else character
+
+        # If character is valid, set it as online
+        if character and (char_id := p.char_id_by_name(character)):
+            await census.login(char_id, accounts.account_char_ids, Player.map_chars_to_players())
+            await disp.ADMIN_PLAYER_LOGIN_SET.send_priv(ctx, p.mention, character)
+        # If no character, set player as offline
+        elif p.online_id and not character:
+            await census.logout(p.online_id, accounts.account_char_ids, Player.map_chars_to_players())
+            await disp.ADMIN_PLAYER_LOGOUT_SET.send_priv(ctx, p.mention)
+        # If character not found, send error
+        elif character:
+            await disp.ADMIN_PLAYER_CHAR_NOT_FOUND.send_priv(ctx, character, p.mention)
+        # If player is already offline, send error
+        else:
+            await disp.ADMIN_PLAYER_LOGOUT_ALREADY.send_priv(ctx, p.mention)
+
+    register_admin = admin.create_subgroup(
+        name="register", description="Admin Registration Commands"
+    )
+
+    @register_admin.command(name="noaccount")
+    async def register_no_acc(self, ctx: discord.ApplicationContext,
+                              member: discord.Option(discord.Member, "@mention to modify", required=True)):
+        """Force register a specific player as not having a personal Jaeger account."""
+        await ctx.defer(ephemeral=True)
+        if (p := Player.get(member.id)) is None:
+            return await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+
+        if await p.register(None):
+            return await disp.AS.send_priv(ctx, member.mention, disp.REG_SUCCESFUL_NO_CHARS())
+        return await disp.AS.send_priv(ctx, member.mention, disp.REG_ALREADY_NO_CHARS())
+
+    @register_admin.command(name="personal")
+    async def register_personal_acc(self, ctx: discord.ApplicationContext,
+                                    member: discord.Option(discord.Member, "@mention to modify", required=True)):
+
+        """Force register a specific player with their personal jaeger account."""
+        if (p := Player.get(member.id)) is None:
+            return await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+        await ctx.send_modal(register.RegisterCharacterModal(player=p))
+
+    ###############################################################
+
+    timeout_admin = admin.create_subgroup(
+        name="timeout", description="Admin Timeout Commands"
+    )
+
+    @timeout_admin.command(name='check')
+    async def timeout_check(self, ctx: discord.ApplicationContext,
+                            member: discord.Option(discord.Member, "@mention to check timeout for", required=True)):
+        """Check the timeout status of a player"""
+        if (p := Player.get(member.id)) and p.is_timeout:
+            timestamps = [tools.format_time_from_stamp(p.timeout_until, x) for x in ("R", "F")]
+            return await disp.TIMEOUT_UNTIL.send_priv(ctx, p.mention, p.name, *timestamps)
+        await disp.TIMEOUT_NOT.send_priv(ctx, p.mention, p.name)
+
+    @timeout_admin.command(name='until')
+    async def timeout_until(self, ctx: discord.ApplicationContext,
+                            member: discord.Option(discord.Member, "@mention to timeout", required=True),
+                            reason: discord.Option(str, name="reason", description="Reason for timeout"),
+                            date: discord.Option(str, name="date",
+                                                 description="Format YYYY-MM-DD", required=True,
+                                                 min_length=10, max_length=10),
+                            time_str: discord.Option(str, name="time",
+                                                     description="Format HH:MM", default="00:00",
+                                                     min_length=5, max_length=5),
+                            zone: discord.Option(str, name="timezone",
+                                                 description="Defaults to UTC", default="UTC",
+                                                 choices=tools.pytz_discord_options())
+                            ):
+        """Timeout a player until a specific date/time, useful for long timeouts.  Timezone defaults to UTC."""
+        await ctx.defer(ephemeral=True)
+        full_dt_str = ' '.join([date, time_str])
+        try:
+            timeout_dt = dt.strptime(full_dt_str, '%Y-%m-%d %H:%M')
+            timeout_dt = timezone(zone).localize(timeout_dt)
+            stamp = int(timeout_dt.timestamp())
+        except ValueError:
+            return await disp.TIMEOUT_WRONG_FORMAT.send_priv(ctx, full_dt_str)
+
+        if p := Player.get(member.id):
+            # Check if timeout is in the past
+            relative, short_time = tools.format_time_from_stamp(stamp, "R"), tools.format_time_from_stamp(stamp, "f")
+            if stamp < tools.timestamp_now():
+                return await disp.TIMEOUT_PAST.send_priv(ctx, short_time)
+
+            # Set timeout, clear player
+            await d_obj.timeout_player(p=p, stamp=stamp, mod=ctx.user, reason=reason)
+            return await disp.TIMEOUT_NEW.send_priv(ctx, p.mention, p.name, relative, short_time)
+        await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+
+    @timeout_admin.command(name='for')
+    async def timeout_for(self, ctx: discord.ApplicationContext,
+                          member: discord.Option(discord.Member, "@mention to timeout", required=True),
+                          reason: discord.Option(str, name="reason", description="Reason for timeout"),
+                          minutes: discord.Option(int, "Minutes to timeout", default=0, min_value=0),
+                          hours: discord.Option(int, "Hours to timeout", default=0, min_value=0),
+                          days: discord.Option(int, "Days to timeout", default=0, min_value=0),
+                          weeks: discord.Option(int, "Weeks to timeout", default=0, min_value=0)
+                          ):
+        """Timeout a player for a set period of time"""
+        await ctx.defer(ephemeral=True)
+
+        if (delta := timedelta(minutes=minutes, hours=hours, days=days, weeks=weeks)) + dt.now() == dt.now():
+            return await disp.TIMEOUT_NO_TIME.send_priv(ctx)
+
+        timeout_dt = dt.now() + delta
+
+        if p := Player.get(member.id):
+            # Set timeout, clear player
+            await d_obj.timeout_player(p=p, stamp=int(timeout_dt.timestamp()), mod=ctx.user, reason=reason)
+
+            timestamps = [tools.format_time_from_stamp(p.timeout_until, x) for x in ("R", "f")]
+            return await disp.TIMEOUT_NEW.send_priv(ctx, p.mention, p.name, *timestamps)
+        await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+
+    @timeout_admin.command(name='clear')
+    async def timeout_clear(self, ctx: discord.ApplicationContext,
+                            member: discord.Option(discord.Member, "@mention to end timeout for", required=True)):
+        """Clear a specific players timeout"""
+        await ctx.defer(ephemeral=True)
+        if p := Player.get(member.id):
+            if not p.is_timeout:
+                return await disp.TIMEOUT_NOT.send_priv(ctx, p.mention, p.name)
+
+            # Set Timeout to 0 (clearing it)
+            await d_obj.timeout_player(p=p, stamp=0, mod=ctx.user)
+            return await disp.TIMEOUT_CLEAR.send_priv(ctx, p.mention, p.name)
+        await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+
+    ##############################################################
+
     @commands.Cog.listener('on_ready')
     async def on_ready(self):
         #  Wait until the bot is ready before starting loops, ensure account_handler has finished init
         await asyncio.sleep(5)
-        self.census_watchtower.start()
         self.account_sheet_reload.start()
-        self.account_watchtower.start()
         self.census_rest.start()
+        self.census_watchtower = self.bot.loop.create_task(census.online_status_updater(Player.map_chars_to_players))
 
-    @tasks.loop(minutes=10, count=2)
+    @tasks.loop(seconds=15)
     async def census_rest(self):
+        """Backup census method for checking accounts online status"""
         for _ in range(5):
             if await census.online_status_rest(Player.map_chars_to_players()):
-                return
-        log.warning("Could not reach REST api during census rest after 5 tries...")
+                return True
+        log.warning("Could not reach REST api during census REST after 5 tries...")
+        return False
 
-    @tasks.loop(count=1)
-    async def census_watchtower(self):
-        await census.online_status_updater(Player.map_chars_to_players)
+    @tasks.loop(minutes=30)
+    async def wss_restart(self):
+        """Restart the census_watchtower regularly in order to stop it from dying?"""
+        if self.census_watchtower and not self.census_watchtower.done():
+            self.census_watchtower.cancel()
+        self.census_watchtower = self.bot.loop.create_task(census.online_status_updater(Player.map_chars_to_players))
+
+    # @census_watchtower.after_loop
+    # async def after_census_watchtower(self):
+    #     if self.census_watchtower.failed():
+    #         await d_obj.log(f"{d_obj.colin.mention} Census Watchtower has failed")
+    #     if self.census_watchtower.is_being_cancelled():
+    #         await census.EVENT_CLIENT.close()
 
     @tasks.loop(time=time(hour=11, minute=0, second=0))
     async def account_sheet_reload(self):
         log.info("Reinitialized Account Sheet and Account Characters")
         await accounts.init(cfg.GAPI_SERVICE)
-
-    @tasks.loop(seconds=10)
-    async def account_watchtower(self):
-        # create list of accounts with online chars and no player assigned
-        unassigned_online = set()
-        for acc in accounts.all_accounts.values():
-            if acc.online_id and not acc.a_player:
-                unassigned_online.add(acc)
-
-            #  account session over 3 hours
-            elif acc.is_validated and not acc.is_terminated:
-                if acc.last_usage['start_time'] < tools.timestamp_now() - 3 * 60 * 60:
-                    await accounts.terminate(acc)
-
-            #  account terminated but user still online 10 minutes later
-            elif acc.online_id and acc.is_terminated:
-                if acc.last_usage['end_time'] < tools.timestamp_now() - 10 * 60:
-                    await d_obj.d_log(f'User: {acc.a_player.mention} has not logged out of their Jaeger account'
-                                      f' 10 minutes after their session ended')
-
-        # compare to cache to see if login is new. Ping only if login is new.
-        new_online = unassigned_online - self.online_cache
-        if new_online:
-            await disp.UNASSIGNED_ONLINE.send(d_obj.channels['logs'],
-                                              d_obj.roles['app_admin'].mention,
-                                              online=unassigned_online)
-        # Cache Online Accounts
-        self.online_cache = unassigned_online
 
 
 def setup(client):

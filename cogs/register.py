@@ -2,19 +2,21 @@
 Cog to handle registration, de-registration and parameter modification,
  mostly through message components."""
 # External Imports
+import auraxium.errors
 import discord
 from discord.ext import commands
-
+from logging import getLogger
 
 # Internal Imports
 import modules.config as cfg
 import classes
+import modules.accounts_handler as accounts_handler
 from classes.players import Player, SkillLevel
 import modules.database as db
 from display import AllStrings as disp, views, embeds
 import modules.discord_obj as d_obj
 
-
+log = getLogger('fs_bot')
 
 
 # Views
@@ -32,18 +34,20 @@ class RulesView(views.FSBotView):
                                                     ephemeral=True, delete_after=15)
             p.hidden = False
             await p.db_update('hidden')
-            await interaction.user.add_roles(d_obj.roles['view_channels'], reason="Rules Accepted")
         elif p and not p.hidden:
             await interaction.response.send_message(content=f"You've already accepted the rules "
                                                             f"{interaction.user.mention}!",
                                                     ephemeral=True, delete_after=15)
+
         else:
-            p = classes.Player(interaction.user.id, interaction.user.name)
+            p = classes.Player(interaction.user.id, discord.utils.escape_markdown(interaction.user.name))
             await db.async_db_call(db.set_element, 'users', p.id, p.get_data())
-            await interaction.user.add_roles(d_obj.roles['view_channels'], reason="Rules Accepted")
-            await interaction.response.send_message(content=f"You have accepted the rules "
-                                                            f"{interaction.user.mention}, have fun!",
-                                                    ephemeral=True, delete_after=15)
+
+            await disp.REGISTER_NEW_PLAYER.send_priv(interaction.response,
+                                                     interaction.user.mention,
+                                                     d_obj.channels['register'].mention,
+                                                     d_obj.channels['casual_lobby'].mention)
+        await d_obj.role_update(interaction.user)
 
     @discord.ui.button(label="Hide Category", custom_id="rules-hide", style=discord.ButtonStyle.red)
     async def hide_button(self, button: discord.ui.Button, interaction: discord.Interaction):
@@ -57,8 +61,8 @@ class RulesView(views.FSBotView):
             await interaction.response.send_message(content=f"See you soon {interaction.user.mention}, "
                                                             f"you're always welcome back!",
                                                     ephemeral=True, delete_after=15)
-            await interaction.user.remove_roles(d_obj.roles['view_channels'], reason="Chose Hidden")
             p.hidden = True
+            await d_obj.role_update(interaction.user)
             await p.db_update('hidden')
         else:
             await interaction.response.send_message(content=f"You can't hide something you have never seen!",
@@ -71,7 +75,8 @@ class SkillLevelDropdown(discord.ui.Select):
     def __init__(self):
         options = []
         for level in list(SkillLevel):
-            options.append(discord.SelectOption(label=str(level), value=level.name, description=level.description))
+            options.append(discord.SelectOption(label=f'{level.rank}:{str(level)}', value=level.name,
+                                                description=level.description))
 
         super().__init__(placeholder="Choose your own skill level...",
                          min_values=1,
@@ -93,7 +98,8 @@ class RequestedSkillLevelDropdown(discord.ui.Select):
     def __init__(self):
         options = [discord.SelectOption(label='Any', description='No preference on opponent skill level')]
         for level in list(SkillLevel):
-            options.append(discord.SelectOption(label=str(level), value=level.name, description=level.description))
+            options.append(discord.SelectOption(label=f'{level.rank}:{str(level)}', value=level.name,
+                                                description=level.description))
 
         super().__init__(placeholder="Choose the level(s) you'd like to duel...",
                          min_values=1,
@@ -126,7 +132,7 @@ class PreferredFactionDropdown(discord.ui.Select):
 
     def __init__(self):
         options = []
-        esfs_dict = {'VS': 'Scythe', 'NC': 'Reaver', 'TR': 'Mosquito'}
+        esfs_dict = {'VS': 'Scythe', 'NC': 'Reaver', 'TR': 'Mosquito', 'NS': 'Dervish'}
         for faction in cfg.factions.values():
             options.append(discord.SelectOption(label=faction,
                                                 description=esfs_dict[faction],
@@ -154,7 +160,7 @@ class PreferredFactionDropdown(discord.ui.Select):
 
 
 class RegisterCharacterModal(discord.ui.Modal):
-    def __init__(self) -> None:
+    def __init__(self, player: Player = None) -> None:
         super().__init__(
             discord.ui.InputText(
                 label="Input Character(s)",
@@ -167,22 +173,47 @@ class RegisterCharacterModal(discord.ui.Modal):
             title="Jaeger Character Registration",
 
         )
+        self.p = player
 
     async def callback(self, inter: discord.Interaction):
-        p: classes.Player = classes.Player.get(inter.user.id)
-        char_list = self.children[0].value.replace(' ', ',').split(',')
+        p: classes.Player = self.p or classes.Player.get(inter.user.id)
+        # remove leading/trailing whitespaces, replace " " or "/n" with "," if user used spaces instead of
+        # commas to separate chars.
+        char_list = self.children[0].value.strip().replace(' ', ',').replace('\n', ',').split(',')
         for char in char_list:
             char.strip()
+
+        # remove any blank entries in char_list
         char_list = list(filter(len, char_list))
         await inter.response.defer(ephemeral=True)
+        original_inter = inter
         inter = inter.followup
         if len(char_list) == 1 or len(char_list) == 3:  # if base char name, or individual names provided
             try:
+                await original_inter.channel.trigger_typing()
                 registered = await p.register(char_list)
-                if registered:
-                    await disp.REG_SUCCESSFUL_CHARS.send_priv(inter, *p.ig_names)
-                else:
-                    await disp.REG_ALREADY_CHARS.send_priv(inter, *p.ig_names)
+
+                # Remove player account if successfully registered
+                if registered and p.account:
+                    await accounts_handler.terminate(player=p)
+                # Reset login status if player was online
+                if registered and p.online_id:
+                    p.online_id = None
+                char_string = ', '.join(p.ig_names)
+                # match/case to allow proxy registration responses
+                match registered:
+                    case True if not self.p:
+                        await disp.REG_SUCCESSFUL_CHARS.send_priv(inter, char_string)
+
+                    case True if self.p:
+                        await disp.AS.send_priv(inter, p.mention, disp.REG_SUCCESSFUL_CHARS(char_string))
+
+                    case _ if self.p:
+                        await disp.AS.send_priv(inter, p.mention, disp.REG_ALREADY_CHARS(char_string))
+
+                    case _:
+                        await disp.REG_ALREADY_CHARS.send_priv(inter, char_string)
+
             except classes.players.CharMissingFaction as e:
                 await disp.REG_MISSING_FACTION.send_priv(inter, e.faction)
             except classes.players.CharAlreadyRegistered as e:
@@ -191,6 +222,11 @@ class RegisterCharacterModal(discord.ui.Modal):
                 await disp.REG_NOT_JAEGER.send_priv(inter, e.char)
             except classes.players.CharNotFound as e:
                 await disp.REG_CHAR_NOT_FOUND.send_priv(inter, e.char)
+            except classes.players.CharBotAccount as e:
+                await disp.REG_CHAR_PROTECTED.send_priv(inter, e.char)
+            except (auraxium.errors.MaintenanceError, auraxium.errors.ServiceUnavailableError):
+                log.info("Auraxium Error when trying to register characters for %s", inter.name)
+                await disp.REG_NO_CENSUS.send_priv(inter)
         else:  # if any other format provided
             await disp.REG_WRONG_FORMAT.send_priv(inter)
 
@@ -221,8 +257,19 @@ class RegisterView(views.FSBotView):
         else:
             await disp.REG_ALREADY_NO_CHARS.send_priv(inter)
 
-    @discord.ui.button(label="View Registration Info", custom_id='register-info',
+    @discord.ui.button(label="Lobby Pings", custom_id='register-pings',
                        style=discord.ButtonStyle.blurple)
+    async def register_pings_button(self, button: discord.ui.Button, inter: discord.Interaction):
+        current_pref_str = "You have chosen to never receive a ping when someone joins the lobby!"
+        p = classes.Player.get(inter.user.id)
+        if pref := p.lobby_ping_pref != 0:
+            current_pref_str = f"Receive a ping when a matching player joins the lobby:" \
+                               f" **{'Always' if pref == 2 else 'Only if Online'}**, with at least " \
+                               f"**{p.lobby_ping_freq}** minutes between pings"
+        await disp.PREF_PINGS_CURRENT.send_priv(inter, current_pref_str, view=views.RegisterPingsView())
+
+    @discord.ui.button(label="View Registration Info", custom_id='register-info',
+                       style=discord.ButtonStyle.grey)
     async def register_info_button(self, button: discord.ui.Button, inter: discord.Interaction):
         p = classes.Player.get(inter.user.id)
         await disp.REG_INFO.send_priv(inter, player=p)

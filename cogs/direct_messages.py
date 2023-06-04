@@ -48,6 +48,7 @@ async def _stop_dm_thread(user_id, user_side):
         await db.async_db_call(db.set_field, 'restart_data', 0, {'dm_threads': DM_THREADS})
         await disp.DM_THREAD_CLOSE.send(user)
 
+
 class DMCog(commands.Cog):
 
     def __init__(self, client):
@@ -56,11 +57,16 @@ class DMCog(commands.Cog):
 
     @commands.slash_command(name="modmail")
     async def modmail(self, ctx: discord.ApplicationContext,
-                      init_msg: discord.Option(str, 'Input your initial message to the mods here', required=True),
-                      files=None):
+                      init_msg: discord.Option(str, name="message",
+                                               description='Input your initial message to the mods here',
+                                               required=True),
+                      files: discord.Option(discord.Attachment,
+                                            name="attachments",
+                                            desciription="Attachments to include",
+                                            default=None)):
         """Send a message to the staff of FS bot"""
         if ctx.author.id in DM_THREADS:
-            await disp.DM_ALREADY.send_temp(ctx)
+            await disp.DM_ALREADY.send_priv(ctx)
             return
 
         msg = await disp.DM_TO_STAFF.send(d_obj.channels['staff'], d_obj.roles['app_admin'].mention, author=ctx.author,
@@ -69,7 +75,7 @@ class DMCog(commands.Cog):
         user = ctx
         if ctx.guild:
             user = ctx.user
-            await disp.DM_RECEIVED_GUILD.send_temp(ctx, init_msg)
+            await disp.DM_RECEIVED_GUILD.send_priv(ctx, init_msg)
         await disp.DM_RECEIVED.send(user, init_msg)
         DM_THREADS[ctx.author.id] = thread.id
         await db.async_db_call(db.set_element, 'restart_data', 0, {'dm_threads': dm_threads_to_str()})
@@ -101,7 +107,6 @@ class DMCog(commands.Cog):
             msg = msg[i + 1:]
             await self.modmail.callback(self, ctx=message, init_msg=msg, files=files)
             return
-
 
         #  If player side request to stop DM thread
         if not message.guild and message.author.id in DM_THREADS and \

@@ -32,7 +32,8 @@ JAEGER_CALENDAR_URL = "https://docs.google.com/spreadsheets/d/1eA4ybkAiz-nv_mPxu
 factions = {
     1: "VS",
     2: "NC",
-    3: "TR"
+    3: "TR",
+    4: "NS"
 }
 
 #: Dictionary to retrieve faction id by name.
@@ -61,13 +62,15 @@ general = {
 emojis = {
     "VS": "",
     "NC": "",
-    "TR": ""
+    "TR": "",
+    "NS": ""
 }
 
 # Discord Channel ID's
 channels = {
-    "dashboard": "",
-    "lobby": "",
+    "chat": "",
+    "casual_lobby": "",
+    "ranked_lobby": "",
     "register": "",
     "rules": "",
     "staff": "",
@@ -82,10 +85,9 @@ roles = {
     "mod": "",
     "app_admin": "",
     "bot": "",
-    "registered": "",
-    "view_channels": ""
-
-
+    "view_channels": "",
+    "notify": "",
+    "timeout": ""
 }
 
 # Database Collections
@@ -107,16 +109,20 @@ database = {
     "collections": _collections
 }
 
+TEST = False
 
-def get_config(config_path):
+
+def get_config(config_path, test=False):
     global GAPI_SERVICE
     GAPI_SERVICE = f'{pathlib.Path(__file__).parent.absolute()}/../service_account.json'
+
+    global TEST
+    TEST = test
 
     file = f'{pathlib.Path(__file__).parent.absolute()}/../{config_path}'
 
     if not os.path.isfile(file):
         raise ConfigError(f"{file} not found!")
-    print(file)
     log.info('Loaded config from file: %s', file)
 
     config = ConfigParser()

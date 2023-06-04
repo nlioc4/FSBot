@@ -3,7 +3,6 @@ Simple filter setup to create threads in #contentplug, and enforce the content o
 
 """
 
-
 # External Imports
 from discord.ext import commands
 import discord
@@ -26,15 +25,14 @@ class ContentPlug(commands.Cog, name="ContentPlug"):
         if not self.enabled:
             return
         matches = [item for item in TEST_LIST if (item in message.content)]
-
         if message.author == self.bot.user:
             return
         elif not message.channel.id == cfg.channels['content-plug']:
             return
-        elif d_obj.roles['app_admin'] in message.author.roles:
-            return
         elif matches or message.attachments:
             await message.create_thread(name=f"{message.author.display_name}'s content thread")
+        elif d_obj.roles['app_admin'] in message.author.roles:
+            return
         elif not matches:
             log.info(f'{message.author.name} had a message deleted in content plug.')
             await message.delete()

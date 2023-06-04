@@ -1,7 +1,6 @@
-'''
-
+"""
 Class to represent Jaeger Accounts available to the app
-'''
+"""
 import modules.tools as tools
 
 
@@ -13,14 +12,17 @@ class Account:
         self.__username = username
         self.__password = password
         self.__ig_name = in_game
-        self.__ig_ids = [0, 0, 0]
+        self.__ig_ids = [0, 0, 0, 0]
         self.__online_id = None
         self.a_player = None
-        self.__last_usage = dict()
+        self.__last_usage = {"account_id": self.id}
         self.__unique_usages = unique_usages
         self.message = None
+        self.timeout_coro = None
+        self.logout_reminders = 0
         self.__validated = False
         self.__terminated = False
+        self.__cleaned = True
 
     def update(self, username, password):
         self.__username = username
@@ -48,13 +50,18 @@ class Account:
 
     @property
     def ig_names(self):
-        return [f'{self.__ig_name}VS', f'{self.__ig_name}NC', f'{self.__ig_name}TR']
+        return [f'{self.__ig_name}VS', f'{self.__ig_name}NC', f'{self.__ig_name}TR', f'{self.__ig_name}NS']
 
     @property
     def online_name(self):
         if self.__online_id:
             return self.ig_names[self.__ig_ids.index(self.__online_id)]
         return None
+
+    def online_name_by_id(self, char_id):
+        if char_id in self.ig_ids:
+            return self.ig_names[self.__ig_ids.index(char_id)]
+        return False
 
     @property
     def online_id(self):
@@ -88,25 +95,49 @@ class Account:
     def is_terminated(self):
         return self.__terminated
 
+    @property
+    def is_clean(self):
+        return self.__cleaned
+
     def clean(self):
+        """Reset account usage variables"""
         self.a_player = None
-        self.__last_usage = dict()
+        self.__last_usage = {"account_id": self.id}
         self.__validated = False
         self.__terminated = False
+        self.logout_reminders = 0
+        if self.timeout_coro:
+            self.timeout_coro.cancel()
+            self.timeout_coro = None
+        self.__cleaned = True
 
     def add_usage(self, player):
+        """Add a new usage to the account, includes only initial usage data."""
+        self.__cleaned = False
         self.a_player = player
         self.__last_usage.update({"user_id": self.a_player.id,
-                                  "match_id": self.a_player.match if self.a_player.match else 0})
+                                  "match_id": self.a_player.match.id if self.a_player.match else 0,
+                                  "character_usage": []})
 
     def validate(self):
+        if self.__validated:
+            return False
         self.__validated = True
         self.__unique_usages.append(self.a_player.id)
         self.__last_usage.update({"start_time": tools.timestamp_now()})
+        return True
 
     def terminate(self):
+        """Mark account as terminated, add end time to last usage."""
         self.__terminated = True
         self.__last_usage['end_time'] = tools.timestamp_now()
 
+    def login(self):
+        """Add login usage to last usage."""
+        if self.a_player:
+            self.last_usage['character_usage'].append(f"Login:{self.online_name}:{tools.timestamp_now()}")
+
     def logout(self):
-        self.__last_usage['logout_time'] = tools.timestamp_now()
+        """Add logout usage to last usage."""
+        if self.a_player:
+            self.last_usage['character_usage'].append(f"Logout:{self.online_name}:{tools.timestamp_now()}")
