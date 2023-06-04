@@ -282,7 +282,7 @@ class AllStrings(Enum):
                 else:
                     args_dict['content'] = ping.mention + args_dict['content']
             except AttributeError as e:
-                log.error("_do-send received a non-mentionable object in ping argument", exc_info=e)
+                log.exception("_do-send received a non-mentionable object in ping argument", exc_info=e)
         if self.__embed and not kwargs.get('embed'):
             #  Checks if embed, then retrieves only the embed specific kwargs
             embed_sig = inspect.signature(self.__embed)

@@ -399,7 +399,7 @@ async def logout_reminder(acc: classes.Account):
         await asyncio.sleep(300)
 
         if acc.online_id:
-            await disp.ACCOUNT_LOGOUT_WARN.send(acc.message, acc.online_name, ping=acc.a_player.mention)
+            await disp.ACCOUNT_LOGOUT_WARN.send(acc.message, acc.online_name, ping=acc.a_player)
 
             acc.logout_reminders += 1
             if acc.logout_reminders % 3 == 0 or acc.logout_reminders == 1:
