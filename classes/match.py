@@ -117,7 +117,7 @@ class BaseMatch:
         async def leave_button_callback(self, button: discord.Button, inter: discord.Interaction):
             """Callback for leave button"""
             p = Player.get(inter.user.id)
-            if not await d_obj.is_registered(inter, p) or not await self.in_match_check(inter, p):
+            if not await d_obj.registered_check(inter, p) or not await self.in_match_check(inter, p):
                 return
 
             await disp.MATCH_LEAVE.send_priv(inter, p.mention)
@@ -145,7 +145,7 @@ class BaseMatch:
             """Requests an account for the player"""
             await inter.response.defer()
             p: Player = Player.get(inter.user.id)
-            if not await d_obj.is_registered(inter, p) or not await self.in_match_check(inter, p):
+            if not await d_obj.registered_check(inter, p) or not await self.in_match_check(inter, p):
                 return
             elif p.has_own_account:
                 await disp.ACCOUNT_HAS_OWN.send_priv(inter)
@@ -704,7 +704,7 @@ class RankedMatch(BaseMatch):
         async def leave_button_callback(self, button: discord.Button, inter: discord.Interaction):
             """Ranked Match Specific Leave button callback"""
             p = Player.get(inter.user.id)
-            if not await d_obj.is_registered(inter, p) or not await self.in_match_check(inter, p):
+            if not await d_obj.registered_check(inter, p) or not await self.in_match_check(inter, p):
                 return
 
             if self.match.is_ended:
@@ -733,7 +733,7 @@ class RankedMatch(BaseMatch):
             if self.match.status != MatchState.SUBMITTING:
                 return await disp.INVALID_INTERACTION.send_priv(inter)
             p = Player.get(inter.user.id)
-            if not await d_obj.is_registered(inter, p) or not await self.in_match_check(inter, p):
+            if not await d_obj.registered_check(inter, p) or not await self.in_match_check(inter, p):
                 return
             await disp.RM_APPEALED.send_priv(inter, self.match.id_str)
             await self.match.end_match(EndCondition.APPEALED)

@@ -192,8 +192,8 @@ class AdminCog(commands.Cog):
         """Creates a match with the given arguments.  """
         await ctx.defer(ephemeral=True)
         # set up Player Objects
-        if not (invited := await d_obj.is_registered(ctx, member)) \
-                or not (owner := await d_obj.is_registered(ctx, owner or ctx.user)):
+        if not (invited := await d_obj.registered_check(ctx, member)) \
+                or not (owner := await d_obj.registered_check(ctx, owner or ctx.user)):
             return
         # check / update player status
         if invited.match or owner.match:
@@ -417,7 +417,7 @@ class AdminCog(commands.Cog):
                                                              required=False)):
         """Set a player's online status to one of their characters, or offline."""
         member = member or ctx.user
-        if not (p := await d_obj.is_registered(ctx, member)):
+        if not (p := await d_obj.registered_check(ctx, member)):
             return
         found_chars = [char for char in p.ig_names if char.lower().find(character.lower()) >= 0] if character else False
         character = found_chars[0] if found_chars else character

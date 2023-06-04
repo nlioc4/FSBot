@@ -70,7 +70,7 @@ class DashboardView(views.FSBotView):
 
         async def callback(self, inter: discord.Interaction, owner=None):
             owner: Player = owner if owner else Player.get(inter.user.id)
-            if not await d_obj.is_registered(inter, owner):
+            if not await d_obj.registered_check(inter, owner):
                 return
             invited_players: list[Player] = [Player.get(int(value)) for value in self.values]
             if owner in invited_players:
@@ -115,7 +115,7 @@ class DashboardView(views.FSBotView):
     @discord.ui.button(label="Join Lobby", style=discord.ButtonStyle.green)
     async def join_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         player: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, player):
+        if not await d_obj.registered_check(inter, player):
             return
         elif player.match:
             await disp.LOBBY_ALREADY_MATCH.send_priv(inter, player.mention,
@@ -132,7 +132,7 @@ class DashboardView(views.FSBotView):
     @discord.ui.button(label="Reset Timeout", style=discord.ButtonStyle.blurple)
     async def reset_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         player: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, player):
+        if not await d_obj.registered_check(inter, player):
             return
         elif player in self.lobby.lobbied:
             await self.lobby.lobby_timeout_set(player)
@@ -148,7 +148,7 @@ class DashboardView(views.FSBotView):
             await disp.LOBBY_TIMEOUT_ONLINE.send_priv(inter)
         else:
             await disp.LOBBY_TIMEOUT_CUSTOM.send_priv(inter, tools.format_time_from_stamp(p.lobby_timeout_stamp, 't'),
-                                                  view=views.CustomLobbyTimeoutView())
+                                                      view=views.CustomLobbyTimeoutView())
 
     @discord.ui.button(label="Extended History", style=discord.ButtonStyle.blurple)
     async def history_lobby_button(self, button: discord.Button, inter: discord.Interaction):
@@ -160,7 +160,7 @@ class DashboardView(views.FSBotView):
     @discord.ui.button(label="Leave Lobby", style=discord.ButtonStyle.red)
     async def leave_lobby_button(self, button: discord.Button, inter: discord.Interaction):
         player: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, player):
+        if not await d_obj.registered_check(inter, player):
             return
         elif await self.lobby.lobby_leave(player):
             await inter.response.defer()
@@ -372,7 +372,6 @@ class Lobby:
             elif p.lobby_timeout_stamp < tools.timestamp_now():
                 await self.lobby_leave(p, reason="timeout")
 
-
             # Warn if current time less than 5 minutes (300 s) before timeout stamp
             elif p.lobby_timeout_stamp - 300 < tools.timestamp_now() and p not in self.__warned_players:
                 self.lobby_log(f'{p.name} will soon be timed out of the lobby.')
@@ -389,6 +388,8 @@ class Lobby:
     async def _send_lobby_pings(self, player):
         """Gets list of players that could potentially be pinged, checks online status pursuant to preferences.
         Pings passing players, and marks them as pinged."""
+        #TODO This can be refactored to be more efficient, but it's not a priority.
+        # Could use new Player.get_member to avoid the extra dict mapping
 
         # Collect set of all players requesting these skill levels, if they haven't already been pinged
         players_to_ping = Player.get_players_to_ping(player.skill_level)
@@ -413,7 +414,18 @@ class Lobby:
             ping_coros.append(disp.LOBBY_PING.send(p_m, player.mention, self.mention,
                                                    player_membs_dict[p_m].lobby_ping_freq))
         # Actually send all pings
-        await asyncio.gather(*ping_coros, return_exceptions=True)
+        sent_pings = await asyncio.gather(*ping_coros, return_exceptions=True)
+
+        # Log Which Users were Pinged
+        pinged = []
+        for message in sent_pings:
+            if isinstance(message, Exception):
+                log.info(f"Error sending lobby ping: {message}")
+                continue
+            if isinstance(message, discord.Message):
+                pinged.append(Player.get(message.channel.recipient.id).name)
+        if pinged:
+            log.info(f"{', '.join(pinged)} pinged.")
 
     async def update(self):
         """Updates Lobby, including timeouts, displays and attached matches."""
@@ -554,7 +566,6 @@ class Lobby:
 
             match = await self.__match_type.create(owner, player, lobby=self)
             self.__matches.append(match)
-
 
             if owner.id in self.__invites:
                 self.__invites[owner.id].remove(player)

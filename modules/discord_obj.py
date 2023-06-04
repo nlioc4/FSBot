@@ -96,7 +96,7 @@ async def is_timeout_check(ctx) -> bool | int:
     return stamp
 
 
-async def is_registered(ctx, user: discord.Member | discord.User | classes.Player) -> bool | classes.Player:
+async def registered_check(ctx, user: discord.Member | discord.User | classes.Player) -> bool | classes.Player:
     """Checks if a user is a registered player, returns Player if passed and sends a response if not."""
     if (player := is_player(user)) and player.is_registered:
         return player

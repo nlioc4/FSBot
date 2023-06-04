@@ -78,7 +78,7 @@ class InviteView(FSBotView):
     @discord.ui.button(label="Accept Invite", style=discord.ButtonStyle.green)
     async def accept_button(self, button: discord.Button, inter: discord.Interaction):
         p: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, p):
+        if not await d_obj.registered_check(inter, p):
             return
 
         self.stop()
@@ -93,7 +93,7 @@ class InviteView(FSBotView):
     @discord.ui.button(label="Decline Invite", style=discord.ButtonStyle.red)
     async def decline_button(self, button: discord.Button, inter: discord.Interaction):
         p: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, p):
+        if not await d_obj.registered_check(inter, p):
             return
         self.lobby.decline_invite(self.owner, p)
         self.stop()
@@ -116,7 +116,7 @@ class InviteView(FSBotView):
                                 decline_reasons.items()])
     async def decline_select(self, select: discord.ui.Select, inter: discord.Interaction):
         p: Player = Player.get(inter.user.id)
-        if not await d_obj.is_registered(inter, p):
+        if not await d_obj.registered_check(inter, p):
             return
         self.lobby.decline_invite(self.owner, p)
         self.stop()

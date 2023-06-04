@@ -655,7 +655,8 @@ def elo_change(match, player, new_elo: int, elo_delta: int) -> Embed:
         description=f'{player.mention} versus {match.get_opponent(player).mention} has ended.\n'
                     f'**Scoreline**\n{match.get_score_string()}\n'
                     f'{player.mention}\'s elo has changed by ``{elo_delta}`` points.\n'
-                    f'{player.mention}\'s elo is now ``{new_elo}`` points.\n'
+                    f'{player.mention}\'s elo is now ``{new_elo}`` points.\n',
+        timestamp=dt.now()
     )
     return fs_author(embed)
 
@@ -670,7 +671,6 @@ def elo_summary(player_stats):
         for match_id, change in player_stats.last_five_changes:
             last_five += f'[{match_id}]: ``{change}``\n'
 
-
     embed = Embed(
         colour=Colour.dark_gold(),
         title=f'Ranked Elo Summary for {player_stats.name}',
@@ -680,10 +680,12 @@ def elo_summary(player_stats):
         f"Match Losses: {player_stats.match_losses}\n"
         f"Match Draws: {player_stats.match_draws}\n"
         f"Total Matches: {player_stats.total_matches}\n"
-        f"Last Five Match Results: {last_five}\n"
+        f"Last Five Match Results: {last_five}\n",
+        timestamp=dt.now()
 
     )
     return fs_author(embed)
+
 
 def to_staff_dm_embed(author: 'discord.User', msg: str) -> Embed:
     author_disc = author.name + "#" + author.discriminator

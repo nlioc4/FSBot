@@ -175,7 +175,7 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
     @commands.slash_command(name="elo")
     async def elo_command(self, ctx: discord.ApplicationContext):
         """View your own ELO and ELO history"""
-        if not (p := await d_obj.is_registered(ctx, ctx.user)):
+        if not (p := await d_obj.registered_check(ctx, ctx.user)):
             return
 
         await ctx.defer(ephemeral=True)

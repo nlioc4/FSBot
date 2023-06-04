@@ -6,8 +6,9 @@ import discord
 from enum import Enum
 import inspect
 from logging import getLogger
-
 import classes
+
+
 # Internal Imports
 import modules.config as cfg
 from .embeds import *
@@ -17,6 +18,18 @@ log = getLogger('fs_bot')
 
 
 class AllStrings(Enum):
+    """All Strings is a list of all strings available to the bot.
+    This allows you to easily repeat or create messages to users.
+    String Enums can be called directly to return only the string, or one of the send/edit methods can be used along
+    with a context in the first positional argument to interface directly with discord.
+
+    The Following Context types are currently supported:
+    - discord.Message, discord.TextChannel, discord.Thread, discord.User, discord.Member
+    - discord.Interaction, discord.InteractionResponse, discord.ApplicationContext
+    - classes.Player, classes.ActivePlayer
+
+    """
+
     NONE = None
     ANY = '{}'
     LOADING = "Loading..."

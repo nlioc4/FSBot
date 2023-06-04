@@ -288,6 +288,10 @@ class Player:
         from modules import discord_obj
         return discord_obj.guild.get_member(self.id)
 
+    async def get_user(self):
+        from modules import discord_obj
+        return await discord_obj.bot.get_or_fetch_user(self.id)
+
     @property
     def ig_names(self):
         """Returns the players character names, or their assigned accounts characters names."""
