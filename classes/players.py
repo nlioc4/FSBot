@@ -292,6 +292,10 @@ class Player:
         from modules import discord_obj
         return await discord_obj.bot.get_or_fetch_user(self.id)
 
+    async def get_stats(self):
+        from . import PlayerStats
+        return await PlayerStats.get_from_db(p_id=self.id, p_name=self.name)
+
     @property
     def ig_names(self):
         """Returns the players character names, or their assigned accounts characters names."""

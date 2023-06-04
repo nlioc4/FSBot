@@ -1,6 +1,7 @@
 """Class to handle lobby and invites """
 
 # External Imports
+from __future__ import annotations
 import asyncio
 import discord
 from datetime import datetime as dt, timedelta
@@ -183,16 +184,16 @@ class Lobby:
         return obj
 
     @classmethod
-    def get(cls, lobby):
+    def get(cls, lobby) -> Lobby | None:
         return cls.all_lobbies.get(lobby)
 
     @staticmethod
-    def channel_to_lobby(channel: discord.TextChannel):
+    def channel_to_lobby(channel: discord.TextChannel) -> Lobby | None:
         channel_dict = {lobby.channel: lobby for lobby in Lobby.all_lobbies.values()}
         try:
             return channel_dict[channel]
         except KeyError:
-            return False
+            return None
 
     def __init__(self, name, channel, match_type, timeout_minutes):
         # vars

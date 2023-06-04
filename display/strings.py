@@ -134,6 +134,14 @@ class AllStrings(Enum):
                             "You will be timed out at {} if not online." \
                             "\n**Timeout request for {} is invalid!**"
 
+    LOBBY_DISABLED = "{} lobby has been disabled!"
+    LOBBY_ENABLED = "{} lobby has been enabled!"
+    LOBBY_NOT_FOUND = "{} lobby not found!"
+    LOBBY_PLAYER_ADDED = "{} has been added to the {} lobby!"
+    LOBBY_PLAYER_REMOVED = "{} has been removed from the {} lobby!"
+    LOBBY_PLAYER_NOT_IN = "{} is not in the {} lobby!"
+    LOBBY_PLAYER_CANT_ADD = "{} can't be added to the {} lobby!"
+
     LOBBY_DASHBOARD = ''
     LOBBY_LONGER_HISTORY = '{}', longer_lobby_logs
     LOBBY_NO_HISTORY = '{} there is no extended activity to display!'

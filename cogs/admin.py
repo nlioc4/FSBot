@@ -224,7 +224,82 @@ class AdminCog(commands.Cog):
         await match.end_match(EndCondition.EXTERNAL)
 
     #########################################################
+    # Lobby Admin Commands
+    lobby_admin = admin.create_subgroup(
+        name="lobby", description="Admin Lobby Commands"
+    )
 
+    @lobby_admin.command(name="lock")
+    async def lobby_lock(self, ctx: discord.ApplicationContext,
+                         action: discord.Option(str, "Lock or Unlock the Lobby", required=True,
+                                                choices=["lock", "unlock"]),
+                         lobby_choice: discord.Option(str, "Lobby to lock or unlock", required=False,
+                                                      choices=["casual", "ranked"])):
+        """Lock or Unlock the Lobby"""
+        lobby = Lobby.get(lobby_choice) or Lobby.channel_to_lobby(ctx.channel)
+
+        if not lobby:
+            await disp.LOBBY_NOT_FOUND.send_priv(ctx, lobby_choice or ctx.channel.mention)
+            return
+
+        await ctx.defer(ephemeral=True)
+
+        if action == "lock":
+            await lobby.disable()
+            await disp.LOBBY_DISABLED.send_priv(ctx, lobby.name)
+        else:
+            await lobby.enable()
+            await disp.LOBBY_ENABLED.send_priv(ctx, lobby.name)
+
+    @lobby_admin.command(name="addplayer")
+    async def lobby_addplayer(self, ctx: discord.ApplicationContext,
+                              member: discord.Option(discord.Member, "Member to add to lobby", required=True),
+                              lobby_choice: discord.Option(str, "Lobby to add member to", required=False,
+                                                           choices=["casual", "ranked"])):
+        """Add a player to a lobby"""
+        lobby = Lobby.get(lobby_choice) or Lobby.channel_to_lobby(ctx.channel)
+        if not lobby:
+            await disp.LOBBY_NOT_FOUND.send_priv(ctx, lobby_choice or ctx.channel.mention)
+            return
+
+        if not (p := await d_obj.registered_check(ctx, member)):
+            return
+
+        await ctx.defer(ephemeral=True)
+
+        if p.lobby:
+            await p.lobby.lobby_leave(p)
+        joined = await lobby.lobby_join(p)
+        if joined:
+            await disp.LOBBY_PLAYER_ADDED.send_priv(ctx, p.name, lobby.name)
+        else:
+            await disp.LOBBY_PLAYER_CANT_ADD.send_priv(ctx, p.name, lobby.name)
+
+    @lobby_admin.command(name="removeplayer")
+    async def lobby_removeplayer(self, ctx: discord.ApplicationContext,
+                                 member: discord.Option(discord.Member, "Member to remove from Lobby, required=True"),
+                                 lobby_choice: discord.Option(str, "Lobby to remove member from", required=False,
+                                                              choices=["casual", "ranked"])):
+        """Remove a player from a lobby"""
+        lobby = Lobby.get(lobby_choice) or Lobby.channel_to_lobby(ctx.channel)
+        if not lobby:
+            await disp.LOBBY_NOT_FOUND.send_priv(ctx, lobby_choice or ctx.channel.mention)
+            return
+
+        if not (p := await d_obj.registered_check(ctx, member)):
+            return
+
+        await ctx.defer(ephemeral=True)
+
+        if p.lobby != lobby:
+            await disp.LOBBY_PLAYER_NOT_IN.send_priv(ctx, p.name, lobby.name)
+            return
+
+        await lobby.lobby_leave(p)
+        await disp.LOBBY_PLAYER_REMOVED.send_priv(ctx, p.name, lobby.name)
+
+    #########################################################
+    # Accounts Admin Commands
     accounts_admin = admin.create_subgroup(
         name="accounts", description="Admin Accounts Commands"
     )
@@ -419,16 +494,22 @@ class AdminCog(commands.Cog):
         member = member or ctx.user
         if not (p := await d_obj.registered_check(ctx, member)):
             return
+        # Auto-complete character name from players characters
         found_chars = [char for char in p.ig_names if char.lower().find(character.lower()) >= 0] if character else False
         character = found_chars[0] if found_chars else character
+
+        # If character is valid, set it as online
         if character and (char_id := p.char_id_by_name(character)):
             await census.login(char_id, accounts.account_char_ids, Player.map_chars_to_players())
             await disp.ADMIN_PLAYER_LOGIN_SET.send_priv(ctx, p.mention, character)
+        # If no character, set player as offline
         elif p.online_id and not character:
             await census.logout(p.online_id, accounts.account_char_ids, Player.map_chars_to_players())
             await disp.ADMIN_PLAYER_LOGOUT_SET.send_priv(ctx, p.mention)
+        # If character not found, send error
         elif character:
             await disp.ADMIN_PLAYER_CHAR_NOT_FOUND.send_priv(ctx, character, p.mention)
+        # If player is already offline, send error
         else:
             await disp.ADMIN_PLAYER_LOGOUT_ALREADY.send_priv(ctx, p.mention)
 

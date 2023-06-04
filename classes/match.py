@@ -1,5 +1,7 @@
 """Holds main match classes"""
+
 # External Imports
+from __future__ import annotations
 import discord
 from discord import MessageType
 import asyncio
@@ -234,8 +236,7 @@ class BaseMatch:
         await asyncio.gather(*end_coros)
 
     @classmethod
-    async def create(cls, owner: Player, invited: Player, *, base_class=None, lobby=None) -> Union[
-        'BaseMatch', 'RankedMatch']:
+    async def create(cls, owner: Player, invited: Player, *, base_class=None, lobby=None) -> RankedMatch | BaseMatch:
         # init _match_id_counter if first match created
         global _match_id_counter
         if not _match_id_counter:
@@ -795,7 +796,7 @@ class RankedMatch(BaseMatch):
         self._view_class = self.RankedMatchView
 
     @classmethod
-    async def create(cls, owner: Player, invited: Player, *, base_class=None, lobby=None) -> 'RankedMatch':
+    async def create(cls, owner: Player, invited: Player, *, base_class=None, lobby=None) -> RankedMatch:
         obj = await super().create(owner, invited, base_class=cls, lobby=lobby)  # RankedMatch create
 
         # Set Initial Status

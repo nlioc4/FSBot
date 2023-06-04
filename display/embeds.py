@@ -416,6 +416,8 @@ def ranked_duel_dashboard(lobby) -> Embed:
                     value=log_str,
                     inline=False)
 
+    return fs_author(embed)
+
 
 def longer_lobby_logs(logs: list[(int, str)]) -> Embed:
     """Extended lobby history available on button press"""
@@ -669,18 +671,18 @@ def elo_summary(player_stats):
     if player_stats.last_five_changes:
         last_five = ''
         for match_id, change in player_stats.last_five_changes:
-            last_five += f'[{match_id}]: ``{change}``\n'
+            last_five += f'[{match_id}]: ``{change:+.0f}``\n'
 
     embed = Embed(
         colour=Colour.dark_gold(),
         title=f'Ranked Elo Summary for {player_stats.name}',
         description=
-        f"Current Elo: {player_stats.elo}\n"
-        f"Match Wins: {player_stats.match_wins}\n"
-        f"Match Losses: {player_stats.match_losses}\n"
-        f"Match Draws: {player_stats.match_draws}\n"
-        f"Total Matches: {player_stats.total_matches}\n"
-        f"Last Five Match Results: {last_five}\n",
+        f"Current Elo: ``{player_stats.elo:.0f}``\n"
+        f"Match Wins: ``{player_stats.match_wins}``\n"
+        f"Match Losses: ``{player_stats.match_losses}``\n"
+        f"Match Draws: ``{player_stats.match_draws}``\n"
+        f"Total Matches: ``{player_stats.total_matches}``\n"
+        f"**Last Five Match Results:**\n{last_five}\n",
         timestamp=dt.now()
 
     )
