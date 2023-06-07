@@ -271,7 +271,7 @@ class AdminCog(commands.Cog):
 
         if p.lobby:
             await p.lobby.lobby_leave(p)
-        joined = await lobby.lobby_join(p)
+        joined = lobby.lobby_join(p)
         if joined:
             await disp.LOBBY_PLAYER_ADDED.send_priv(ctx, p.name, lobby.name)
         else:
