@@ -587,8 +587,8 @@ def ranked_match_info(match) -> Embed:
         title=f"Match Info for Ranked Match: {match.id_str}",
         description=
         f"Players must submit round results after each duel using the built in buttons!\n"
-        f"This match will {'' if match.FACTION_SWAP_ENABLED else 'not'} swap require a faction swap at half time.\n"
-        f"This match is a best of {match.MATCH_LENGTH}, requiring {match.wins_required} round wins to win."
+        f"This match will **{'' if match.FACTION_SWAP_ENABLED else 'not'}** swap require a faction swap at half time.\n"
+        f"This match is a best of **{match.MATCH_LENGTH}**, requiring **{match.wins_required}** round wins to win.\n"
         f"Good luck!",
         timestamp=dt.now()
     )

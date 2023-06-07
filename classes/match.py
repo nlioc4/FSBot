@@ -214,7 +214,7 @@ class BaseMatch:
         self.match_log = list()  # logs recorded as list of tuples, (timestamp, message, Public)
 
         self.__account_check_task = asyncio.create_task(
-            self._check_accounts_delay(self.__players))  # Task for account checking
+            self._check_accounts_delay(*self.__players))  # Task for account checking
         BaseMatch._active_matches[self.id] = self
 
     @classmethod
