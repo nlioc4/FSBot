@@ -29,6 +29,10 @@ class PlayerStats:
             self.__match_wins = data['match_wins']
             self.__match_losses = data['match_losses']
             self.__match_draws = data['match_draws']
+            self._nc_round_wins = data['nc_round_wins']
+            self._tr_round_wins = data['tr_round_wins']
+            self._nc_round_losses = data['nc_round_losses']
+            self._tr_round_losses = data['tr_round_losses']
 
         else:
             self.__match_ids: list[str] = list()  # list of Int match ID's
@@ -37,6 +41,11 @@ class PlayerStats:
             self.__match_wins = 0  # Number of Matches Won
             self.__match_losses = 0  # Number of Matches lost
             self.__match_draws = 0  # Number of Matches Drawn
+            self.__nc_round_wins = 0  # Number of Rounds Won as NC
+            self.__tr_round_wins = 0  # Number of Rounds Won as TR
+            self.__nc_round_losses = 0  # Number of Rounds Lost as NC
+            self.__tr_round_losses = 0  # Number of Rounds Lost as TR
+
 
     def _get_data(self):
         data = {
@@ -46,7 +55,11 @@ class PlayerStats:
             'elo': self.__elo,
             'match_wins': self.__match_wins,
             'match_losses': self.__match_losses,
-            'match_draws': self.__match_draws
+            'match_draws': self.__match_draws,
+            'nc_round_wins': self.__nc_round_wins,
+            'tr_round_wins': self.__tr_round_wins,
+            'nc_round_losses': self.__nc_round_losses,
+            'tr_round_losses': self.__tr_round_losses
         }
         return data
 
@@ -87,6 +100,38 @@ class PlayerStats:
         return len(self.__match_ids)
 
     @property
+    def nc_round_wins(self):
+        return self.__nc_round_wins
+
+    @property
+    def tr_round_wins(self):
+        return self.__tr_round_wins
+
+    @property
+    def total_round_wins(self):
+        return self.__nc_round_wins + self.__tr_round_wins
+
+    @property
+    def nc_round_losses(self):
+        return self.__nc_round_losses
+
+    @property
+    def tr_round_losses(self):
+        return self.__tr_round_losses
+
+    @property
+    def total_round_losses(self):
+        return self.__nc_round_losses + self.__tr_round_losses
+
+    @property
+    def total_nc_rounds(self):
+        return self.__nc_round_wins + self.__nc_round_losses
+
+    @property
+    def total_tr_rounds(self):
+        return self.__tr_round_wins + self.__tr_round_losses
+
+    @property
     def elo(self):
         return self.__elo
 
@@ -102,12 +147,36 @@ class PlayerStats:
             last_five[match_id] = self.__elo_history[match_id]
         return last_five.items()
 
-    def add_match(self, match_id, elo_delta, result):
+    def add_match(self, match, elo_delta):
         """Add a match to a player stats set.
         Result should be >0.5 if match won, 0.5 if match drawn, or 0.5> if match lost"""
-        self.__match_ids.append(str(match_id))
-        self.__elo_history[str(match_id)] = elo_delta
+        from classes.match import RankedMatch
+        match: RankedMatch
+
+        if match.player1.id == self.__id:
+            result = match.player1_result
+        elif match.player2.id == self.__id:
+            result = match.player2_result
+        else:
+            log.error(f'Player {self.__id} not in match {match.id}')
+            return
+
+        self.__match_ids.append(str(match.id))
+        self.__elo_history[str(match.id)] = elo_delta
         self.__elo = self.__elo + elo_delta
+
+        for match_round in match.round_history:
+            if match_round.winner_faction == 'NC':
+                if match_round.winner_id == self.__id:
+                    self.__nc_round_wins += 1
+                else:
+                    self.__tr_round_losses += 1
+            elif match_round.winner_faction == 'TR':
+                if match_round.winner_id == self.__id:
+                    self.__tr_round_wins += 1
+                else:
+                    self.__nc_round_losses += 1
+
         if result > 0.5:
             self.__match_wins += 1
         elif result == 0.5:

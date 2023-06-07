@@ -24,26 +24,22 @@ def _player_rating_delta(player_win_expect, results):
     return K_FACTOR * (results - player_win_expect)
 
 
-async def update_elo(player1: PlayerStats, player2: PlayerStats, match_id, result, required_wins):
+async def update_elo(match) -> tuple[float, float]:
     """Update PlayerStats for a specific match, return Elo Deltas """
-    player1_win_xpt = _get_player_win_expectation(player1.elo, player2.elo)
-    player2_win_xpt = _get_player_win_expectation(player2.elo, player1.elo)
+    from classes.match import RankedMatch
+    match: RankedMatch
+
+    player1_win_xpt = _get_player_win_expectation(match.player1_stats.elo, match.player2_stats.elo)
+    player2_win_xpt = _get_player_win_expectation(match.player2_stats.elo, match.player1_stats.elo)
 
 
-    if result == 0:
-        player1_result = 0.5
-        player2_result = 0.5
-    else:
-        player1_result = result / required_wins if result > 0 else (1 + result / required_wins)
-        player2_result = -result / required_wins if result < 0 else (1 + -result / required_wins)
-
-    player1_elo_delta = _player_rating_delta(player1_win_xpt, player1_result)
-    player2_elo_delta = _player_rating_delta(player2_win_xpt, player2_result)
+    player1_elo_delta = _player_rating_delta(player1_win_xpt, match.player1_result)
+    player2_elo_delta = _player_rating_delta(player2_win_xpt, match.player2_result)
 
     #  update player_stats
-    player1.add_match(match_id, player1_elo_delta, player1_result)
-    player2.add_match(match_id, player2_elo_delta, player2_result)
-    await asyncio.gather(player1.push_to_db(), player2.push_to_db())
+    match.player1_stats.add_match(match, player1_elo_delta)
+    match.player2_stats.add_match(match, player2_elo_delta)
+    await asyncio.gather(match.player1_stats.push_to_db(), match.player2_stats.push_to_db())
 
     return player1_elo_delta, player2_elo_delta
 

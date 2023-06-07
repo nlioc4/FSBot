@@ -41,6 +41,11 @@ class Round(NamedTuple):
     def winner_id(self):
         return self.p1_id if self.winner == 1 else self.p2_id
 
+    @property
+    def winner_faction(self):
+        return self.p1_faction if self.winner == 1 else self.p2_faction
+
+
 
 class MatchState(Enum):
     INVITING = "Waiting for players to join the match..."
@@ -980,6 +985,15 @@ class RankedMatch(BaseMatch):
         return False
 
     # Utility
+
+    @property
+    def player1_stats(self) -> PlayerStats:
+        return self._player1_stats
+
+    @property
+    def player2_stats(self) -> PlayerStats:
+        return self._player2_stats
+
     def get_opponent(self, player):
         """Pass a player object to get the opposite player object"""
         if player is self.player1:
@@ -1010,7 +1024,7 @@ class RankedMatch(BaseMatch):
             return True
         return False
 
-    # Round Control
+    # Round Control + Info
 
     @property
     def rounds_complete(self):
@@ -1024,7 +1038,7 @@ class RankedMatch(BaseMatch):
         return len(self.__round_history) + 1
 
     @property
-    def round_history(self):
+    def round_history(self) -> List[Round]:
         return self.__round_history
 
     def add_rounds_from_data(self, *rounds: dict):
@@ -1042,6 +1056,8 @@ class RankedMatch(BaseMatch):
             raise tools.UnexpectedError("Error determining round winner!")
         return self.__round_winner
 
+    # Score Info
+
     def get_player1_wins(self):
         """Return the number of round wins player 1 has"""
         return sum(1 for r in self.__round_history if r.winner == 1)
@@ -1050,7 +1066,17 @@ class RankedMatch(BaseMatch):
         """Return the number of round wins player 2 has"""
         return sum(1 for r in self.__round_history if r.winner == 2)
 
-    def get_score_string(self):
+    @property
+    def player1_result(self) -> float:
+        """Return a float representing the result for player 1, based on rounds won out of rounds complete"""
+        return self.get_player1_wins() / self.rounds_complete
+
+    @property
+    def player2_result(self) -> float:
+        """Return a float representing the result for player 2, based on rounds won out of rounds complete"""
+        return self.get_player2_wins() / self.rounds_complete
+
+    def get_score_string(self) -> str:
         """Return a formatted string displaying the score of the match, along with round history
         Returns empty string if there is no history"""
 
@@ -1299,11 +1325,7 @@ class RankedMatch(BaseMatch):
                 self.log(disp.RM_DRAW())
 
             # Determine Elo Changes
-            player1_elo_delta, player2_elo_delta = await stats_handler.update_elo(self._player1_stats,
-                                                                                  self._player2_stats,
-                                                                                  self.id,
-                                                                                  self.__match_outcome,
-                                                                                  self.wins_required)
+            player1_elo_delta, player2_elo_delta = await stats_handler.update_elo(self)
 
             # Send players Elo Changes
             await asyncio.gather(
@@ -1312,7 +1334,6 @@ class RankedMatch(BaseMatch):
                 disp.ELO_DM_UPDATE.send(self.player2, match=self, player=self.player2,
                                         new_elo=self._player2_stats.elo, elo_delta=player2_elo_delta)
             )
-
 
         else:
             # Nonstandard Ending, warn of no elo saving
