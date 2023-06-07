@@ -19,20 +19,20 @@ class PlayerStats:
         data = await db.async_db_call(db.get_element, cfg.database['collections']['user_stats'], p_id)
         return cls(p_id, p_name, data=data)
 
-    def __init__(self, p_id, p_name, data=None):
+    def __init__(self, p_id, p_name, data: dict | None = None):
         self.__id = p_id
         self.__name = p_name
         if data:
-            self.__match_ids = data['matches']
-            self.__elo_history = data['elo_history']
-            self.__elo = data['elo']
-            self.__match_wins = data['match_wins']
-            self.__match_losses = data['match_losses']
-            self.__match_draws = data['match_draws']
-            self._nc_round_wins = data['nc_round_wins']
-            self._tr_round_wins = data['tr_round_wins']
-            self._nc_round_losses = data['nc_round_losses']
-            self._tr_round_losses = data['tr_round_losses']
+            self.__match_ids = data.get('matches', list())
+            self.__elo_history = data.get('elo_history', dict())
+            self.__elo = data.get('elo', 1000)
+            self.__match_wins = data.get('match_wins', 0)
+            self.__match_losses = data.get('match_losses', 0)
+            self.__match_draws = data.get('match_draws', 0)
+            self.__nc_round_wins = data.get('nc_round_wins', 0)
+            self.__tr_round_wins = data.get('tr_round_wins', 0)
+            self.__nc_round_losses = data.get('nc_round_losses', 0)
+            self.__tr_round_losses = data.get('tr_round_losses', 0)
 
         else:
             self.__match_ids: list[str] = list()  # list of Int match ID's

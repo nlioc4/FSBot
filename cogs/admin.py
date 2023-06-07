@@ -186,8 +186,9 @@ class AdminCog(commands.Cog):
                                                   required=True),
                            owner: discord.Option(discord.Member, "Match Owner, defaults to you",
                                                  required=False),
-                           match_type: discord.Option(str, "Type of match to create, defaults to Casual",
-                                                      default="casual",
+                           match_type: discord.Option(str, "Type of match to create, defaults to current channel or"
+                                                           "casual",
+                                                      required=False,
                                                       choices=["casual", "ranked"])):
         """Creates a match with the given arguments.  """
         await ctx.defer(ephemeral=True)
@@ -203,8 +204,9 @@ class AdminCog(commands.Cog):
         if owner.lobby:
             await owner.lobby.lobby_leave(owner)
 
-        match_class = BaseMatch if match_type == "casual" else RankedMatch
-        lobby = Lobby.get(match_type)
+        # check for match type
+        lobby = Lobby.get(match_type) or Lobby.channel_to_lobby(ctx.channel) or Lobby.get("casual")
+
         match = await lobby.accept_invite(owner, invited)
         match.log(f"Admin Created Match: {Player.get(ctx.user.id).name}")
         await disp.MATCH_CREATE.send_priv(ctx, match.thread.mention, match.id_str)
