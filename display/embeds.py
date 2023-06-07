@@ -625,8 +625,8 @@ def ranked_match_info(match) -> Embed:
         player1_online = online if match.player1.on_assigned_faction else offline
         player2_online = online if match.player2.on_assigned_faction else offline
 
-        player1_submitted = "✉️" if match.check_player_score_submitted(match.player1) else ""
-        player2_submitted = "✉️" if match.check_player_score_submitted(match.player2) else ""
+        player1_submitted = "✉️" if match.get_player_submitted_score(match.player1) else ""
+        player2_submitted = "✉️" if match.get_player_submitted_score(match.player2) else ""
 
         round_string = \
             f"{match.player1.name}: {player1_online}{match.player1.assigned_char_display}{player1_submitted}\n" \

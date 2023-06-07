@@ -647,10 +647,11 @@ class AdminCog(commands.Cog):
         log.warning("Could not reach REST api during census REST after 5 tries...")
         return False
 
-    @tasks.loop(minutes=30)
+    @tasks.loop(hours=6)
     async def wss_restart(self):
         """Restart the census_watchtower regularly in order to stop it from dying?"""
         if self.census_watchtower and not self.census_watchtower.done():
+            await census.EVENT_CLIENT.close()
             self.census_watchtower.cancel()
         self.census_watchtower = self.bot.loop.create_task(census.online_status_updater(Player.map_chars_to_players))
 

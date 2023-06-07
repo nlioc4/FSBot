@@ -465,7 +465,7 @@ class Lobby:
         self.__disabled = True
         await asyncio.gather(*[self.lobby_leave(p) for p in self.lobbied])
         self.lobby_log("Lobby Disabled")
-        await self.update()
+        self._schedule_update_task()
         return True
 
     async def enable(self):
@@ -474,7 +474,7 @@ class Lobby:
             return False
         self.__disabled = False
         self.lobby_log("Lobby Enabled")
-        await self.update()
+        self._schedule_update_task()
         return True
 
     @property

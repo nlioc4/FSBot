@@ -15,7 +15,7 @@ import modules.accounts_handler as accounts
 log = getLogger('fs_bot')
 
 WORLD_ID = 19
-EVENT_CLIENT = None
+EVENT_CLIENT: None | auraxium.EventClient = None
 
 
 
@@ -190,6 +190,8 @@ async def online_status_updater(chars_players_map_func):
 
     client.add_trigger(login_trigger)
     client.add_trigger(logout_trigger)
+
+    await client.connect()
 
 
 async def online_status_rest(chars_players_map):

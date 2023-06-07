@@ -12,8 +12,7 @@ SCALE_FACTOR = 400
 
 
 def _get_player_win_expectation(player_rating, opponent_rating):
-    numerator = 1 + 10 ** ((opponent_rating - player_rating) / SCALE_FACTOR)
-    return 1 / numerator
+    return (1 + 10 ** ((opponent_rating - player_rating) / SCALE_FACTOR))**-1
 
 
 def _new_player_rating(player_rating, player_win_expect, results):
@@ -31,7 +30,6 @@ async def update_elo(match) -> tuple[float, float]:
 
     player1_win_xpt = _get_player_win_expectation(match.player1_stats.elo, match.player2_stats.elo)
     player2_win_xpt = _get_player_win_expectation(match.player2_stats.elo, match.player1_stats.elo)
-
 
     player1_elo_delta = _player_rating_delta(player1_win_xpt, match.player1_result)
     player2_elo_delta = _player_rating_delta(player2_win_xpt, match.player2_result)

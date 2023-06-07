@@ -641,7 +641,7 @@ class BaseMatch:
 
     @property
     def online_players(self):
-        return [p for p in self.__players if p.online_id]
+        return [p for p in self.__players if p.online_name]
 
     @property
     def all_mentions(self):
@@ -706,6 +706,19 @@ class RankedMatch(BaseMatch):
     class RankedMatchView(BaseMatch.MatchInfoView):
         """Match View for Ranked Matches"""
 
+        async def submit_score_callback(self, inter: discord.Interaction, score: int):
+            """Simple callback to be used for won/lost buttons.  1 for won, -1 for lost"""
+            if self.match.status not in (MatchState.PLAYING, MatchState.SUBMITTING):
+                await disp.INVALID_INTERACTION.send_priv(inter)
+                return False
+
+            if not (p := self.match.get_player(inter)):
+                await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
+                return False
+            self.match.submit_score(p, score)
+            await disp.RM_SCORE_SUBMITTED.send_temp(inter, p.mention, "Round Won" if score == 1 else "Round Lost")
+            await self.match.update()
+
         def __init__(self, match: 'RankedMatch'):
             super().__init__(match)
             self.match = match
@@ -719,9 +732,19 @@ class RankedMatch(BaseMatch):
             for button in [self.round_button, self.player1_button, self.vs_button, self.player2_button]:
                 self.add_item(button)
 
+            self.round_won_button = discord.ui.Button(label="Round Won", row=2, disabled=True,
+                                                      style=discord.ButtonStyle.green)
+            self.round_won_button.callback = lambda inter, score=1: self.submit_score_callback(inter, score=score)
+            self.add_item(self.round_won_button)
+
+            self.round_lost_button = discord.ui.Button(label="Round Lost", row=2, disabled=True,
+                                                    style=discord.ButtonStyle.red)
+            self.round_lost_button.callback = lambda inter, score=-1: self.submit_score_callback(inter, score=score)
+            self.add_item(self.round_lost_button)
+
         def update(self):
             """Update the match view"""
-
+            # Update Round Display Buttons if round has changed
             if self.last_round != self.match.current_round:
 
                 # Update Round Buttons
@@ -740,6 +763,14 @@ class RankedMatch(BaseMatch):
                     self.player2_button.style = discord.ButtonStyle.blurple
                 else:
                     self.player2_button.style = discord.ButtonStyle.red
+
+            # Update Round Won/Lost Buttons
+            if self.match.status in [MatchState.SUBMITTING, MatchState.PLAYING]:
+                self.round_won_button.disabled = False
+                self.round_lost_button.disabled = False
+            else:
+                self.round_won_button.disabled = True
+                self.round_lost_button.disabled = True
 
             return super().update()
 
@@ -786,29 +817,25 @@ class RankedMatch(BaseMatch):
             super().__init__(timeout=None)
             self.match = match
 
-        @discord.ui.button(label="Round Won", style=discord.ButtonStyle.green)
-        async def round_won_button(self, button: discord.Button, inter: discord.Interaction):
+        async def score_submit_callback(self, inter, score: int):
             if self.match.status not in (MatchState.PLAYING, MatchState.SUBMITTING):
-                return await disp.INVALID_INTERACTION.send_priv(inter)
+                await disp.INVALID_INTERACTION.send_priv(inter)
+                return False
 
             if not (p := self.match.get_player(inter)):
-                return await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
-
-            self.match.submit_score(p, 1)
-            await disp.RM_SCORE_SUBMITTED.send_temp(inter, p.mention, "Round Won")
+                await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
+                return False
+            self.match.submit_score(p, score)
+            await disp.RM_SCORE_SUBMITTED.send_temp(inter, p.mention, "Round Won" if score == 1 else "Round Lost")
             await self.match.update()
+
+        @discord.ui.button(label="Round Won", style=discord.ButtonStyle.green)
+        async def round_won_button(self, button: discord.Button, inter: discord.Interaction):
+            await self.score_submit_callback(inter, 1)
 
         @discord.ui.button(label="Round Lost", style=discord.ButtonStyle.red)
         async def round_lost_button(self, button: discord.Button, inter: discord.Interaction):
-            if self.match.status not in (MatchState.PLAYING, MatchState.SUBMITTING):
-                return await disp.INVALID_INTERACTION.send_priv(inter)
-
-            if not (p := self.match.get_player(inter)):
-                return await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
-
-            self.match.submit_score(p, -1)
-            await disp.RM_SCORE_SUBMITTED.send_temp(inter, p.mention, "Round Lost")
-            await self.match.update()
+            await self.score_submit_callback(inter, -1)
 
     def __init__(self, owner: Player, invited: Player, lobby):
         super().__init__(owner, invited, lobby)
@@ -889,8 +916,8 @@ class RankedMatch(BaseMatch):
 
         return obj
 
-    def get_round_view(self):
-        return self.RankedRoundView(self)
+    # def get_round_view(self):
+    #     return self.RankedRoundView(self)
 
     def get_player(self, inter: discord.Interaction):
         """Utility method to get the Player object from a Discord Interaction for a match.
@@ -1033,19 +1060,21 @@ class RankedMatch(BaseMatch):
 
     # Score Analysis
 
-    def _check_one_score_submitted(self):
+    def _check_one_score_submitted(self) -> bool:
         return self.__p1_submitted_score or self.__p2_submitted_score
 
-    def _check_scores_submitted(self):
+    def _check_scores_submitted(self) -> bool:
         return self.__p1_submitted_score and self.__p2_submitted_score
 
-    def check_player_score_submitted(self, player):
+    def get_player_submitted_score(self, player):
         if player is self.player1:
             return self.__p1_submitted_score
-        else:
+        elif player is self.player2:
             return self.__p2_submitted_score
+        else:
+            raise tools.UnexpectedError("Player not in match!")
 
-    def _check_scores_equal(self):
+    def _check_scores_equal(self) -> bool:
         if not self._check_scores_submitted():
             raise tools.UnexpectedError("Scores not submitted on equal check!")
         if self.__p1_submitted_score == -self.__p2_submitted_score:
@@ -1055,11 +1084,11 @@ class RankedMatch(BaseMatch):
     # Round Control + Info
 
     @property
-    def rounds_complete(self):
+    def rounds_complete(self) -> int:
         return len(self.__round_history)
 
     @property
-    def current_round(self):
+    def current_round(self) -> int:
         """Return the current round number if a round is in progress, otherwise return the next round number."""
         if self.status not in (MatchState.LOGGING_IN, MatchState.PLAYING, MatchState.SUBMITTING):
             return len(self.__round_history)
@@ -1242,8 +1271,7 @@ class RankedMatch(BaseMatch):
         self._round_message = await disp.RM_ROUND_MESSAGE.send(self.thread, self.current_round,
                                                                self.player1.assigned_faction_display,
                                                                self.player2.assigned_faction_display,
-                                                               view=self.get_round_view(),
-                                                               ping=self.players)
+                                                               view=self.RankedRoundView(self))
 
     async def _end_round(self):
         """Ends current round, returns True if Match should also end"""
