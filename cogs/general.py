@@ -179,7 +179,7 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
             return
 
         await ctx.defer(ephemeral=True)
-        player_stats = await PlayerStats.get_from_db(p.id, p.name)
+        player_stats = await p.get_stats()
         await disp.ELO_SUMMARY.send_priv(ctx, player_stats=player_stats)
 
     @tasks.loop(seconds=5)

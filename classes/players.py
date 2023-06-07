@@ -285,14 +285,17 @@ class Player:
 
     @property
     def get_member(self):
+        """Returns the players discord guild member object."""
         from modules import discord_obj
         return discord_obj.guild.get_member(self.id)
 
     async def get_user(self):
+        """Returns the players discord user object."""
         from modules import discord_obj
         return await discord_obj.bot.get_or_fetch_user(self.id)
 
     async def get_stats(self):
+        """Returns the players stats object."""
         from . import PlayerStats
         return await PlayerStats.get_from_db(p_id=self.id, p_name=self.name)
 

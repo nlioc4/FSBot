@@ -47,11 +47,18 @@ def account(acc) -> Embed:
                         inline=False)
 
     elif acc.is_validated:
+        value = (f"DO NOT SAVE THESE DETAILS TO YOUR LAUNCHER\n"
+                 f"Username: **{acc.username}**\n"
+                 f"Password: **{acc.password}**\n"
+                 )
+        if acc.timeout_at != 0 and not acc.a_player.match:
+            value += f"Session Expiry: {format_stamp(acc.timeout_at, 'R')}\n"
+        else:
+            value += f"Session Expiry: Delayed until match end\n"
+
         embed.colour = Colour.green()
         embed.add_field(name='Account Details',
-                        value=f"DO NOT SAVE THESE DETAILS TO YOUR LAUNCHER\n"
-                              f"Username: **{acc.username}**\n"
-                              f"Password: **{acc.password}**\n",
+                        value=value,
                         inline=False
                         )
     else:
@@ -643,7 +650,7 @@ def ranked_match_info(match) -> Embed:
     return fs_author(embed)
 
 
-def elo_change(match, player, new_elo: int, elo_delta: int) -> Embed:
+def elo_change(match, player, new_elo: float, elo_delta: float) -> Embed:
     """Embed to show players their elo change after a match."""
     from classes.match import RankedMatch
     match: RankedMatch
@@ -656,8 +663,8 @@ def elo_change(match, player, new_elo: int, elo_delta: int) -> Embed:
         title=f'Ranked Match [{match.id_str}] Elo Change',
         description=f'{player.mention} versus {match.get_opponent(player).mention} has ended.\n'
                     f'**Scoreline**\n{match.get_score_string()}\n'
-                    f'{player.mention}\'s elo has changed by ``{elo_delta}`` points.\n'
-                    f'{player.mention}\'s elo is now ``{new_elo}`` points.\n',
+                    f'{player.mention}\'s elo has changed by ``{elo_delta:.0f}`` points.\n'
+                    f'{player.mention}\'s elo is now ``{new_elo:0.f}`` points.\n',
         timestamp=dt.now()
     )
     return fs_author(embed)
@@ -773,8 +780,9 @@ def fsbot_rules_embed() -> Embed:
         name="FSBot Temporary Jaeger Account Rules",
         value="\n1) Accounts are to be used for **one** session only!  You will receive a discord DM telling you to "
               "log out when your session expires, you **MUST** log out at this point!\n\n"
-              "2) Account sessions will automatically expire 3 hours after their start time or when the players match "
-              "ends. If you still need an account at that time, simply request another after your session expires.\n\n"
+              "2) Account sessions will automatically expire 3 hours after their start time or 5 minutes after the "
+              "players match ends. If you still need an account at that time, "
+              "simply request another after your session expires.\n\n"
               "3) Do not save the accounts login details into your launcher\n\n"
               "4) Do not delete characters and do not create characters\n\n"
               "5) Do not ASP (prestige) characters\n\n"
@@ -859,7 +867,9 @@ def fsbot_info_embed() -> Embed:
 
     embed.add_field(
         name="Elo",
-        value="A separate ranked lobby with 1v1 Elo Rated matches and a leaderboard is coming soon(tm)",
+        value="A separate ranked lobby with 1v1 Elo Rated matches and a leaderboard is available to those who wish to"
+              " test their skill against other players.  This gamemode is in an alpha state, "
+              "and change should be expected.",
         inline=False
     )
     return fs_author(embed)

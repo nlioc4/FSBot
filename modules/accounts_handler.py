@@ -203,11 +203,16 @@ class ValidateView(views.FSBotView):
         super().__init__(timeout=300)
         self.acc: classes.Account = acc
         self.end_session_button.disabled = True
+        if self.acc.is_validated:
+            self.validate_button.disabled = True
+            self.validate_button.style = discord.ButtonStyle.grey
+            self.end_session_button.disabled = False
+            self.timeout = None
+        if self.acc.is_terminated:
+            self.end_session_button.disabled = True
 
     @discord.ui.button(label="Confirm Rules", style=discord.ButtonStyle.green)
     async def validate_button(self, button: discord.Button, inter: discord.Interaction):
-        # inter.response.defer() used to be here, moved to try to minimize random deferral errors?
-        p = classes.Player.get(inter.user.id)
         try:
             await disp.ACCOUNT_EMBED_FETCH.edit(inter, acc=self.acc, view=self)
         except discord.NotFound:
@@ -235,6 +240,11 @@ class ValidateView(views.FSBotView):
         await clean_account(self.acc)
 
 
+async def update_message(acc: classes.Account):
+    """Updates the account message with the current account object"""
+    await disp.ACCOUNT_EMBED.edit(acc.message, clear_content=True, acc=acc, view=ValidateView(acc))
+
+
 async def send_account(acc: classes.Account = None, player: classes.Player = None):
     """Sends account to player, provide either account or player"""
     if not acc and not player:
@@ -260,12 +270,12 @@ async def send_account(acc: classes.Account = None, player: classes.Player = Non
 
 async def validate_account(acc: classes.Account = None, player: classes.Player = None) -> bool:
     """Player accepted account, track usage and update object.  Returns True if validated, usage logged"""
-    if not acc and not player:
-        raise ValueError("No args provided")
     if not acc:
         acc = player.account
     if not player:
         player = acc.a_player
+    if not acc and not player:
+        raise ValueError("No args provided")
 
     # Check if already validated
     if acc.is_validated:
@@ -304,7 +314,8 @@ async def validate_account(acc: classes.Account = None, player: classes.Player =
                                 player.name, allowed_mentions=False)
 
     acc.validate()  # update account object, at the end to ensure validation was successful
-    acc.timeout_coro = asyncio.create_task(account_timeout(player, acc))  # Start countdown to account timeout
+    acc.timeout_coro = asyncio.create_task(account_timeout_delay(player, acc, MAX_TIME))
+    # Start countdown to account timeout
     return True
 
 
@@ -378,14 +389,19 @@ async def unassigned_online(newest_login):
                                           new=newest_login)
 
 
-async def account_timeout(player: classes.Player, acc: classes.Account):
-    """Coroutine to terminate an account if max time is exceeded, unless player is in a match."""
+async def account_timeout_delay(player: classes.Player, acc: classes.Account, delay: int = 300):
+    """Coroutine to terminate an account if specified delay is exceeded, unless player is in a match."""
     try:
-        await asyncio.sleep(MAX_TIME)  # Wait for assign length
+        if acc.timeout_coro and not acc.timeout_coro.done():
+            acc.timeout_coro.cancel()
+
+        acc.set_timeout(delay)
+        await disp.ACCOUNT_EMBED.edit(acc.message, acc=acc, view=ValidateView(acc))  # Update embed with new timeout
+        await asyncio.sleep(delay)  # Wait for specified delay
         if not player.match and acc.a_player == player:
             await terminate(acc, player)
-
-        acc.timeout_coro = None
+        else:  # if Account is still being used, recreate timeout
+            acc.timeout_coro = asyncio.create_task(account_timeout_delay(player, acc, delay))
 
     except asyncio.CancelledError:
         pass
@@ -415,7 +431,6 @@ async def logout_reminder(acc: classes.Account):
         await d_obj.d_log(f'Unable to DM {acc.a_player.mention} to log out of their Jaeger account.\n'
                           f'Force cleaning account...')
         await clean_account(acc)
-
 
 
 def accounts_info() -> tuple[int, int, list]:

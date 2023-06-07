@@ -369,9 +369,9 @@ class BaseMatch:
         self.__previous_players.append(player.on_quit())
         self.log(f'{player.name} left the match')
 
-        #  If Player was assigned an account, terminate
+        #  If Player was assigned an account, start delayed termination
         if player.account:
-            await accounts.terminate(player=player.player)
+            await accounts.account_timeout_delay(player=player.player, acc=player.account, delay=300)
 
         #  After-leave active Match conditions
         if not self.is_ended:
@@ -1297,9 +1297,9 @@ class RankedMatch(BaseMatch):
             # Send players Elo Changes
             await asyncio.gather(
                 disp.ELO_DM_UPDATE.send(self.player1, match=self, player=self.player1,
-                                        new_elo=self._player1_stats.int_elo, elo_delta=round(player1_elo_delta)),
+                                        new_elo=self._player1_stats.elo, elo_delta=player1_elo_delta),
                 disp.ELO_DM_UPDATE.send(self.player2, match=self, player=self.player2,
-                                        new_elo=self._player2_stats.int_elo, elo_delta=round(player2_elo_delta))
+                                        new_elo=self._player2_stats.elo, elo_delta=player2_elo_delta)
             )
 
 

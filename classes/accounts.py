@@ -22,6 +22,7 @@ class Account:
         self.logout_reminders = 0
         self.__validated = False
         self.__terminated = False
+        self.__timeout_at: int = 0
         self.__cleaned = True
 
     def update(self, username, password):
@@ -98,6 +99,19 @@ class Account:
     @property
     def is_clean(self):
         return self.__cleaned
+
+    @property
+    def timeout_at(self):
+        """Return the timestamp for the account timeout"""
+        return self.__timeout_at
+
+    def set_timeout(self, timeout_delay):
+        """Set a new timestamp for the account timeout"""
+        self.__timeout_at = tools.timestamp_now() + timeout_delay
+
+    def timeout_delta(self):
+        """Return the remaining time before the account timeout"""
+        return self.__timeout_at - tools.timestamp_now()
 
     def clean(self):
         """Reset account usage variables"""
