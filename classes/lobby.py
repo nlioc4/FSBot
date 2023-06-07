@@ -390,7 +390,7 @@ class Lobby:
         """Gets list of players that could potentially be pinged, checks online status pursuant to preferences.
         Pings passing players, and marks them as pinged."""
         #TODO This can be refactored to be more efficient, but it's not a priority.
-        # Could use new Player.get_member to avoid the extra dict mapping
+        # Could use new Player.member to avoid the extra dict mapping
 
         # Collect set of all players requesting these skill levels, if they haven't already been pinged
         players_to_ping = Player.get_players_to_ping(player.skill_level)

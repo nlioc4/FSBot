@@ -160,7 +160,7 @@ class BaseMatch:
                 if acc:  # if account found
                     msg = await accounts.send_account(acc)
                     if msg:  # if allowed to dm user
-                        await disp.ACCOUNT_SENT.send_priv(inter, msg.channel.jump_url)
+                        await disp.ACCOUNT_SENT.send_priv(inter, f"<#{msg.channel.id}>")
                     else:  # if couldn't dm
                         await disp.ACCOUNT_NO_DMS.send_priv(inter)
 
@@ -256,6 +256,11 @@ class BaseMatch:
         # Show match creation message
         await disp.MATCH_CREATE.send(obj.thread, f'{owner.mention}{invited.mention}', obj.id_str)
 
+        # If a player already has an account, update their account timeout
+        for p in obj.players:
+            if p.account:
+                accounts.account_timeout_delay(p.player, p.account, accounts.MAX_TIME)
+
         return obj
 
     def set_id(self, match_id):
@@ -271,7 +276,7 @@ class BaseMatch:
             await self.thread.edit(invitable=False)
 
             # Add players to thread
-            add_corous = [self.thread.add_user(p.player.get_member) for p in self.__players]
+            add_corous = [self.thread.add_user(p.player.member) for p in self.__players]
             await asyncio.gather(*add_corous)
 
             # Create voice channel, with extended overwrites to set channel to private
@@ -346,6 +351,8 @@ class BaseMatch:
         await disp.MATCH_JOIN.send(self.thread, player.mention)
         self.log(f'{player.name} joined the match')
         asyncio.create_task(self._check_accounts_delay(player))
+        if player.account:
+            accounts.account_timeout_delay(p.player, p.account, accounts.MAX_TIME)
         await self.update()
         return True
 
@@ -371,7 +378,7 @@ class BaseMatch:
 
         #  If Player was assigned an account, start delayed termination
         if player.account:
-            await accounts.account_timeout_delay(player=player.player, acc=player.account, delay=300)
+            accounts.account_timeout_delay(player=player.player, acc=player.account, delay=300)
 
         #  After-leave active Match conditions
         if not self.is_ended:
@@ -452,8 +459,8 @@ class BaseMatch:
     async def _channel_update(self, player, action: bool | None):
         """Updates a players access to the Matches channels / threads"""
         await asyncio.gather(
-            self.thread.add_user(player.get_member) if action else self.thread.remove_user(player.get_member),
-            self.voice_channel.set_permissions(player.get_member, view_channel=action, connect=action)
+            self.thread.add_user(player.member) if action else self.thread.remove_user(player.member),
+            self.voice_channel.set_permissions(player.member, view_channel=action, connect=action)
         )
 
     def _new_embed(self):
@@ -691,7 +698,8 @@ class RankedMatch(BaseMatch):
             -> appeal
             -> submitting
     """
-    MATCH_LENGTH = 8  # Number of Rounds in a Match
+    MATCH_LENGTH = 9  # Number of Rounds in a Match
+    FACTION_SWAP_ENABLED = False  # Whether players must swap factions between rounds
     MAX_PLAYERS = 2  # Number of Players in a Match
     WRONG_SCORE_LIMIT = 3  # Number of times a player can submit a wrong score before the match is cancelled
     TYPE = 'Ranked'
@@ -794,6 +802,9 @@ class RankedMatch(BaseMatch):
         self._round_message: discord.Message | None = None
         self._embed_func = embeds.ranked_match_info
         self._view_class = self.RankedMatchView
+        # TODO Implement Admin Log Embed
+        # self._admin_log_embed_func = embeds.ranked_match_log
+        # self._admin_log_message: discord.Message | None = None
 
     @classmethod
     async def create(cls, owner: Player, invited: Player, *, base_class=None, lobby=None) -> RankedMatch:
@@ -840,7 +851,7 @@ class RankedMatch(BaseMatch):
         second_pick = obj.player1 if obj.first_pick is obj.player2 else obj.player2
         second_pick.assigned_faction_id = 2 if obj.first_pick == 3 else 3
 
-        if obj.rounds_complete >= obj.wins_required - 1:
+        if obj.rounds_complete >= obj.wins_required - 1 and obj.FACTION_SWAP_ENABLED:
             await obj._switch_factions()
 
         return obj
@@ -1118,8 +1129,8 @@ class RankedMatch(BaseMatch):
                         elif self._check_scores_submitted() and self._check_scores_equal():
                             # if both scores submitted and equal
 
-                            if self.current_round == (self.MATCH_LENGTH // 2):
-                                # if half-time
+                            if self.current_round == (self.MATCH_LENGTH // 2) and self.FACTION_SWAP_ENABLED:
+                                # if half-time and swaps enabled
                                 if await self._end_round():  # check if match should end before starting next round
                                     return  # This is future proofing, should never be called at halftime
                                 self.status = MatchState.SWITCHING_SIDES
@@ -1208,7 +1219,7 @@ class RankedMatch(BaseMatch):
 
         # Check end conditions: Match length reached, or one player reaches win threshold
         if self.rounds_complete >= self.MATCH_LENGTH or \
-                True in [wins > self.MATCH_LENGTH // 2 for wins in (self.get_player1_wins(), self.get_player2_wins())]:
+                True in [wins >= self.wins_required for wins in (self.get_player1_wins(), self.get_player2_wins())]:
             asyncio.create_task(self.end_match(end_condition=EndCondition.COMPLETED))
             return True
         return False

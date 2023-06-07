@@ -206,7 +206,7 @@ class AdminCog(commands.Cog):
         match_class = BaseMatch if match_type == "casual" else RankedMatch
         lobby = Lobby.get(match_type)
         match = await lobby.accept_invite(owner, invited)
-        match.log(f"Admin Created Match: {ctx.user.display_name}")
+        match.log(f"Admin Created Match: {Player.get(ctx.user.id).name}")
         await disp.MATCH_CREATE.send_priv(ctx, match.thread.mention, match.id_str)
 
     @match_admin.command(name="end")
@@ -325,7 +325,6 @@ class AdminCog(commands.Cog):
             if acc.a_player:
                 await disp.ACCOUNT_IN_USE.send_priv(ctx, acc.id)
                 return
-            accounts.set_account(p, acc)
         if await accounts.send_account(acc, p):
             await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
 

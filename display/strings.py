@@ -172,8 +172,8 @@ class AllStrings(Enum):
                        "  If you have your own account please register it in {}," \
                        " otherwise request an account using the button above!"
 
-    RM_FACTION_PICK = "{} pick which faction you will play first below!"
-    RM_FACTION_PICKED = "{} chose to play {} first.\n {} has been assigned {}!\n" \
+    RM_FACTION_PICK = "{} pick which faction you will play below!"
+    RM_FACTION_PICKED = "{} chose to play {}.\n {} has been assigned {}!\n" \
                         "Please log in to your assigned faction!"
     RM_FACTION_SWITCH = "Half time, please switch factions!" \
                         "  The match will resume when both players have logged back in."
@@ -216,7 +216,7 @@ class AllStrings(Enum):
     ACCOUNT_HAS_OWN = "You have registered with your own Jaeger account, you can't request a temporary account."
     ACCOUNT_ALREADY = "You have already been assigned an account!"
     ACCOUNT_ALREADY_2 = "{} already has been assigned an account, ID: {}"
-    ACCOUNT_SENT = "You have been sent an account, check your DM's <{}>."
+    ACCOUNT_SENT = "You have been sent an account, check your DM's {}."
     ACCOUNT_SENT_2 = "{} has been sent account ID: {}."
     ACCOUNT_TERMINATED = "Account ID: {} has been terminated!  Account Status is: {}."
     ACCOUNT_NOT_ASSIGNED = "{} doesn't have an account assigned to them!"

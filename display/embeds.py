@@ -14,8 +14,9 @@ from classes.players import SkillLevel, Player
 import modules.discord_obj as d_obj
 
 
-def fs_author(embed) -> Embed:
+def fs_author(embed: Embed) -> Embed:
     """
+    Set the author of an embed to FSbot
 
     :param embed: embed to modify
     :return:  Embed, with author as FSBot
@@ -53,8 +54,10 @@ def account(acc) -> Embed:
                  )
         if acc.timeout_at != 0 and not acc.a_player.match:
             value += f"Session Expiry: {format_stamp(acc.timeout_at, 'R')}\n"
-        else:
-            value += f"Session Expiry: Delayed until match end\n"
+        elif acc.a_player.match:
+            value += f"Session Expiry: **No Expiry While in Match**\n"
+        elif acc.timeout_at == 0:
+            value += f"Session Expiry: **No Expiry**\n"
 
         embed.colour = Colour.green()
         embed.add_field(name='Account Details',
@@ -582,7 +585,11 @@ def ranked_match_info(match) -> Embed:
     embed = Embed(
         colour=colour,
         title=f"Match Info for Ranked Match: {match.id_str}",
-        description="Good luck!",
+        description=
+        f"Players must submit round results after each duel using the built in buttons!\n"
+        f"This match will {'' if match.FACTION_SWAP_ENABLED else 'not'} swap require a faction swap at half time.\n"
+        f"This match is a best of {match.MATCH_LENGTH}, requiring {match.wins_required} round wins to win."
+        f"Good luck!",
         timestamp=dt.now()
     )
 
@@ -664,7 +671,7 @@ def elo_change(match, player, new_elo: float, elo_delta: float) -> Embed:
         description=f'{player.mention} versus {match.get_opponent(player).mention} has ended.\n'
                     f'**Scoreline**\n{match.get_score_string()}\n'
                     f'{player.mention}\'s elo has changed by ``{elo_delta:.0f}`` points.\n'
-                    f'{player.mention}\'s elo is now ``{new_elo:0.f}`` points.\n',
+                    f'{player.mention}\'s elo is now ``{new_elo:.0f}`` points.\n',
         timestamp=dt.now()
     )
     return fs_author(embed)

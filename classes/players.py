@@ -284,7 +284,7 @@ class Player:
         return f"<@{self.__id}>"
 
     @property
-    def get_member(self):
+    def member(self):
         """Returns the players discord guild member object."""
         from modules import discord_obj
         return discord_obj.guild.get_member(self.id)
@@ -602,10 +602,6 @@ class ActivePlayer:
     def __init__(self, player: Player):
         self.__player = player
         self.assigned_faction_id = None
-        # TODO None of the below are used, remove or refactor??
-        self.round_wins = 0
-        self.round_losses = 0
-        self.match_win = None
 
     @property
     def player(self):
@@ -636,8 +632,8 @@ class ActivePlayer:
         return self.__player.mention
 
     @property
-    def get_member(self):
-        return self.__player.get_member
+    def member(self):
+        return self.__player.member
 
     @property
     def ig_names(self):
