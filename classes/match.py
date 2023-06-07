@@ -46,7 +46,6 @@ class Round(NamedTuple):
         return self.p1_faction if self.winner == 1 else self.p2_faction
 
 
-
 class MatchState(Enum):
     INVITING = "Waiting for players to join the match..."
     PICKING_FACTIONS = "Waiting for factions to be determined..."
@@ -87,7 +86,6 @@ class BaseMatch:
                 self.reset_timeout_button.disabled = True
 
         def update(self):
-            self._update()
             # Update timeout reset button
             if self.match.should_warn:
                 self.reset_timeout_button.style = discord.ButtonStyle.green
@@ -108,10 +106,6 @@ class BaseMatch:
                 self.disable_all_items()
 
             return self
-
-        def _update(self):
-            """For Inheritance"""
-            pass
 
         async def in_match_check(self, inter, p: Player | ActivePlayer) -> bool:
             if isinstance(p, Player):
@@ -710,10 +704,44 @@ class RankedMatch(BaseMatch):
     TYPE = 'Ranked'
 
     class RankedMatchView(BaseMatch.MatchInfoView):
+        """Match View for Ranked Matches"""
 
         def __init__(self, match: 'RankedMatch'):
             super().__init__(match)
             self.match = match
+            self.last_round = self.match.current_round
+            self.round_button = discord.ui.Button(label=f'Round: {self.match.current_round}', row=1, disabled=True)
+            self.player1_button = discord.ui.Button(label=self.match.player1.name_and_char_display, row=1,
+                                                    disabled=True)
+            self.vs_button = discord.ui.Button(label="VS", row=1, disabled=True)
+            self.player2_button = discord.ui.Button(label=self.match.player2.name_and_char_display, row=1,
+                                                    disabled=True)
+            for button in [self.round_button, self.player1_button, self.vs_button, self.player2_button]:
+                self.add_item(button)
+
+        def update(self):
+            """Update the match view"""
+
+            if self.last_round != self.match.current_round:
+
+                # Update Round Buttons
+                self.round_button.label = f'Round: {self.match.current_round}'
+
+                self.player1_button.label = self.match.player1.name_and_char_display
+                self.player1_button.emoji = self.match.player1.assigned_faction_emoji
+                if self.match.player1.assigned_faction_abv == "NC":
+                    self.player1_button.style = discord.ButtonStyle.blurple
+                else:
+                    self.player1_button.style = discord.ButtonStyle.red
+
+                self.player2_button.label = self.match.player2.name_and_char_display
+                self.player2_button.emoji = self.match.player2.assigned_faction_emoji
+                if self.match.player2.assigned_faction_abv == "NC":
+                    self.player2_button.style = discord.ButtonStyle.blurple
+                else:
+                    self.player2_button.style = discord.ButtonStyle.red
+
+            return super().update()
 
         async def leave_button_callback(self, button: discord.Button, inter: discord.Interaction):
             """Ranked Match Specific Leave button callback"""
@@ -785,6 +813,9 @@ class RankedMatch(BaseMatch):
     def __init__(self, owner: Player, invited: Player, lobby):
         super().__init__(owner, invited, lobby)
 
+        # Set Initial Status
+        self.status = MatchState.PICKING_FACTIONS
+
         # Player Objects
         self.player1 = self.players[0]
         self.player2 = self.players[1]
@@ -814,9 +845,6 @@ class RankedMatch(BaseMatch):
     @classmethod
     async def create(cls, owner: Player, invited: Player, *, base_class=None, lobby=None) -> RankedMatch:
         obj = await super().create(owner, invited, base_class=cls, lobby=lobby)  # RankedMatch create
-
-        # Set Initial Status
-        obj.status = MatchState.PICKING_FACTIONS
 
         # Retrieve Stats PlayerStats
         obj._player1_stats = await PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
@@ -1207,7 +1235,7 @@ class RankedMatch(BaseMatch):
         self.__p1_submitted_score, self.__p2_submitted_score = None, None
 
         self.log(
-            f"Round [{self.current_round}] "
+            f"Round [{self.current_round}/{self.MATCH_LENGTH}] "
             f"Started: {self.player1.assigned_faction_char} vs {self.player2.assigned_faction_char}")
 
         # Send new round message

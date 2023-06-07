@@ -46,7 +46,6 @@ class PlayerStats:
             self.__nc_round_losses = 0  # Number of Rounds Lost as NC
             self.__tr_round_losses = 0  # Number of Rounds Lost as TR
 
-
     def _get_data(self):
         data = {
             '_id': self.__id,

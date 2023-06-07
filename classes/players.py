@@ -680,6 +680,12 @@ class ActivePlayer:
         return "NO FACTION"
 
     @property
+    def assigned_faction_emoji(self):
+        if self.assigned_faction_id:
+            return cfg.emojis[self.assigned_faction_abv]
+        return ""
+
+    @property
     def assigned_faction_char(self):
         if not self.has_own_account and not self.account:
             return "NO ACCOUNT"
@@ -691,6 +697,12 @@ class ActivePlayer:
         if not self.assigned_faction_id:
             return "NO FACTION"
         return f"{cfg.emojis[self.assigned_faction_abv]}{self.assigned_faction_char}"
+
+    @property
+    def name_and_char_display(self):
+        if not self.assigned_faction_id:
+            return self.name
+        return f'{self.name[:15]}({self.assigned_faction_char})'
 
     @property
     def assigned_faction_display(self):

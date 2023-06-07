@@ -631,7 +631,7 @@ def ranked_match_info(match) -> Embed:
         round_string = \
             f"{match.player1.name}: {player1_online}{match.player1.assigned_char_display}{player1_submitted}\n" \
             f"{match.player2.name}: {player2_online}{match.player2.assigned_char_display}{player2_submitted}\n"
-        embed.add_field(name=f"Current Round: [{match.current_round}]",
+        embed.add_field(name=f"Current Round: [{match.current_round}/{match.MATCH_LENGTH}]",
                         value=round_string,
                         inline=False)
 
