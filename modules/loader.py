@@ -22,6 +22,7 @@ def load_secondary(client):
         client.load_extension(cog)
     log.info('Loaded Cogs: %s', list(client.cogs.keys()))
 
+
 def lock_all():
     global __is_global_locked
     __is_global_locked = True
@@ -32,7 +33,7 @@ def unlock_all():
     __is_global_locked = False
 
 
-async def load_all(client):
+async def load_all(client: discord.Bot):
     for cog in standard_cogs:
         try:
             client.load_extension(cog)

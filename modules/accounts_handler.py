@@ -204,12 +204,14 @@ class ValidateView(views.FSBotView):
         self.acc: classes.Account = acc
         self.end_session_button.disabled = True
         if self.acc.is_validated:
+            self.timeout = None
             self.validate_button.disabled = True
             self.validate_button.style = discord.ButtonStyle.grey
             self.end_session_button.disabled = False
             self.timeout = None
         if self.acc.is_terminated:
             self.end_session_button.disabled = True
+            self.stop()
 
     @discord.ui.button(label="Confirm Rules", style=discord.ButtonStyle.green)
     async def validate_button(self, button: discord.Button, inter: discord.Interaction):

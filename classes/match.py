@@ -151,9 +151,12 @@ class BaseMatch:
             elif p.has_own_account:
                 await disp.ACCOUNT_HAS_OWN.send_priv(inter)
                 return
-            elif p.account:
-                await disp.ACCOUNT_ALREADY.send_priv(inter)
+            elif p.account and p.account.message:
+                await disp.ACCOUNT_ALREADY.send_priv(inter, f"<#{p.account.message.channel.id}>")
                 return
+            elif p.account and not p.account.message:
+                await d_obj.d_log(f"Account {p.account.id} has no message to {p.mention}.  Cleaning...")
+                await accounts.terminate(p.account, force_clean=True)
             else:
                 acc = accounts.pick_account(p)
                 if acc:  # if account found

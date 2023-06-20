@@ -214,7 +214,7 @@ class AllStrings(Enum):
     SKILL_LEVEL = "Your skill level has been set to: {}."
 
     ACCOUNT_HAS_OWN = "You have registered with your own Jaeger account, you can't request a temporary account."
-    ACCOUNT_ALREADY = "You have already been assigned an account!"
+    ACCOUNT_ALREADY = "You have already been assigned an account! Check {} for more info..."
     ACCOUNT_ALREADY_2 = "{} already has been assigned an account, ID: {}"
     ACCOUNT_SENT = "You have been sent an account, check your DM's {}."
     ACCOUNT_SENT_2 = "{} has been sent account ID: {}."

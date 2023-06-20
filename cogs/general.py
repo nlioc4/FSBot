@@ -173,9 +173,14 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
             duel_partners=duel_partners)
 
     @commands.slash_command(name="elo")
-    async def elo_command(self, ctx: discord.ApplicationContext):
+    async def elo_command(self, ctx: discord.ApplicationContext,
+                          user: discord.Option(discord.Member,
+                                               "Admin Only: Member to check ELO for", required=False)):
         """View your own ELO and ELO history"""
-        if not (p := await d_obj.registered_check(ctx, ctx.user)):
+        if (user := user or ctx.user) is not ctx.user and not d_obj.is_admin(ctx.user):
+            return await disp.STATS_SELF_ONLY.send_priv(ctx)  # Check if admin for requests on other users
+
+        if not (p := await d_obj.registered_check(ctx, user)):
             return
 
         await ctx.defer(ephemeral=True)

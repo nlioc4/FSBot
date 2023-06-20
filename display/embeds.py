@@ -895,9 +895,9 @@ def fs_join_embed(mention) -> Embed:
         name="Guides and Resources",
         value=f"Guides for most different air vehicles can be found in <#751111752191574057>,"  # Guides channel
               f" which makes a great starting point for those new to the air game.  Channels in the 'Improvements and"
-              f" advice' Section offer advice specific to certain vehicles, and should be kept on topic when possible."
-              f"  Ask questions relating to each vehicle in their channel, or general Planetside 2 related questions "
-              f" in <#751114546906792017>.",  # #ask-anything
+              f" advice' Section offer a forum channel for asking questions and <#1076996395191517245> for requesting"
+              f" coaching from Hands on Teachers, mentioned below.  Remember to check if someone else has already asked"
+              f" your question by searching the channel first.",
         inline=False
     )
 

@@ -441,7 +441,7 @@ class Lobby:
             pass
         else:
             # schedule next update if update completes successfully
-            d_obj.bot.loop.call_later(0.1, self._schedule_update_task)
+            d_obj.bot.loop.call_soon(self._schedule_update_task)
 
     async def _update_task(self):
         await asyncio.sleep(self.UPDATE_DELAY)

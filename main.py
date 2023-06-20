@@ -178,11 +178,18 @@ async def on_application_command_error(context, exception):
 
 @bot.event
 async def on_member_join(member):
-    """Ensure proper roles are applied to players on server join and post join message"""
-    await display.AllStrings.SERVER_JOIN.send(d_obj.guild.system_channel, member.mention, mention=member.mention)
+    """Ensure proper roles are applied to players on server join and send Join message if Member already verified"""
     await d_obj.role_update(member)
 
+    if member.pending is False:
+        await display.AllStrings.SERVER_JOIN.send(d_obj.guild.system_channel, member.mention, mention=member.mention)
 
+
+@bot.event
+async def on_member_update(before: discord.Member, after: discord.Member):
+    """Send Join message after member is verified"""
+    if before.pending is True and after.pending is False:
+        await display.AllStrings.SERVER_JOIN.send(d_obj.guild.system_channel, after.mention, mention=after.mention)
 
 # database init
 modules.database.init(cfg.database)
