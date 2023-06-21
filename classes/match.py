@@ -208,6 +208,10 @@ class BaseMatch:
         self.__view: BaseMatch.MatchInfoView | None = None
         self._view_class = self.MatchInfoView
 
+        self._admin_log_embed_func = embeds.match_log
+        self.admin_log_embed_cache: discord.Embed | None = None
+        self._admin_log_message: discord.Message | None = None
+
         #  Containers
         self.__players: list[ActivePlayer] = [owner.on_playing(self),
                                               player.on_playing(self)]  # List of ActivePlayer, add owners active_player
@@ -354,7 +358,7 @@ class BaseMatch:
         self.log(f'{player.name} joined the match')
         asyncio.create_task(self._check_accounts_delay(player))
         if player.account:
-            accounts.account_timeout_delay(p.player, p.account, accounts.MAX_TIME)
+            accounts.account_timeout_delay(player, player.account, accounts.MAX_TIME)
         await self.update()
         return True
 
@@ -422,8 +426,11 @@ class BaseMatch:
                 self.__account_check_task.cancel()
 
             # Display match ended to users
-            await disp.MATCH_END.send(self.thread, self.id_str)
-            await self.update_embed()
+            await asyncio.gather(
+                disp.MATCH_END.send(self.thread, self.id_str),
+                self.update_embed(),
+                self.update_match_log()
+            )
 
             # Update DB with current players, then remove players
             await db.async_db_call(db.set_element, 'matches', self.id, self.get_end_data())
@@ -483,7 +490,7 @@ class BaseMatch:
             self.embed_cache = self._new_embed()
         if not self.thread:  # can't find the thread, pass and wait for next update
             return
-        self.info_message = await disp.MATCH_INFO.send(self.thread, embed=self.embed_cache, view=self.view())
+        self.info_message = await disp.NONE.send(self.thread, embed=self.embed_cache, view=self.view())
         await self.info_message.pin()
 
     async def _check_accounts_delay(self, *players_to_check):
@@ -504,12 +511,34 @@ class BaseMatch:
                 self.embed_cache = new_embed
 
                 try:
-                    await disp.MATCH_INFO.edit(self.info_message, embed=self.embed_cache, view=self.view())
+                    await disp.NONE.edit(self.info_message, embed=self.embed_cache, view=self.view())
                 except discord.errors.NotFound as e:
                     log.error("Couldn't find self.info_message for Match %s", self.id_str, exc_info=e)
                     await self.send_embed()
         else:
             await self.send_embed()
+
+    async def send_admin_log(self):
+        """Send a new Admin Log for this match"""
+        if not self.admin_log_embed_cache:
+            self.admin_log_embed_cache = self._admin_log_embed_func(self)
+        self._admin_log_message = await disp.NONE.send(d_obj.channels['match_history'],
+                                                       embed=self.admin_log_embed_cache)
+
+    async def update_match_log(self):
+        """Update the Admin Match Log if required.  If no embed found, send a new one."""
+        if self._admin_log_message:
+            if not tools.compare_embeds(self.admin_log_embed_cache, new_embed := self._admin_log_embed_func(self)):
+                self.admin_log_embed_cache = new_embed
+
+                try:
+                    await disp.NONE.edit(self._admin_log_message, embed=self.admin_log_embed_cache)
+
+                except discord.errors.NotFound as e:
+                    log.error("Couldn't find self._admin_log_message for Match %s", self.id_str, exc_info=e)
+                    await self.send_admin_log()
+        else:
+            await self.send_admin_log()
 
     def update_status(self):
         """Simple status update, check for number of online/logged in players"""
@@ -571,7 +600,8 @@ class BaseMatch:
                 self.update_status()
 
                 # Reflect match embed with updated match attributes, also updates match view
-                await self.update_embed()
+                # Also updates admin log embed
+                await asyncio.gather(self.update_embed(), self.update_match_log())
         except asyncio.CancelledError:
             pass
         else:
@@ -612,6 +642,38 @@ class BaseMatch:
     def recent_logs(self):
         return self.match_log[-15:]
 
+    def get_log_fields(self, max_fields=5, show_all=False):
+        """Return a list of EmbedFields, split by maximum embed string length if necessary (maximum string length of 1000).
+        :param max_fields: The maximum number of fields to return, defaults to 5.  Returns fields closest to current time.
+        """
+        fields = []
+        current_field = discord.EmbedField(name='\u200b', value='', inline=False)
+        for entry in self.match_log:
+            # Check if Entry should be public
+            if not entry[2] and not show_all:
+                continue
+
+            # Set up next string
+            next_string = f'[{tools.format_time_from_stamp(entry[0], "T")}] {entry[1]}\n'
+            # Check if next string is too long to be added to current field
+            if len(current_field.value) + len(next_string) > 1000:
+                fields.append(current_field)
+                current_field = discord.EmbedField(name='\u200b', value='', inline=False)
+            current_field.value += next_string
+
+        # Check if current field is empty, if not add to list
+        if current_field.value:
+            fields.append(current_field)
+
+        # Trim fields if necessary
+        if len(fields) > max_fields:
+            fields = fields[-max_fields:]
+
+        # Set first field in returns title to 'Match Log', if fields exist
+        if fields:
+            fields[0].name = 'Match Log'
+        return fields
+
     @property
     def id(self):
         return self.__id
@@ -633,6 +695,10 @@ class BaseMatch:
     @property
     def prev_players(self):
         return self.__previous_players
+
+    @property
+    def all_players(self):
+        return [*self.__players, *self.__previous_players]
 
     @property
     def invited(self):
@@ -741,7 +807,7 @@ class RankedMatch(BaseMatch):
             self.add_item(self.round_won_button)
 
             self.round_lost_button = discord.ui.Button(label="Round Lost", row=2, disabled=True,
-                                                    style=discord.ButtonStyle.red)
+                                                       style=discord.ButtonStyle.red)
             self.round_lost_button.callback = lambda inter, score=-1: self.submit_score_callback(inter, score=score)
             self.add_item(self.round_lost_button)
 
@@ -868,9 +934,6 @@ class RankedMatch(BaseMatch):
         self._round_message: discord.Message | None = None
         self._embed_func = embeds.ranked_match_info
         self._view_class = self.RankedMatchView
-        # TODO Implement Admin Log Embed
-        # self._admin_log_embed_func = embeds.ranked_match_log
-        # self._admin_log_message: discord.Message | None = None
 
     @classmethod
     async def create(cls, owner: Player, invited: Player, *, base_class=None, lobby=None) -> RankedMatch:
@@ -1241,7 +1304,11 @@ class RankedMatch(BaseMatch):
                         await self._start_round()
 
                 # Reflect match embed with updated match attributes, also updates match view
-                await self.update_embed()
+                await asyncio.gather(
+                    self.update_embed(),
+                    self.update_match_log()
+                )
+
         except asyncio.CancelledError:
             pass
         else:

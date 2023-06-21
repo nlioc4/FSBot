@@ -540,24 +540,8 @@ def match_info(match) -> Embed:
                         value=online_string,
                         inline=False)
 
-    if match.recent_logs:
-        log_string = ''
-        title = "Match Logs"
-        for log in match.recent_logs:
-            if log[2]:
-                next_string = f"[{format_stamp(log[0], 'T')}]{log[1]}\n"
-                if len(log_string) + len(next_string) > 1000:
-                    embed.add_field(name=title,
-                                    value=log_string,
-                                    inline=False)
-                    log_string = ''
-                    title = '\u200b'
-                log_string = log_string + next_string
-
-        if log_string:
-            embed.add_field(name=title,
-                            value=log_string,
-                            inline=False)
+    for field in match.get_log_fields(2):
+        embed.append_field(field)
 
     return fs_author(embed)
 
@@ -635,24 +619,60 @@ def ranked_match_info(match) -> Embed:
                         value=round_string,
                         inline=False)
 
-    if match.recent_logs:
-        log_string = ''
-        title = "Match Logs"
-        for log in match.recent_logs:
-            if log[2]:
-                next_string = f"[{format_stamp(log[0], 'T')}]{log[1]}\n"
-                if len(log_string) + len(next_string) > 1000:
-                    embed.add_field(name=title,
-                                    value=log_string,
-                                    inline=False)
-                    log_string = ''
-                    title = '\u200b'
-                log_string = log_string + next_string
+    for field in match.get_log_fields(2):
+        embed.append_field(field)
 
-        if log_string:
-            embed.add_field(name=title,
-                            value=log_string,
-                            inline=False)
+    return fs_author(embed)
+
+
+def match_log(match) -> Embed:
+    """Embed to log match history to Admin Channel"""
+    from classes.match import MatchState, RankedMatch, BaseMatch
+
+    match: BaseMatch | RankedMatch
+
+    match match.status:
+        case MatchState.ENDED:
+            colour = Colour.dark_red()
+        case _:
+            colour = Colour.green()
+
+    embed = Embed(
+        colour=colour,
+        title=f"Match Log for Match: {match.TYPE}[{match.id_str}]",
+        description=f"Match Thread: {match.thread.mention}\n",
+        timestamp=dt.now()
+    )
+
+    match_info_str = (f"Match Status: {match.status.value}\n"
+                      f"Match Owner: {match.owner.mention}\n"
+                      f"Match Started: {format_stamp(match.start_stamp, 'R')} at {format_stamp(match.start_stamp)}\n"
+                      )
+    if match.is_ended:
+        match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}\n'
+
+    embed.add_field(name="Match Info",
+                    value=match_info_str,
+                    inline=False)
+
+    embed.add_field(name="All Players",
+                    value=
+                    "\n".join([f"{player.mention}({player.name})" for player in match.all_players]),
+                    inline=False)
+
+    if type(match) == RankedMatch:
+        embed.add_field(name="Match Score",
+                        value=match.get_score_string(),
+                        inline=False)
+
+    for field in match.get_log_fields(show_all=True):
+        # Ensure embed doesn't exceed 6000 characters or 25 fields
+        if len(embed.fields) >= 25:
+            break
+        if len(embed) + len(field.value) >= 6000:
+            break
+
+        embed.append_field(field)
 
     return fs_author(embed)
 

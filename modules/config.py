@@ -75,7 +75,7 @@ channels = {
     "rules": "",
     "staff": "",
     "logs": "",
-    "usage": "",
+    "match_history": "",
     "content-plug": ""
 }
 
