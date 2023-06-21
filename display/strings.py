@@ -234,6 +234,8 @@ class AllStrings(Enum):
     ACCOUNT_INFO = "", accountcheck
     ACCOUNT_VALIDATE_ERROR = "There was an error logging this usage, the account cannot be validated." \
                              "  Please try again, and if the issue persists please ask for help!"
+    ACCOUNT_VALIDATE_ALREADY = "This account has already been validated!"
+    ACCOUNT_VALIDATE_SUCCESS = "Account ID: {} has been validated successfully for Player: {}!"
 
     TIMEOUT_UNTIL = "{}({}) is timed out, their timeout will expire {}, at {}."
     TIMEOUT_NOT = "{}({}) is not timed out."

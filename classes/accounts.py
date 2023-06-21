@@ -1,6 +1,8 @@
 """
 Class to represent Jaeger Accounts available to the app
 """
+import discord.ui
+
 import modules.tools as tools
 
 
@@ -18,6 +20,7 @@ class Account:
         self.__last_usage = {"account_id": self.id}
         self.__unique_usages = unique_usages
         self.message = None
+        self.view = None
         self.timeout_coro = None
         self.logout_reminders = 0
         self.__validated = False
@@ -119,6 +122,9 @@ class Account:
         self.__last_usage = {"account_id": self.id}
         self.__validated = False
         self.__terminated = False
+        if self.view and not self.view.is_finished():
+            self.view.stop()
+        self.view = None
         self.logout_reminders = 0
         if self.timeout_coro:
             self.timeout_coro.cancel()

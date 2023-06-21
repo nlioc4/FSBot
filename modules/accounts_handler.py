@@ -199,19 +199,21 @@ def set_account(a_player: classes.Player, acc: classes.Account):
 
 
 class ValidateView(views.FSBotView):
-    def __init__(self, acc):
+    def __init__(self, acc: classes.Account):
         super().__init__(timeout=300)
-        self.acc: classes.Account = acc
+        self.acc = acc
         self.end_session_button.disabled = True
         if self.acc.is_validated:
-            self.timeout = None
-            self.validate_button.disabled = True
-            self.validate_button.style = discord.ButtonStyle.grey
-            self.end_session_button.disabled = False
-            self.timeout = None
+            self.validate()
         if self.acc.is_terminated:
-            self.end_session_button.disabled = True
+            self.disable_all_items()
             self.stop()
+
+    def validate(self):
+        self.validate_button.disabled = True
+        self.validate_button.style = discord.ButtonStyle.grey
+        self.end_session_button.disabled = False
+        self.timeout = None
 
     @discord.ui.button(label="Confirm Rules", style=discord.ButtonStyle.green)
     async def validate_button(self, button: discord.Button, inter: discord.Interaction):
@@ -220,12 +222,7 @@ class ValidateView(views.FSBotView):
         except discord.NotFound:
             log.info("Interaction Not found on Validation Defer")
         try:
-            if await validate_account(acc=self.acc):
-                button.disabled = True
-                button.style = discord.ButtonStyle.grey
-                self.end_session_button.disabled = False
-                self.timeout = None
-                await disp.ACCOUNT_EMBED.edit(self.acc.message, clear_content=True, acc=self.acc, view=self)
+            await validate_account(acc=self.acc)
         except gspread.exceptions.APIError as e:
             await disp.ACCOUNT_VALIDATE_ERROR.send_priv(inter)
 
@@ -237,14 +234,18 @@ class ValidateView(views.FSBotView):
         await terminate(acc=self.acc, view=self)
 
     async def on_timeout(self) -> None:
-        self.disable_all_items()
-        await disp.ACCOUNT_TOKEN_EXPIRED.edit(self.acc.message, remove_embed=True, view=self)
-        await clean_account(self.acc)
+        if not self.acc.is_validated:
+            log.info(f"Validate View Timed out for Acc: {self.acc.id}, Player: {self.acc.a_player.name}")
+            self.disable_all_items()
+            await disp.ACCOUNT_TOKEN_EXPIRED.edit(self.acc.message, remove_embed=True, view=self)
+            await clean_account(self.acc)
 
 
 async def update_message(acc: classes.Account):
     """Updates the account message with the current account object"""
-    await disp.ACCOUNT_EMBED.edit(acc.message, clear_content=True, acc=acc, view=ValidateView(acc))
+    if not acc.message:
+        return False
+    await disp.ACCOUNT_EMBED.edit(acc.message, clear_content=True, acc=acc, view=acc.view)
 
 
 async def send_account(acc: classes.Account = None, player: classes.Player = None):
@@ -259,7 +260,8 @@ async def send_account(acc: classes.Account = None, player: classes.Player = Non
     account_timeout_delay(player=player, acc=acc, delay=MAX_TIME)  # start countdown to account timeout
     for _ in range(3):
         try:
-            acc.message = await disp.ACCOUNT_EMBED.send(user, acc=acc, view=ValidateView(acc))
+            acc.view = ValidateView(acc)
+            acc.message = await disp.ACCOUNT_EMBED.send(user, acc=acc, view=acc.view)
             if acc.message:
                 break
         except discord.Forbidden:
@@ -282,7 +284,7 @@ async def validate_account(acc: classes.Account = None, player: classes.Player =
         raise ValueError("No args provided")
 
     # Check if already validated
-    if acc.is_validated:
+    if acc.is_validated or acc.is_terminated:  # Accounts should never be terminated here, but just in case?
         return False
 
     # Update GSheet with Usage
@@ -313,11 +315,17 @@ async def validate_account(acc: classes.Account = None, player: classes.Player =
                           f" user: {acc.a_player.id}, ID: {acc.a_player.id}", error=e)
         raise e
 
+    # Show Player Account Details
+    acc.validate()
+    if acc.view:
+        acc.view.validate()
+    await update_message(acc)
+
+    # Log Account Validation
     log.info(f'Account [{acc.id}] sent to player: ID: [{player.id}], name: [{player.name}]')  # Log validation
     await disp.LOG_ACCOUNT.send(d_obj.channels['logs'], acc.id, player.id, player.mention,
                                 player.name, allowed_mentions=False)
 
-    acc.validate()  # update account object, at the end to ensure validation was successful
     return True
 
 
@@ -335,6 +343,8 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
 
     if not acc.is_terminated:
         acc.terminate()  # if not already terminated
+        if acc.view:
+            acc.view.disable_all_items()
 
         # End Account Timeout Countdown
         if acc.timeout_coro and not acc.timeout_coro.done():
@@ -349,8 +359,7 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
             for _ in range(3):
                 try:
                     if await send_coro:
-                        await disp.ACCOUNT_EMBED.edit(acc.message, acc=acc,
-                                                      view=view)  # use acc.message context to edit
+                        await update_message(acc)  # use acc.message context to edit
                         break
                 except discord.Forbidden:
                     continue

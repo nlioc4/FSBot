@@ -64,6 +64,12 @@ def account(acc) -> Embed:
                         value=value,
                         inline=False
                         )
+
+        if acc.a_player.match:
+            embed.add_field(name='Return to your current match below',
+                            value=acc.a_player.match.thread.mention,
+                            inline=False)
+
     else:
         embed.colour = Colour.greyple()
         embed.add_field(name='Account Unvalidated',

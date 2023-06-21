@@ -1303,7 +1303,7 @@ class RankedMatch(BaseMatch):
                         self.status = MatchState.PLAYING
                         await self._start_round()
 
-                # Reflect match embed with updated match attributes, also updates match view
+                # Update Display Objects
                 await asyncio.gather(
                     self.update_embed(),
                     self.update_match_log()
@@ -1324,6 +1324,8 @@ class RankedMatch(BaseMatch):
             self.__p1_submitted_score, self.__p2_submitted_score = -1, 1
         else:
             raise ValueError("Invalid player given to decide_round")
+
+    # Round Control Functions
 
     async def _start_round(self):
         """Starts a new round, resets round variables"""

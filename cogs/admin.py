@@ -311,7 +311,9 @@ class AdminCog(commands.Cog):
                              member: discord.Option(discord.Member, "Recipients @mention", required=True),
                              acc_id: discord.Option(int, "A specific account ID to assign, 1-24", min_value=1,
                                                     max_value=24,
-                                                    required=False)):
+                                                    required=False),
+                             validated: discord.Option(bool, "Force Validate the Account, defaults to False",
+                                                       default=False)):
         """Assign an account to a user, with optional specific account ID"""
         await ctx.defer(ephemeral=True)
         p = Player.get(member.id)
@@ -325,20 +327,42 @@ class AdminCog(commands.Cog):
         else:
             acc = accounts.all_accounts[acc_id]
             if acc.a_player:
-                await disp.ACCOUNT_IN_USE.send_priv(ctx, acc.id)
-                return
+                return await disp.ACCOUNT_IN_USE.send_priv(ctx, acc.id)
+
+        if not acc:
+            return await disp.ACCOUNT_NO_ACCOUNT.send_priv(ctx)
+
         if await accounts.send_account(acc, p):
             await disp.ACCOUNT_SENT_2.send_priv(ctx, p.mention, acc.id)
 
+        if validated:
+            await accounts.validate_account(acc)
+
         # if DM's failed
-        else:
+        if not acc.message:
             await disp.ACCOUNT_DM_FAILED.send_priv(ctx, p.mention)
+
+    @accounts_admin.command(name="validate")
+    async def account_validate(self, ctx: discord.ApplicationContext,
+                               member: discord.Option(discord.Member, "Player whose account to validate",
+                                                      required=True)):
+        """Validate a player's account manually"""
+        await ctx.defer(ephemeral=True)
+        if not (p := await d_obj.registered_check(ctx, member)):
+            return
+        elif not p.account:
+            await disp.ACCOUNT_NOT_ASSIGNED.send_priv(ctx, member.mention)
+        elif await accounts.validate_account(p.account):
+            await disp.ACCOUNT_VALIDATE_SUCCESS.send_priv(ctx, p.account.id, p.mention)
+            return
+        else:
+            await disp.ACCOUNT_VALIDATE_ALREADY.send_priv(ctx)
 
     @accounts_admin.command(name="terminate")
     async def account_terminate(self, ctx: discord.ApplicationContext,
-                                member: discord.Option(discord.Member, "Player who's account to terminate",
+                                member: discord.Option(discord.Member, "Player whose account to terminate",
                                                        required=True),
-                                clean: discord.Option(bool, "Should the account be cleaned?", default=False)):
+                                clean: discord.Option(bool, "Should the account be force cleaned?", default=False)):
         """Terminate a player's account"""
         await ctx.defer(ephemeral=True)
         p = Player.get(member.id)
