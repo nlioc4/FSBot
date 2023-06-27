@@ -24,6 +24,7 @@ import modules.discord_obj as d_obj
 import modules.database
 import modules.loader as loader
 import modules.signal
+import modules.elo_ranks_handler as elo_ranks
 import classes
 import display
 import modules.spam_detector as spam
@@ -109,6 +110,7 @@ async def on_ready():
     d_obj.init(bot)
     bot.loop.create_task(modules.accounts_handler.init(cfg.GAPI_SERVICE, cfg.TEST), name="Accounts Handler Init")
     loader.load_secondary(bot)
+    bot.loop.create_task(elo_ranks.init_elo_ranks(), name="Elo Ranks Init")
     loader.unlock_all()
 
 
