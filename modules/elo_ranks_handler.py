@@ -122,7 +122,7 @@ async def update_player_rank_role(player_stat: PlayerStats):
     old_rank = EloRank.get(player_stat.last_rank)
     new_rank = EloRank.get(player_stat.rank)
 
-    if old_rank.role and old_rank.role in p.member.roles:  # Remove old role
+    if old_rank.role and old_rank is not new_rank and old_rank.role in p.member.roles:  # Remove old role
         await p.member.remove_roles(old_rank.role)
     if new_rank.role and new_rank.role not in p.member.roles:  # Add new role
         await p.member.add_roles(new_rank.role)
