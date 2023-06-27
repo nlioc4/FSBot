@@ -3,6 +3,7 @@
 from datetime import datetime as dt
 from typing import Literal
 from enum import Enum
+import aiohttp
 
 import discord
 
@@ -148,3 +149,10 @@ class AutoDict(dict):
             self[key] += value
         else:
             self[key] = value
+
+
+async def download_image(url: str):
+    """downloads an image from url and returns the bytes"""
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            return resp.read()

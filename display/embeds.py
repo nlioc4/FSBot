@@ -757,7 +757,7 @@ def elo_rank_leaderboard(elo_ranks, rank_list_dict, last_update, next_update, el
     from modules.elo_ranks_handler import EloRank
     from classes.player_stats import PlayerStats
     elo_ranks: list[EloRank]
-    rank_lists: dict[str, list[PlayerStats]]
+    rank_list_dict: dict[str, list[PlayerStats]]
 
     embed = Embed(
         colour=Colour.blurple(),
@@ -774,16 +774,16 @@ def elo_rank_leaderboard(elo_ranks, rank_list_dict, last_update, next_update, el
     )
 
     for rank in elo_ranks:
-        players_string = ''
+        players_string = f'{rank.mention}\n'
         for count, player in enumerate(rank_list_dict[rank.name]):
-            player_win_rate = player.match_wins / player.total_matches
-            players_string += f"<@{player.id}>({player.name}):``{player.elo:.0f} - {player.total_matches} - " \
-                              f"{player_win_rate:.0%}``\n"
+            players_string += f"[{count+1}]<@{player.id}>({player.name}):``{player.elo:.0f} - " \
+                              f"{player.total_matches} - {player.match_win_percentage:.0%}``\n"
             if count >= 9:
                 break
         player_count = len(rank_list_dict[rank.name])
         if not player_count:
-            players_string = "No Players in this Rank"
+            players_string = f"{rank.mention}\n" \
+                             f"No Players in this Rank"
         if rank.name == "Unranked":
             players_string = "No reporting for Unranked Players"
 

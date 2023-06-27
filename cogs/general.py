@@ -195,7 +195,9 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
     async def activity_update(self):
         await bot_status.update_status()
 
-    @tasks.loop(time=time(hour=8, minute=0, second=0, tzinfo=tz.utc))
+    @tasks.loop(time=[time(hour=8, minute=0, second=0, tzinfo=tz.utc),
+                      time(hour=16, minute=0, second=0, tzinfo=tz.utc),
+                      time(hour=0, minute=0, second=0, tzinfo=tz.utc)])
     async def elo_rank_update(self):
         """Update ELO rankings every day at 8am UTC"""
         await elo.update_player_ranks()

@@ -6,6 +6,7 @@ Handles interactions with commonly used discord objects, and role updates
 from typing import Union
 from logging import getLogger
 import sys
+import aiohttp
 
 import asyncio
 import discord
@@ -55,7 +56,7 @@ def init(client):
     categories['admin'] = channels['staff'].category
 
     global colin
-    colin = guild.get_member(123702146247032834) # For pinging myself
+    colin = guild.get_member(123702146247032834)  # For pinging myself
     loaded.set()
 
 
@@ -122,6 +123,44 @@ async def d_log(message: str = '', source: str = '', error=None) -> bool:
         log.error("Could not send message to logs channel", exc_info=error_2)
         log.error(message, exc_info=error)
     return False
+
+
+async def get_or_create_role(name: str, **kwargs) -> discord.Role:
+    """get a role by name, or creates it if it doesn't exist
+    Returns the role object
+    Data should be a dict containing params for the role creation
+    color: Color for the role
+    hoist: whether the role should be hoisted
+    mentionable: whether the role should be mentionable
+    permissions: permissions for the role
+    icon: bytes-like object for the role icon
+    unicode_emoji: emoji for the role (str)
+
+    """
+    if not (role := discord.utils.find(lambda r: r.name == name, guild.roles)):
+        role = await guild.create_role(name=name, **kwargs)
+    roles.update({name: role})  # add role to roles dict
+    return role
+
+
+async def get_or_create_emoji(name: str, **kwargs) -> discord.Emoji | None:
+    """get an emoji by name, or creates it if it doesn't exist
+    Returns the emoji object
+    Data should be a dict containing params for the emoji creation
+    image: bytes-like object for the emoji image
+    roles: list of roles to limit the emoji to
+    reason: reason for the emoji creation
+    """
+    if not (emoji := discord.utils.find(lambda e: e.name == name, guild.emojis)):
+        if 'image' in kwargs and type(kwargs['image']) == str:  # if url passed, download image
+            kwargs['image'] = await tools.download_image(kwargs['image'])
+        try:
+            emoji = await guild.create_custom_emoji(name=name, **kwargs)
+        except discord.Forbidden as e:
+            log.error(f"Could not create emoji {name}", exc_info=e)
+            return
+    cfg.emojis.update({name: str(emoji)})  # add emoji to config
+    return emoji
 
 
 async def role_update(member: discord.Member = None, player: classes.Player = None, reason="FSBot Role Update"):

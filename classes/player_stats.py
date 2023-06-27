@@ -30,7 +30,7 @@ class PlayerStats:
     @classmethod
     async def get_or_fetch(cls, p_id, p_name):
         """Retrieve PlayerStats object from memory, fetch from database if not in memory, create new obj if not in db"""
-        return cls.get(p_id) or cls.fetch_from_db(p_id, p_name)
+        return cls.get(p_id) or await cls.fetch_from_db(p_id, p_name)
 
     @classmethod
     def get_all(cls):
@@ -73,6 +73,7 @@ class PlayerStats:
             self.__nc_round_losses = data.get('nc_round_losses', 0)
             self.__tr_round_losses = data.get('tr_round_losses', 0)
 
+            self.__current_rank = data.get('current_rank', 'Unranked')
             self.__last_rank = data.get('last_rank', 'Unranked')
             self.__last_rank_update = data.get('last_rank_update', 0)
 
@@ -88,6 +89,7 @@ class PlayerStats:
             self.__nc_round_losses = 0  # Number of Rounds Lost as NC
             self.__tr_round_losses = 0  # Number of Rounds Lost as TR
 
+            self.__current_rank = 'Unranked'  # Current rank of player
             self.__last_rank = 'Unranked'  # Last rank of player
             self.__last_rank_update = 0  # Last time rank was updated
 
@@ -109,6 +111,7 @@ class PlayerStats:
             'tr_round_wins': self.__tr_round_wins,
             'nc_round_losses': self.__nc_round_losses,
             'tr_round_losses': self.__tr_round_losses,
+            'current_rank': self.__current_rank,
             'last_rank': self.__last_rank,
             'last_rank_update': self.__last_rank_update
         }
@@ -148,6 +151,12 @@ class PlayerStats:
     @property
     def total_matches(self):
         return len(self.__match_ids)
+
+    @property
+    def match_win_percentage(self):
+        if self.total_matches == 0:
+            return 0
+        return self.__match_wins / self.total_matches
 
     @property
     def nc_round_wins(self):
@@ -191,8 +200,11 @@ class PlayerStats:
 
     @property
     def rank(self):
-        return self.__last_rank
+        return self.__current_rank
 
+    @property
+    def last_rank(self):
+        return self.__last_rank
 
     @property
     def last_five_changes(self):
@@ -240,5 +252,8 @@ class PlayerStats:
             self.__match_losses += 1
 
     def update_rank(self, new_rank):
-        self.__last_rank = new_rank
+        """Update the rank of a player.  Return whether the rank changed or not"""
+        self.__last_rank = self.rank
+        self.__current_rank = new_rank
         self.__last_rank_update = tools.timestamp_now()
+        return not (self.__current_rank == self.__last_rank)
