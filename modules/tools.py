@@ -155,4 +155,4 @@ async def download_image(url: str):
     """downloads an image from url and returns the bytes"""
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
-            return resp.read()
+            return await resp.read()
