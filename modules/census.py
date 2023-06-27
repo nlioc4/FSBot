@@ -117,7 +117,7 @@ async def login(char_id, acc_char_ids, player_char_ids):
             if acc.a_player and acc.a_player.match:  # Match Login Event
                 await acc.a_player.match.char_login(user=acc.a_player)
 
-            if not acc.a_player:  # Unassigned Login
+            if not acc.a_player or acc.is_terminated or not acc.is_validated:  # Unassigned Login
                 await accounts.unassigned_online(acc)
 
             log.info(f'Login detected: {char_id}: {acc.online_name}')

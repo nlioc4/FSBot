@@ -183,6 +183,9 @@ class Player:
 
         Player._all_players[p_id] = self  # adding to all players dictionary
 
+    def __repr__(self):
+        return f'<Player ID:{self.__id}, name:{self.__name}>'
+
     @classmethod
     def new_from_data(cls, data):  # make player object from database data
         obj = cls(data['_id'], data['name'])
@@ -297,7 +300,7 @@ class Player:
     async def get_stats(self):
         """Returns the players stats object."""
         from . import PlayerStats
-        return await PlayerStats.get_from_db(p_id=self.id, p_name=self.name)
+        return await PlayerStats.get_or_fetch(p_id=self.id, p_name=self.name)
 
     @property
     def ig_names(self):

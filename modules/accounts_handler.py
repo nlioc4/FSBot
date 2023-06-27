@@ -99,8 +99,7 @@ async def init(service_account_path: str, test=False):
 
     # Report Failure and set up retry if census API fails
     if not char_id_map:
-        await d_obj.d_log(message=f'{d_obj.roles["app_admin"].mention}\n'
-                                  f'Failed to retrieve character information from Census API.  '
+        await d_obj.d_log(message=f'Failed to retrieve character information from Census API.  '
                                   f'Retrying in 30 seconds...')
         await asyncio.sleep(30)
         char_id_map = await census.get_ids_facs_from_chars(all_chars)

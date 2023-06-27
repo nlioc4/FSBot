@@ -71,6 +71,7 @@ channels = {
     "chat": "",
     "casual_lobby": "",
     "ranked_lobby": "",
+    "ranked_leaderboard": "",
     "register": "",
     "rules": "",
     "staff": "",

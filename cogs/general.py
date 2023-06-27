@@ -1,13 +1,15 @@
 # External Imports
-from datetime import datetime as dt, timedelta
+from datetime import datetime as dt, timedelta, time
+from datetime import timezone as tz
 import discord
 from discord.ext import commands, tasks
 from logging import getLogger
 
 import asyncio
 
+import display.embeds
 # Internal Imports
-from modules import discord_obj as d_obj, tools, bot_status, trello, account_usage
+from modules import discord_obj as d_obj, tools, bot_status, trello, account_usage, elo_ranks_handler as elo
 from display import AllStrings as disp, views
 from classes import Player, PlayerStats
 from classes.match import EndCondition
@@ -22,11 +24,13 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
 
     def __init__(self, client):
         self.bot: discord.Bot = client
+        self.__ranked_leaderboard_msg = None
 
     @commands.Cog.listener(name='on_ready')
     async def on_ready(self):
         self.bot.add_view(views.RemoveTimeoutView())
         self.activity_update.start()
+        self.elo_rank_update.start()
 
     @commands.slash_command(name="suggestion")
     async def suggestion(self, ctx: discord.ApplicationContext,
@@ -190,6 +194,26 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
     @tasks.loop(seconds=5)
     async def activity_update(self):
         await bot_status.update_status()
+
+    @tasks.loop(time=time(hour=8, minute=0, second=0, tzinfo=tz.utc))
+    async def elo_rank_update(self):
+        """Update ELO rankings every day at 8am UTC"""
+        await elo.update_player_ranks()
+        next_stamp = self.elo_rank_update.next_iteration.timestamp() or (dt.now() + timedelta(days=1)).timestamp()
+
+        leaderboard_embed = display.embeds.elo_rank_leaderboard(elo.EloRank.get_all(),
+                                                                elo.create_rank_dict(),
+                                                                tools.timestamp_now(),
+                                                                next_stamp,
+                                                                self.elo_command.mention
+                                                                )
+
+        if not self.__ranked_leaderboard_msg:
+            await d_obj.channels['ranked_leaderboard'].purge()
+            self.__ranked_leaderboard_msg = await disp.NONE.send(d_obj.channels['ranked_leaderboard'],
+                                                                 embed=leaderboard_embed)
+        else:
+            await self.__ranked_leaderboard_msg.edit(embed=leaderboard_embed)
 
 
 def setup(client):

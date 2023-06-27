@@ -33,6 +33,7 @@ class AllStrings(Enum):
     NONE = None
     ANY = '{}'
     LOADING = "Loading..."
+    UNEXPECTED_ERROR = "An unexpected error has occurred, please contact an admin!"
     NOT_REGISTERED = "You are not registered {}, please go to {} first!"
     NOT_REGISTERED_2 = "{} is not registered!"
     NOT_PLAYER = "You are not a player {}, please go to {} first!"
@@ -47,11 +48,14 @@ class AllStrings(Enum):
     SERVER_JOIN = "Welcome {}!", fs_join_embed
     GUILD_ONLY = "This can only be used in the Flight School Discord!"
 
+    LEADERBOARD_UPDATED = "Leaderboard in {} was updated!"
+
     ADMIN_MATCH_CREATE_ERROR = "One of the players used is already in a match!"
     ADMIN_PLAYER_LOGIN_SET = "{}'s online character has been set to {}!"
     ADMIN_PLAYER_LOGOUT_SET = "{} has been set to offline!"
     ADMIN_PLAYER_LOGOUT_ALREADY = "{} is already offline!"
     ADMIN_PLAYER_CHAR_NOT_FOUND = "Character `{}` not found in relation to player {}!"
+    ADMIN_PLAYER_CLEAN = "{} has been cleaned."
 
     CHECK_FAILURE = "You have failed a check to run this command!"
     INVALID_INTERACTION = "This interaction shouldn't have been allowed!"
@@ -63,7 +67,6 @@ class AllStrings(Enum):
     CENSUS_LOOP_CHANGED = "The Census loop was {}, it has now been {}."
     SUGGESTION_ACCEPTED = "{} your suggestion has been submitted to the administration team. Thanks!"
 
-    ADMIN_PLAYER_CLEAN = "{} has been cleaned."
 
     LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], mention: [{}], name: [{}]"
     LOG_ERROR = "Error: Source {} Error: {} {}."
@@ -150,7 +153,6 @@ class AllStrings(Enum):
     INVITE_WRONG_USER = "This invite isn\'t for you!"
 
     MATCH_CREATE = "{} Match created ID: {}"
-    MATCH_INFO = "", match_info
     MATCH_JOIN = "{} has joined the match"
     MATCH_JOIN_2 = "{} has joined match {}."
     MATCH_LEAVE = "{} has left the match."

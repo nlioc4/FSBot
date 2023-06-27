@@ -2,22 +2,61 @@
 
 # External Imports
 from logging import getLogger
+import asyncio
 
 # Internal Imports
 import modules.database as db
 import modules.config as cfg
+import modules.tools as tools
 
 log = getLogger('fs_bot')
 
 
 class PlayerStats:
+    _all_player_stats = dict()  # Dict of PlayerStats objects, by player_id
 
     @classmethod
-    async def get_from_db(cls, p_id, p_name):
+    async def fetch_from_db(cls, p_id, p_name):
         """Retrieve data for PlayerStats object from database.
         If no data exists, creates new PlayerStats object."""
         data = await db.async_db_call(db.get_element, cfg.database['collections']['user_stats'], p_id)
         return cls(p_id, p_name, data=data)
+
+    @classmethod
+    def get(cls, p_id):
+        """Retrieve PlayerStats object from memory"""
+        return cls._all_player_stats.get(p_id)
+
+    @classmethod
+    async def get_or_fetch(cls, p_id, p_name):
+        """Retrieve PlayerStats object from memory, fetch from database if not in memory, create new obj if not in db"""
+        return cls.get(p_id) or cls.fetch_from_db(p_id, p_name)
+
+    @classmethod
+    def get_all(cls):
+        """Retrieve all PlayerStats objects from memory"""
+        return cls._all_player_stats.values()
+
+    @classmethod
+    def get_all_sorted(cls):
+        """Retrieve all PlayerStats objects from memory, sorted by elo"""
+        return sorted(cls._all_player_stats.values(), key=lambda x: x.elo, reverse=True)
+
+    @classmethod
+    async def get_all_from_db(cls):
+        """Update all PlayerStats objects from database, return all PlayerStats objects"""
+        from . import Player
+        stats_from_db = []
+        await db.async_db_call(db.get_all_elements, stats_from_db.append, cfg.database['collections']['user_stats'])
+        for data in stats_from_db:
+            cls(data['_id'], Player.get(data['_id']).name, data=data)
+        return cls.get_all()
+
+    @classmethod
+    async def push_all_to_db(cls):
+        """Push all PlayerStats objects to database"""
+        coroutines = [player_stats.push_to_db() for player_stats in cls.get_all()]
+        await asyncio.gather(*coroutines)
 
     def __init__(self, p_id, p_name, data: dict | None = None):
         self.__id = p_id
@@ -34,6 +73,9 @@ class PlayerStats:
             self.__nc_round_losses = data.get('nc_round_losses', 0)
             self.__tr_round_losses = data.get('tr_round_losses', 0)
 
+            self.__last_rank = data.get('last_rank', 'Unranked')
+            self.__last_rank_update = data.get('last_rank_update', 0)
+
         else:
             self.__match_ids: list[str] = list()  # list of Int match ID's
             self.__elo_history: dict[str, float] = dict()  # Dict of elo changes, by match_id: eloDelta
@@ -45,6 +87,14 @@ class PlayerStats:
             self.__tr_round_wins = 0  # Number of Rounds Won as TR
             self.__nc_round_losses = 0  # Number of Rounds Lost as NC
             self.__tr_round_losses = 0  # Number of Rounds Lost as TR
+
+            self.__last_rank = 'Unranked'  # Last rank of player
+            self.__last_rank_update = 0  # Last time rank was updated
+
+        self._all_player_stats[self.__id] = self
+
+    def __repr__(self):
+        return f'<PlayerStats ID:{self.__id}, name:{self.__name}>'
 
     def _get_data(self):
         data = {
@@ -58,13 +108,14 @@ class PlayerStats:
             'nc_round_wins': self.__nc_round_wins,
             'tr_round_wins': self.__tr_round_wins,
             'nc_round_losses': self.__nc_round_losses,
-            'tr_round_losses': self.__tr_round_losses
+            'tr_round_losses': self.__tr_round_losses,
+            'last_rank': self.__last_rank,
+            'last_rank_update': self.__last_rank_update
         }
         return data
 
     async def push_to_db(self):
-        data = self._get_data()
-        await db.async_db_call(db.set_element, cfg.database['collections']['user_stats'], self.__id, data)
+        await db.async_db_call(db.set_element, cfg.database['collections']['user_stats'], self.__id, self._get_data())
 
     @property
     def id(self):
@@ -139,6 +190,11 @@ class PlayerStats:
         return int(self.__elo)
 
     @property
+    def rank(self):
+        return self.__last_rank
+
+
+    @property
     def last_five_changes(self):
         """Helper to return list of last five match results w/ match ID.  Tuples of (match_id, elo_delta)"""
         last_five = dict()
@@ -182,3 +238,7 @@ class PlayerStats:
             self.__match_draws += 1
         elif result < 0.5:
             self.__match_losses += 1
+
+    def update_rank(self, new_rank):
+        self.__last_rank = new_rank
+        self.__last_rank_update = tools.timestamp_now()

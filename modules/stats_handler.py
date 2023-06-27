@@ -7,7 +7,7 @@ import asyncio
 # Internal Imports
 from classes.player_stats import PlayerStats
 
-K_FACTOR = 40
+K_FACTOR = 30
 SCALE_FACTOR = 400
 
 

@@ -13,9 +13,8 @@ from pytz import timezone
 import modules.config as cfg
 import modules.accounts_handler as accounts
 import modules.discord_obj as d_obj
-from modules import census
-from modules import tools
-from modules import loader
+from modules import census, tools, loader, elo_ranks_handler
+
 from classes import Player
 from classes.lobby import Lobby
 from classes.match import BaseMatch, EndCondition, RankedMatch
@@ -47,6 +46,16 @@ class AdminCog(commands.Cog):
         description='Admin Only Commands',
         guild_ids=[cfg.general['guild_id']]
     )
+
+    @admin.command(name="manual_leaderboard_update")
+    async def manual_leaderboard_update(self, ctx: discord.ApplicationContext):
+        """Manually update the leaderboard"""
+        general = self.bot.cogs.get('GeneralCog')
+        if general:
+            await general.elo_rank_update()  # type:ignore
+            await disp.LEADERBOARD_UPDATED.send_priv(ctx, d_obj.channels['ranked_leaderboard'].mention)
+        else:
+            await disp.UNEXPECTED_ERROR.send_priv(ctx)
 
     @admin.command()
     async def loader(self, ctx: discord.ApplicationContext,

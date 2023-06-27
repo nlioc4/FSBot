@@ -940,8 +940,8 @@ class RankedMatch(BaseMatch):
         obj = await super().create(owner, invited, base_class=cls, lobby=lobby)  # RankedMatch create
 
         # Retrieve Stats PlayerStats
-        obj._player1_stats = await PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
-        obj._player2_stats = await PlayerStats.get_from_db(p_id=invited.id, p_name=invited.name)
+        obj._player1_stats = await PlayerStats.fetch_from_db(p_id=owner.id, p_name=owner.name)
+        obj._player2_stats = await PlayerStats.fetch_from_db(p_id=invited.id, p_name=invited.name)
         obj.first_pick = obj._first_faction_pick()
 
         # Start Faction Picker
@@ -963,8 +963,8 @@ class RankedMatch(BaseMatch):
         obj.match_log = data['match_log']
 
         # Retrieve Current Stats Objects
-        obj._player1_stats = await PlayerStats.get_from_db(p_id=owner.id, p_name=owner.name)
-        obj._player2_stats = await PlayerStats.get_from_db(p_id=invited.id, p_name=invited.name)
+        obj._player1_stats = await PlayerStats.fetch_from_db(p_id=owner.id, p_name=owner.name)
+        obj._player2_stats = await PlayerStats.fetch_from_db(p_id=invited.id, p_name=invited.name)
 
         # Fill out round objects
         obj.add_rounds_from_data(*data['round_history'])

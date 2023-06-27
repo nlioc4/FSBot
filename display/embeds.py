@@ -577,8 +577,9 @@ def ranked_match_info(match) -> Embed:
         title=f"Match Info for Ranked Match: {match.id_str}",
         description=
         f"Players must submit round results after each duel using the built in buttons!\n"
-        f"This match will **{'' if match.FACTION_SWAP_ENABLED else 'not'}** swap require a faction swap at half time.\n"
+        f"This match **will {'' if match.FACTION_SWAP_ENABLED else 'not'}** require a faction swap at half time.\n"
         f"This match is a best of **{match.MATCH_LENGTH}**, requiring **{match.wins_required}** round wins to win.\n"
+        f"Duel as normal, passing, turning and then dueling until the losing player uses fire suppression.\n"
         f"Good luck!",
         timestamp=dt.now()
     )
@@ -727,6 +728,83 @@ def elo_summary(player_stats):
 
     )
     return fs_author(embed)
+
+
+def elo_rank_leaderboard(elo_ranks, rank_list_dict, last_update, next_update, elo_cmd_mention):
+    """Embed that lists all ranks, and their details
+    Ranks: Display thresholds (percentile, and elo), associated role, and number of players in rank
+
+    Below, show top 10 players in each rank, with their elo, matches played, and round win rate.
+
+    Example Display:
+    Gold Rank - Top 10%, 1500+ Elo, 10 Players
+        - Player 1: 1600 Elo, 100 Matches, 88% Win Rate
+        - Player 2: 1550 Elo, 65 Matches, 95% Win Rate
+    Silver Rank - Top 20%, 1200+ Elo, 20 Players
+        - Player 3: 1300 Elo, 100 Matches, 60% Win Rate
+        - Player 4: 1250 Elo, 100 Matches, 60% Win Rate
+    etc.
+    Unranked: show only number of players in rank
+
+
+    Last Update: Full timestamp of last time leaderboard was updated
+    Next Update: Short timestamp of next time leaderboard will be updated, plus relative timestamp
+
+    Show link to /elo command to check your own elo at any time
+
+
+    """
+    from modules.elo_ranks_handler import EloRank
+    from classes.player_stats import PlayerStats
+    elo_ranks: list[EloRank]
+    rank_lists: dict[str, list[PlayerStats]]
+
+    embed = Embed(
+        colour=Colour.blurple(),
+        title=f'Ranked Duels Elo Leaderboard',
+        description=
+        "Current ranked duels ELO Leaderboard!\n"
+        "You must have participated in at least 5 ranked matches to be displayed in the leaderboard.",
+        timestamp=dt.now()
+    )
+
+    embed.add_field(
+        name="Leaderboard",
+        value="[Rank Position]@Mention(Player Name): ELO - Matches Played - Win Rate"
+    )
+
+    for rank in elo_ranks:
+        players_string = ''
+        for count, player in enumerate(rank_list_dict[rank.name]):
+            player_win_rate = player.match_wins / player.total_matches
+            players_string += f"<@{player.id}>({player.name}):``{player.elo:.0f} - {player.total_matches} - " \
+                              f"{player_win_rate:.0%}``\n"
+            if count >= 9:
+                break
+        player_count = len(rank_list_dict[rank.name])
+        if not player_count:
+            players_string = "No Players in this Rank"
+        if rank.name == "Unranked":
+            players_string = "No reporting for Unranked Players"
+
+        embed.add_field(
+            name=f"{rank.name} Rank - {rank.percentile_threshold}%, {rank.elo_threshold:.0f}+ Elo, "
+                 f"{player_count} Players",
+            value=players_string,
+            inline=False
+        )
+
+    embed.add_field(
+        name="Update Info",
+        value=f"Last Update: {format_stamp(last_update, 'f')}\n"
+              f"Next Update: {format_stamp(next_update, 'R')}\n"
+              f"Use {elo_cmd_mention} to check your own elo at any time!",
+        inline=False
+    )
+
+    return fs_author(embed)
+
+
 
 
 def to_staff_dm_embed(author: 'discord.User', msg: str) -> Embed:
