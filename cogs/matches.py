@@ -58,7 +58,7 @@ class MatchesCog(commands.Cog, name="MatchesCog",
         if message.author == self.bot.user:
             return
 
-        if not (match := BaseMatch.active_match_channel_ids().get(message.channel.id)):
+        if not (match := BaseMatch.active_match_thread_ids().get(message.channel.id)):
             return
         image = f"<Image:{[img.url for img in message.attachments]}>" if message.attachments else ""
 

@@ -111,6 +111,7 @@ database = {
 }
 
 TEST = False
+DISABLE_ELO_LOSS_ON_WIN = False
 
 
 def get_config(config_path, test=False):

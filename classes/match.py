@@ -232,8 +232,18 @@ class BaseMatch:
         return BaseMatch._active_matches
 
     @classmethod
-    def active_match_channel_ids(cls):
+    def active_match_thread_ids(cls):
         return {match.thread.id: match for match in BaseMatch._active_matches.values()}
+
+    @classmethod
+    def get(cls, match_id: int) -> BaseMatch | RankedMatch:
+        return cls._active_matches.get(match_id)
+
+    @classmethod
+    def get_by_thread(cls, thread: discord.Thread | int) -> BaseMatch | RankedMatch:
+        if isinstance(thread, discord.Thread):
+            thread = thread.id
+        return cls.active_match_thread_ids().get(thread)
 
     @classmethod
     async def end_all_matches(cls):
@@ -697,7 +707,7 @@ class BaseMatch:
         return self.__previous_players
 
     @property
-    def all_players(self):
+    def all_players(self) -> list[ActivePlayer]:
         return [*self.__players, *self.__previous_players]
 
     @property
@@ -707,6 +717,14 @@ class BaseMatch:
     @property
     def is_ended(self):
         return self.status == MatchState.ENDED
+
+    @property
+    def end_condition(self):
+        return self.__end_condition
+
+    @property
+    def has_standard_end(self):
+        return self.__end_condition in [EndCondition.COMPLETED, EndCondition.FORFEIT]
 
     @property
     def online_players(self):
@@ -775,19 +793,6 @@ class RankedMatch(BaseMatch):
     class RankedMatchView(BaseMatch.MatchInfoView):
         """Match View for Ranked Matches"""
 
-        async def submit_score_callback(self, inter: discord.Interaction, score: int):
-            """Simple callback to be used for won/lost buttons.  1 for won, -1 for lost"""
-            if self.match.status not in (MatchState.PLAYING, MatchState.SUBMITTING):
-                await disp.INVALID_INTERACTION.send_priv(inter)
-                return False
-
-            if not (p := self.match.get_player(inter)):
-                await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
-                return False
-            self.match.submit_score(p, score)
-            await disp.RM_SCORE_SUBMITTED.send_temp(inter, p.mention, "Round Won" if score == 1 else "Round Lost")
-            await self.match.update()
-
         def __init__(self, match: 'RankedMatch'):
             super().__init__(match)
             self.match = match
@@ -803,16 +808,16 @@ class RankedMatch(BaseMatch):
 
             self.round_won_button = discord.ui.Button(label="Round Won", row=2, disabled=True,
                                                       style=discord.ButtonStyle.green)
-            self.round_won_button.callback = lambda inter, score=1: self.submit_score_callback(inter, score=score)
+            self.round_won_button.callback = lambda ctx, won=True: self.match.submit_score_callback(won, ctx=ctx)
             self.add_item(self.round_won_button)
 
             self.round_lost_button = discord.ui.Button(label="Round Lost", row=2, disabled=True,
                                                        style=discord.ButtonStyle.red)
-            self.round_lost_button.callback = lambda inter, score=-1: self.submit_score_callback(inter, score=score)
+            self.round_lost_button.callback = lambda ctx, won=False: self.match.submit_score_callback(won, ctx=ctx)
             self.add_item(self.round_lost_button)
 
         def update(self):
-            """Update the match view"""
+            """Update the match view.  Return itself to allow updating in the same line as sending"""
             # Update Round Display Buttons if round has changed
             if self.last_round != self.match.current_round:
 
@@ -834,7 +839,7 @@ class RankedMatch(BaseMatch):
                     self.player2_button.style = discord.ButtonStyle.red
 
             # Update Round Won/Lost Buttons
-            if self.match.status in [MatchState.SUBMITTING, MatchState.PLAYING]:
+            if self.match.round_in_progress:
                 self.round_won_button.disabled = False
                 self.round_lost_button.disabled = False
             else:
@@ -886,25 +891,13 @@ class RankedMatch(BaseMatch):
             super().__init__(timeout=None)
             self.match = match
 
-        async def score_submit_callback(self, inter, score: int):
-            if self.match.status not in (MatchState.PLAYING, MatchState.SUBMITTING):
-                await disp.INVALID_INTERACTION.send_priv(inter)
-                return False
-
-            if not (p := self.match.get_player(inter)):
-                await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
-                return False
-            self.match.submit_score(p, score)
-            await disp.RM_SCORE_SUBMITTED.send_temp(inter, p.mention, "Round Won" if score == 1 else "Round Lost")
-            await self.match.update()
-
         @discord.ui.button(label="Round Won", style=discord.ButtonStyle.green)
         async def round_won_button(self, button: discord.Button, inter: discord.Interaction):
-            await self.score_submit_callback(inter, 1)
+            await self.match.submit_score_callback(won=True, ctx=inter)
 
         @discord.ui.button(label="Round Lost", style=discord.ButtonStyle.red)
         async def round_lost_button(self, button: discord.Button, inter: discord.Interaction):
-            await self.score_submit_callback(inter, -1)
+            await self.match.submit_score_callback(won=False, ctx=inter)
 
     def __init__(self, owner: Player, invited: Player, lobby):
         super().__init__(owner, invited, lobby)
@@ -985,16 +978,24 @@ class RankedMatch(BaseMatch):
     # def get_round_view(self):
     #     return self.RankedRoundView(self)
 
-    def get_player(self, inter: discord.Interaction):
-        """Utility method to get the Player object from a Discord Interaction for a match.
+    def get_player(self, user: discord.Member | discord.User):
+        """Utility method to get the Player object from a Discord user for a match.
         Returns False if player is not in the match"""
-        p_id = inter.user.id
+        p_id = user.id
         if p_id == self.player1.id:
             return self.player1
         elif p_id == self.player2.id:
             return self.player2
         else:
             return False
+
+    async def player_check(self, inter: discord.Interaction):
+        """Utility method to check if a player is in the match.
+        Sends a message to the player and returns False if they are not in the match"""
+        if not (p := self.get_player(inter.user)):
+            await disp.MATCH_NOT_IN.send_priv(inter, self.id_str)
+            return False
+        return p
 
     def get_end_data(self):
 
@@ -1161,6 +1162,11 @@ class RankedMatch(BaseMatch):
         return len(self.__round_history) + 1
 
     @property
+    def round_in_progress(self) -> bool:
+        """Return whether a round is in progress"""
+        return self.status in (MatchState.PLAYING, MatchState.SUBMITTING)
+
+    @property
     def round_history(self) -> List[Round]:
         return self.__round_history
 
@@ -1213,7 +1219,7 @@ class RankedMatch(BaseMatch):
         for r in self.__round_history:
             round_lines += f"[{r.round_number}]"
             if r.defaulted:
-                round_lines += f"Defaulted - {self.player1.name if r.winner == 2 else self.player2.name} Given Win\n"
+                round_lines += f"Defaulted: {self.player1.name if r.winner == 2 else self.player2.name} was Given Win\n"
             else:
                 p1_bold = "**" if r.winner == 1 else ""
                 p2_bold = "**" if r.winner == 2 else ""
@@ -1222,12 +1228,16 @@ class RankedMatch(BaseMatch):
 
         return name_line + score_line + round_lines
 
+    def get_short_score_string(self) -> str:
+        """Returns a score string with only current scores for each player."""
+        return f"{self.get_player1_wins()}:{self.get_player2_wins()}"
+
     @property
     def wins_required(self):
         """Returns the number of wins required to win the match"""
         return self.MATCH_LENGTH // 2 + 1
 
-    def submit_score(self, player, score):
+    def _submit_score(self, player, score):
         """Submits scores for given player. Returns the opponents submitted score"""
         if player == self.player1:
             self.__p1_submitted_score = score
@@ -1235,6 +1245,44 @@ class RankedMatch(BaseMatch):
         if player == self.player2:
             self.__p2_submitted_score = score
             return self.__p1_submitted_score
+
+    async def submit_score_callback(self, won: bool,
+                                    ctx: discord.Interaction):
+        """Callback for when a player submits their score, for use in round won/lost buttons.
+        """
+
+        if not (p := self.get_player(ctx.user)):
+            await disp.MATCH_NOT_IN.send_priv(ctx, ctx.user.mention, self.id_str)
+            return False
+        if not self.round_in_progress:  # Check correct state
+            await disp.INVALID_INTERACTION.send_priv(ctx)
+            return False
+
+        if won:
+            other_score = self._submit_score(p, 1)
+        else:
+            other_score = self._submit_score(p, -1)
+
+        await disp.RM_SCORE_SUBMITTED.send_temp(ctx, p.mention, "Round Won" if won else "Round Lost")
+        return other_score
+
+    def set_round_winner(self, winner: ActivePlayer):
+        """For manually setting the winner of a round, for use in admin commands
+        Returns False if the match is not currently in progress and a winner can't be set"""
+        if not self.round_in_progress:
+            return False
+
+        if winner == self.player1:
+            self.__p1_submitted_score = 1
+            self.__p2_submitted_score = -1
+        elif winner == self.player2:
+            self.__p1_submitted_score = -1
+            self.__p2_submitted_score = 1
+        else:
+            raise tools.UnexpectedError(f"Invalid player passed to set_round_winner: {winner}")
+
+        self.log(disp.RM_ROUND_WINNER_SET(winner.name))
+
 
     async def score_mismatch(self):
         """Display a score mismatch to the players, reset submitted scores, ask for new submission"""
@@ -1258,6 +1306,10 @@ class RankedMatch(BaseMatch):
                 await self.update_timeout()
                 # Update Status and run transition specific logic
                 match self.status:
+                    case MatchState.PICKING_FACTIONS if self.factions_picked and self.ready_to_play:
+                        self.status = MatchState.PLAYING
+                        await self._start_round()
+
                     case MatchState.PICKING_FACTIONS if self.factions_picked:
                         self.status = MatchState.LOGGING_IN
 
@@ -1355,10 +1407,6 @@ class RankedMatch(BaseMatch):
         except discord.NotFound:
             pass
 
-        # Publish Round winner
-        await disp.RM_ROUND_WINNER.send(self.thread, self.__round_winner.mention, self.current_round)
-        self.log(disp.RM_ROUND_WINNER(self.__round_winner.name, self.current_round))
-
         match_round = Round(
             round_number=self.current_round,
             winner=1 if self.__round_winner is self.player1 else 2,
@@ -1370,6 +1418,11 @@ class RankedMatch(BaseMatch):
 
         # add round to round list
         self.__round_history.append(match_round)
+
+        # Publish Round winner
+        await disp.RM_ROUND_WINNER.send(self.thread, self.__round_winner.mention,
+                                        self.current_round - 1, self.get_short_score_string())
+        self.log(disp.RM_ROUND_WINNER(self.__round_winner.name, self.current_round - 1, self.get_short_score_string()))
 
         # Check end conditions: Match length reached, or one player reaches win threshold
         if self.rounds_complete >= self.MATCH_LENGTH or \
@@ -1386,6 +1439,7 @@ class RankedMatch(BaseMatch):
             return
         self._cancel_update()  # Cancel Updates if Incoming
         self.status = MatchState.ENDED  # Update Status
+        self.__end_condition = end_condition  # Set End Condition
 
         # EndCondition Conditionals
 
@@ -1427,7 +1481,7 @@ class RankedMatch(BaseMatch):
                 pass
                 # Normal End condition
 
-        if end_condition in (EndCondition.COMPLETED, EndCondition.FORFEIT):
+        if self.has_standard_end:
             # Check correct completion before determining winner and altering Elo
 
             # Determine Match winner

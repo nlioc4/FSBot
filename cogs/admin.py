@@ -163,7 +163,7 @@ class AdminCog(commands.Cog):
         match_channel = match_channel or ctx.channel
 
         try:
-            match = BaseMatch.active_match_channel_ids()[match_channel.id]
+            match = BaseMatch.active_match_thread_ids()[match_channel.id]
         except KeyError:
             await disp.MATCH_NOT_FOUND.send_priv(ctx, match_channel.mention)
             return
@@ -225,14 +225,42 @@ class AdminCog(commands.Cog):
                         match_id: discord.Option(int, "Match ID to end", required=False)):
         """End a given match forcibly.  Uses current channel if no ID provided"""
         await ctx.defer(ephemeral=True)
-        match = BaseMatch.active_matches_dict().get(match_id) or BaseMatch.active_match_channel_ids().get(
+        match = BaseMatch.active_matches_dict().get(match_id) or BaseMatch.active_match_thread_ids().get(
             ctx.channel_id)
 
         if not match:
-            await disp.MATCH_NOT_FOUND.send_priv(ctx, (match_id or ctx.channel.mention))
+            return await disp.MATCH_NOT_FOUND.send_priv(ctx, (match_id or ctx.channel.mention))
 
         await disp.MATCH_END.send_priv(ctx, match.id_str)
         await match.end_match(EndCondition.EXTERNAL)
+
+
+
+    # TODO Split admin commands into seperate subgroups. command has become too large.
+
+    # @match_admin.command(name="roundwin")
+    # async def match_setroundwinner(self, ctx: discord.ApplicationContext,
+    #                                winner: discord.Option(discord.Member, "Member to set as winner", required=True),
+    #                                match_id: discord.Option(int, "Match ID to set winner for", required=False)):
+    #     """Set the winner of the current round for a given match.  Uses current channel if no ID provided"""
+    #     await ctx.defer(ephemeral=True)
+    #     match = BaseMatch.get(match_id) or BaseMatch.get_by_thread(ctx.channel_id)
+    #
+    #     if not match:
+    #         return await disp.MATCH_NOT_FOUND.send_priv(ctx, (match_id or ctx.channel.mention))
+    #
+    #     if match.TYPE != 'Ranked':
+    #         return await disp.MATCH_NOT_RANKED.send_priv(ctx, match.id_str)
+    #
+    #     if not (a_p := match.get_player(winner)):
+    #         return await disp.MATCH_NOT_IN_3.send_priv(ctx, winner.mention, match.id_str)
+    #
+    #     if not match.set_round_winner(a_p):
+    #         return await disp.RM_NO_CURRENT_ROUND.send_priv(ctx)
+    #
+    #     else:
+    #         await match.update()
+    #         await disp.RM_ROUND_WINNER_SET.send_priv(ctx, winner.mention)
 
     #########################################################
     # Lobby Admin Commands
@@ -668,7 +696,10 @@ class AdminCog(commands.Cog):
         #  Wait until the bot is ready before starting loops, ensure account_handler has finished init
         await asyncio.sleep(5)
         self.account_sheet_reload.start()
-        self.census_rest.start()
+        if cfg.TEST:  # Don't start census if in test mode.  Allows for easier faction assignment testing
+            log.warning("TEST MODE: Census not started")
+        else:
+            self.census_rest.start()
         self.census_watchtower = self.bot.loop.create_task(census.online_status_updater(Player.map_chars_to_players))
 
     @tasks.loop(seconds=15)

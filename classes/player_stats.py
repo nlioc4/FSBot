@@ -214,6 +214,13 @@ class PlayerStats:
             last_five[match_id] = self.__elo_history[match_id]
         return last_five.items()
 
+    @property
+    def last_elo_change(self):
+        """Helper to return last elo change"""
+        if len(self.__elo_history) == 0:
+            return 0
+        return self.__elo_history[self.__match_ids[-1]]
+
     def add_match(self, match, elo_delta):
         """Add a match to a player stats set.
         Result should be >0.5 if match won, 0.5 if match drawn, or 0.5> if match lost"""

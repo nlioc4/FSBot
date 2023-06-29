@@ -672,6 +672,16 @@ def match_log(match) -> Embed:
                         value=match.get_score_string(),
                         inline=False)
 
+        if match.has_standard_end:
+            elo_change_string = ""
+            for p in [match.player1_stats, match.player2_stats]:
+                elo_change_string += f"{p.name}: {(p.elo - p.last_elo_change):.0f} " \
+                                     f"-> {p.elo:.0f} ``({p.last_elo_change:+.0f})``\n"
+
+            embed.add_field(name="Match Elo Change",
+                            value=elo_change_string,
+                            inline=False)
+
     for field in match.get_log_fields(show_all=True):
         # Ensure embed doesn't exceed 6000 characters or 25 fields
         if len(embed.fields) >= 25:
@@ -776,7 +786,7 @@ def elo_rank_leaderboard(elo_ranks, rank_list_dict, last_update, next_update, el
     for rank in elo_ranks:
         players_string = f'{rank.mention}\n'
         for count, player in enumerate(rank_list_dict[rank.name]):
-            players_string += f"[{count+1}]<@{player.id}>({player.name}):``{player.elo:.0f} - " \
+            players_string += f"[{count + 1}]<@{player.id}>({player.name}):``{player.elo:.0f} - " \
                               f"{player.total_matches} - {player.match_win_percentage:.0%}``\n"
             if count >= 9:
                 break
@@ -803,8 +813,6 @@ def elo_rank_leaderboard(elo_ranks, rank_list_dict, last_update, next_update, el
     )
 
     return fs_author(embed)
-
-
 
 
 def to_staff_dm_embed(author: 'discord.User', msg: str) -> Embed:
@@ -929,7 +937,7 @@ def fsbot_info_embed() -> Embed:
               "If you do not have a personal Jaeger account, simply select 'Register: No Jaeger Account' to indicate "
               "to the bot that you require a temporary Jaeger account for matches.  If you have a personal Jaeger "
               "account select 'Register: Personal Jaeger Account', and enter either one generic character name to"
-              " which faction suffixes will be added, or enter three specific character names, one for each faction, "
+              " which faction suffixes will be added, or enter specific character names, one for each faction, "
               "separated by commas.",
         inline=False
     )
@@ -948,7 +956,7 @@ def fsbot_info_embed() -> Embed:
         name="Notifications",
         value="You can opt-in to receive a notification if a player who matches your requested skill levels joins"
               " the lobby.  When you are pinged, and how frequently, can be adjusted below this message in the 'Lobby"
-              " Pings' menu.  Setting your requested skill level to 'any' means you will receive a ping when a player of"
+              " Pings` menu.  Setting your requested skill level to 'any' means you will be pinged when a player of"
               " any skill level joins the lobby."
     )
 
@@ -965,14 +973,15 @@ def fsbot_info_embed() -> Embed:
     embed.add_field(
         name="Matches",
         value="Invites are sent out to user's DM's, and once an invite is accepted, a match is created.  When a new "
-              "match is created, a private Discord channel is created along with it.  This channel is only visible to "
-              "current players of the match, along with the mod team.\nIn the match channel, there is a familiar "
+              "match is created, a private Discord thread is created along with it.  This thread is only visible to "
+              "current players of the match, along with the mod team.\nIn the match thread, there is a familiar "
               "looking embed with info relating to this specific match.  If you require a temporary account, you can "
               "select the 'Request Account' button here, and one will be sent to you.\n"
               "Matches will timeout after 10 minutes if no players log in to Jaeger.  Once players log in to Jaeger, "
               "their online characters will be displayed in the match embed.  Players can leave or join the match while"
-              " it is running, but if the owner leaves the match, the match will end.  Once the match ends, the channel"
-              " will close and all temporary Jaeger account users will be asked to log out of their accounts.",
+              " it is running, but if there is less than one player remaining the match will end."
+              " Once the match ends, the thread will close and all temporary Jaeger account users will be given 5"
+              " minutes to find a new match, or their account sessions will end.",
         inline=False
     )
 

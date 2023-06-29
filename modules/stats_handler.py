@@ -6,6 +6,7 @@ import asyncio
 
 # Internal Imports
 from classes.player_stats import PlayerStats
+from modules import config as cfg
 
 K_FACTOR = 30
 SCALE_FACTOR = 400
@@ -33,6 +34,12 @@ async def update_elo(match) -> tuple[float, float]:
 
     player1_elo_delta = _player_rating_delta(player1_win_xpt, match.player1_result)
     player2_elo_delta = _player_rating_delta(player2_win_xpt, match.player2_result)
+
+    if cfg.DISABLE_ELO_LOSS_ON_WIN:
+        if match.player1_result > 0.5 and player1_elo_delta < 0:
+            player1_elo_delta = 0
+        if match.player2_result > 0.5 and player2_elo_delta < 0:
+            player2_elo_delta = 0
 
     #  update player_stats
     match.player1_stats.add_match(match, player1_elo_delta)
