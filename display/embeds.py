@@ -694,7 +694,7 @@ def match_log(match) -> Embed:
     return fs_author(embed)
 
 
-def elo_change(match, player, new_elo: float, elo_delta: float) -> Embed:
+def elo_change(match, player, new_elo: float, elo_delta: float, match_thread_mention: str) -> Embed:
     """Embed to show players their elo change after a match."""
     from classes.match import RankedMatch
     match: RankedMatch
@@ -705,7 +705,7 @@ def elo_change(match, player, new_elo: float, elo_delta: float) -> Embed:
     embed = Embed(
         colour=colour,
         title=f'Ranked Match [{match.id_str}] Elo Change',
-        description=f'{player.mention} versus {match.get_opponent(player).mention} has ended.\n'
+        description=f'{player.mention} versus {match.get_opponent(player).mention} in {match_thread_mention} has ended.\n'
                     f'**Scoreline**\n{match.get_score_string()}\n'
                     f'{player.mention}\'s elo has changed by ``{elo_delta:.0f}`` points.\n'
                     f'{player.mention}\'s elo is now ``{new_elo:.0f}`` points.\n',
@@ -774,7 +774,7 @@ def elo_rank_leaderboard(elo_ranks, rank_list_dict, last_update, next_update, el
         title=f'Ranked Duels Elo Leaderboard',
         description=
         "Current ranked duels ELO Leaderboard!\n"
-        "You must have participated in at least 5 ranked matches to be displayed in the leaderboard.",
+        "You must have participated in at least 5 ranked matches to be move out of the Unranked section.",
         timestamp=dt.now()
     )
 
@@ -785,21 +785,19 @@ def elo_rank_leaderboard(elo_ranks, rank_list_dict, last_update, next_update, el
 
     for rank in elo_ranks:
         players_string = f'{rank.mention}\n'
-        for count, player in enumerate(rank_list_dict[rank.name]):
-            players_string += f"[{count + 1}]<@{player.id}>({player.name}):``{player.elo:.0f} - " \
+        for i, player in enumerate(rank_list_dict[rank.name]):
+            players_string += f"[{i + 1}]<@{player.id}>({player.name}):``{player.elo:.0f} - " \
                               f"{player.total_matches} - {player.match_win_percentage:.0%}``\n"
-            if count >= 9:
+            if i >= 9:
                 break
         player_count = len(rank_list_dict[rank.name])
         if not player_count:
             players_string = f"{rank.mention}\n" \
                              f"No Players in this Rank"
-        if rank.name == "Unranked":
-            players_string = "No reporting for Unranked Players"
 
         embed.add_field(
             name=f"{rank.name} Rank - {rank.percentile_threshold}%, {rank.elo_threshold:.0f}+ Elo, "
-                 f"{player_count} Players",
+                 f"{player_count} Player{'s' if player_count != 1 else ''}",
             value=players_string,
             inline=False
         )

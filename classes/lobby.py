@@ -562,6 +562,7 @@ class Lobby:
             await self.lobby_leave(player, match)
             return match
         elif owner.active:
+            self.decline_invite(owner, player)
             return False
         else:
 

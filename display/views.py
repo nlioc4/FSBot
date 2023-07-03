@@ -73,7 +73,7 @@ class InviteView(FSBotView):
         super().__init__(timeout=300)
         self.lobby = lobby
         self.owner: Player = owner  # Player doing the inviting
-        self.player = player # Player getting invited
+        self.player = player  # Player getting invited
 
     @discord.ui.button(label="Accept Invite", style=discord.ButtonStyle.green)
     async def accept_button(self, button: discord.Button, inter: discord.Interaction):

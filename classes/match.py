@@ -1512,9 +1512,11 @@ class RankedMatch(BaseMatch):
             # Send players Elo Changes
             await asyncio.gather(
                 disp.ELO_DM_UPDATE.send(self.player1, match=self, player=self.player1,
-                                        new_elo=self._player1_stats.elo, elo_delta=player1_elo_delta),
+                                        new_elo=self._player1_stats.elo, elo_delta=player1_elo_delta,
+                                        match_thread_mention=self.thread.mention),
                 disp.ELO_DM_UPDATE.send(self.player2, match=self, player=self.player2,
-                                        new_elo=self._player2_stats.elo, elo_delta=player2_elo_delta)
+                                        new_elo=self._player2_stats.elo, elo_delta=player2_elo_delta,
+                                        match_thread_mention=self.thread.mention)
             )
 
         else:

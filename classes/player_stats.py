@@ -260,7 +260,7 @@ class PlayerStats:
 
     def update_rank(self, new_rank):
         """Update the rank of a player.  Return whether the rank changed or not"""
-        self.__last_rank = self.rank
+        self.__last_rank = self.__current_rank
         self.__current_rank = new_rank
         self.__last_rank_update = tools.timestamp_now()
         return not (self.__current_rank == self.__last_rank)

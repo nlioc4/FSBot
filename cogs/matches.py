@@ -18,8 +18,8 @@ from modules import discord_obj as d_obj
 from modules.spam_detector import is_spam
 import modules.accounts_handler as accounts
 
-
 log = getLogger('fs_bot')
+
 
 class MatchesCog(commands.Cog, name="MatchesCog",
                  command_attrs=dict(guild_ids=cfg.general['guild_id'], default_permission=True)):
@@ -45,10 +45,10 @@ class MatchesCog(commands.Cog, name="MatchesCog",
         # Archive old match Threads
         # Epic list comprehension
         threads = [thread for thread in
-                   [*d_obj.channels['casual_lobby'].threads, *d_obj.channels['ranked_lobby'].threads] if not thread.archived]
+                   [*d_obj.channels['casual_lobby'].threads, *d_obj.channels['ranked_lobby'].threads] if
+                   not thread.archived]
         for thread in threads:
             coroutines.append(thread.archive(locked=True))
-
 
         await asyncio.gather(*coroutines)
 
