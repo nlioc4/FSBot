@@ -16,7 +16,6 @@ import modules.config as cfg
 import classes.players
 from classes import Player
 from modules import tools, accounts_handler as accounts
-from modules.tools import UnexpectedError
 from display import AllStrings as disp, views
 
 log = getLogger('fs_bot')
@@ -110,9 +109,13 @@ async def registered_check(ctx, user: discord.Member | discord.User | classes.Pl
 
 async def d_log(message: str = '', source: str = '', error=None) -> bool:
     """Utility function to send logs to #logs channel and fsbot Log"""
+
+    #  TODO send log messages through embeds instead of regular messages to avoid pings
+    #  TODO develop method to convert mentions to text without sending message
     try:
         if error:
-            msg = await disp.LOG_ERROR.send(channels['logs'], source, message, error, ping=roles['app_admin'])
+            msg = await disp.LOG_ERROR.send(channels['logs'], source, message, error,
+                                            ping=roles['app_admin'])
             log.error(msg.clean_content[7:], exc_info=error)
             return msg
 
@@ -130,8 +133,8 @@ async def get_or_create_role(name: str, **kwargs) -> discord.Role:
     Returns the role object
     Data should be a dict containing params for the role creation
     color: Color for the role
-    hoist: whether the role should be hoisted
-    mentionable: whether the role should be mentionable
+    hoist: bool, whether the role should be hoisted
+    mentionable: bool, whether the role should be mentionable
     permissions: permissions for the role
     icon: bytes-like object for the role icon
     unicode_emoji: emoji for the role (str)

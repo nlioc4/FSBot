@@ -39,6 +39,7 @@ class AllStrings(Enum):
     NOT_PLAYER = "You are not a player {}, please go to {} first!"
     NOT_PLAYER_2 = "{} is not a player!"
     CANT_USE = "You can't use this!"
+    COMMAND_ONLY = "Only command use is allowed in this channel, no messages!"
     CONFIRMED = "Confirmed: {}"
     CANCELLED = "Cancelled: {}"
     STOP_SPAM = "{}: Please stop spamming!"
@@ -47,6 +48,7 @@ class AllStrings(Enum):
     AS = "As {}: {}"
     SERVER_JOIN = "Welcome {}!", fs_join_embed
     GUILD_ONLY = "This can only be used in the Flight School Discord!"
+    CONTENT_ONLY = 'Oops {}, messages in this channel must contain either an attachment or a link!'
 
     LEADERBOARD_UPDATED = "Leaderboard in {} was updated!"
 

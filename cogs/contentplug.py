@@ -10,6 +10,8 @@ from logging import getLogger
 
 # Internal Imports
 import modules.config as cfg
+from modules.spam_detector import is_spam
+from display import AllStrings as disp
 import modules.discord_obj as d_obj
 
 TEST_LIST = ['.com', '.ru', '.net', '.org', '.info', '.biz', '.io', '.co', "https://", "http://", "www.", ".ca"]
@@ -35,10 +37,12 @@ class ContentPlug(commands.Cog, name="ContentPlug"):
         elif d_obj.roles['app_admin'] in message.author.roles:
             return
         elif not matches:
-            log.info(f'{message.author.name} had a message deleted in content plug. {message.clean_content}')
+            log.info(f'{message.author.name} had a message deleted in content plug: {message.clean_content}')
+            if await is_spam(message):
+                pass
+            else:
+                await disp.CONTENT_ONLY.send_temp(message, message.author.mention)
             await message.delete()
-            await message.channel.send(f'Oops {message.author.mention}, messages in this channel '
-                                       f'must contain either an attachment or a link!', delete_after=10)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before: discord.Message, after: discord.Message):
@@ -55,10 +59,9 @@ class ContentPlug(commands.Cog, name="ContentPlug"):
         elif matches or before.attachments or after.attachments:
             return
         elif not matches:
-            log.info(f'{after.author.name} had a message deleted in content plug. {after.clean_content}')
+            log.info(f'{after.author.name} had a message deleted in content plug: {after.clean_content}')
+            await disp.CONTENT_ONLY.send_temp(after, after.author.mention)
             await after.delete()
-            await after.channel.send(f'Oops {after.author.mention}, messages in this channel '
-                                     f'must contain either an attachment or a link!', delete_after=10)
 
 
 def setup(client):

@@ -10,12 +10,14 @@ import asyncio
 import display.embeds
 # Internal Imports
 from modules import discord_obj as d_obj, tools, bot_status, trello, account_usage, elo_ranks_handler as elo
+from modules.spam_detector import is_spam
 from display import AllStrings as disp, views
 from classes import Player, PlayerStats
 from classes.match import EndCondition
 from modules import database as db
 
 import modules.config as cfg
+
 
 log = getLogger('fs_bot')
 
@@ -214,6 +216,22 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
                                                                  embed=leaderboard_embed)
         else:
             await self.__ranked_leaderboard_msg.edit(embed=leaderboard_embed)
+
+    @commands.Cog.listener(name="on_message")
+    async def leaderboard_channel_deleter(self, message: discord.Message):
+        if message.author == self.bot.user:
+            return
+        elif not message.channel.id == cfg.channels['ranked_leaderboard']:
+            return
+        elif d_obj.is_admin(message.author):
+            return
+
+        # Delete message and send
+        if await is_spam(message):
+            pass
+        else:
+            await disp.COMMAND_ONLY.send_temp(message)
+        await message.delete()
 
 
 def setup(client):

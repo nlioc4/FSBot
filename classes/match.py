@@ -1020,8 +1020,7 @@ class RankedMatch(BaseMatch):
 
         async def picked_fac(self, faction_id, inter):
             """Executes all logic for faction pick buttons, as well as handling response."""
-            if not (p := self.match.get_player(inter)):
-                await disp.MATCH_NOT_IN.send_priv(inter, self.match.id_str)
+            if not (p := await self.match.player_check(inter)):
                 return False
 
             if not p == self.match.first_pick:
@@ -1251,8 +1250,7 @@ class RankedMatch(BaseMatch):
         """Callback for when a player submits their score, for use in round won/lost buttons.
         """
 
-        if not (p := self.get_player(ctx.user)):
-            await disp.MATCH_NOT_IN.send_priv(ctx, ctx.user.mention, self.id_str)
+        if not (p := await self.player_check(ctx)):
             return False
         if not self.round_in_progress:  # Check correct state
             await disp.INVALID_INTERACTION.send_priv(ctx)

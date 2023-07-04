@@ -112,7 +112,7 @@ class AdminCog(commands.Cog):
             case _:
                 await disp.CENSUS_LOOP_STATUS.send_priv(ctx, "Running" if self.census_rest.is_running() else "Stopped")
                 return
-        await d_obj.d_log(f"{ctx.user.display_name} {action}d the Census Loop.")
+        await d_obj.d_log(f"{ctx.user.mention} {action}d the Census Loop.")
 
     @admin.command(name="rulesinit")
     async def rulesinit(self, ctx: discord.ApplicationContext,
@@ -199,7 +199,7 @@ class AdminCog(commands.Cog):
                                                            "casual",
                                                       required=False,
                                                       choices=["casual", "ranked"])):
-        """Creates a match with the given arguments.  """
+        """Creates a match with the given arguments."""
         await ctx.defer(ephemeral=True)
         # set up Player Objects
         if not (invited := await d_obj.registered_check(ctx, member)) \

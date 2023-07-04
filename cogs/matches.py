@@ -8,15 +8,10 @@ import asyncio
 from discord.ext import commands, tasks
 
 # Internal Imports
-import display
-from display import AllStrings as disp, views
 import modules.config as cfg
-import modules.tools as tools
-from classes.match import BaseMatch, MatchState
+from classes.match import BaseMatch
 from classes import Player
 from modules import discord_obj as d_obj
-from modules.spam_detector import is_spam
-import modules.accounts_handler as accounts
 
 log = getLogger('fs_bot')
 
