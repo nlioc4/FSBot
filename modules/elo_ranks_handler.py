@@ -92,7 +92,7 @@ async def init_elo_ranks():
         rank.role = await d_obj.get_or_create_role(f"{rank.name} Duel Rank",
                                                    colour=ELO_RANK_COLORS[rank.name],
                                                    mentionable=False,
-                                                   hoist=False,
+                                                   hoist=True,
                                                    permissions=discord.Permissions.none())
 
         emoji = await d_obj.get_or_create_emoji(f"{rank.name}Medal",
@@ -104,11 +104,14 @@ async def init_elo_ranks():
         else:
             image = await emoji.read()
 
-        if not rank.role.icon and image and not cfg.TEST:  # Disable setting icons in test mode, no boosts
-            try:
-                await rank.role.edit(icon=image)
-            except discord.Forbidden:
-                log.warning(f"Couldn't set icon for {rank.name} role!")
+        if not rank.role.icon:
+            if image and "ROLE_ICONS" in d_obj.guild.features:  # Set icon if allowed and have image
+                try:
+                    await rank.role.edit(icon=image)
+                except discord.Forbidden:
+                    log.warning(f"Couldn't set icon for {rank.name} role!")
+            else:
+                log.info(f"Couldn't set icon for {rank.name} role! Missing image or feature unavailable.")
 
     await update_player_ranks()
 
@@ -119,12 +122,12 @@ async def update_player_rank_role(player_stat: PlayerStats):
         log.warning(f"Couldn't find player {p.id} or their Member Object in memory!")
         return
 
-    old_rank = EloRank.get(player_stat.last_rank)
     new_rank = EloRank.get(player_stat.rank)
 
-    if old_rank.role and old_rank is not new_rank and old_rank.role in p.member.roles:  # Remove old role
-        await p.member.remove_roles(old_rank.role)
-    if new_rank.role and new_rank.role not in p.member.roles:  # Add new role
+    for rank in EloRank.get_all():  # Remove all other rank roles from player
+        if rank.role and rank.role in p.member.roles and rank is not new_rank:
+            await p.member.remove_roles(rank.role)
+    if new_rank.role and new_rank.role not in p.member.roles:  # Add new role if required
         await p.member.add_roles(new_rank.role)
 
 
