@@ -34,6 +34,7 @@ class EloRank:
         self.matches_threshold = matches_threshold
         self.percentile_threshold = percentile_threshold
         self.role: discord.Role | None = None
+        self.emoji: discord.Emoji | None = None
         self._all_ranks[name] = self
 
     def __repr__(self):
@@ -57,6 +58,13 @@ class EloRank:
             return self.role.mention
         return self.name
 
+    @property
+    def emoji_str(self):
+        """Return the rank's emoji rendered as a string for discord,
+        or an empty string if the rank doesn't have an emoji"""
+        if self.emoji:
+            return str(self.emoji)
+        return ""
 
 
 # Create EloRank objects for each rank
@@ -95,16 +103,17 @@ async def init_elo_ranks():
                                                    hoist=True,
                                                    permissions=discord.Permissions.none())
 
-        emoji = await d_obj.get_or_create_emoji(f"{rank.name}Medal",
-                                                image=DBG_STATIC_URL.format(ELO_RANK_ICONS[rank.name]),
-                                                roles=[rank.role])
-        if not emoji:
-            await d_obj.d_log(f"Couldn't create emoji for {rank.name} rank! Downloading image instead...")
-            image = await tools.download_image(DBG_STATIC_URL.format(ELO_RANK_ICONS[rank.name]))
-        else:
-            image = await emoji.read()
+        rank.emoji = await d_obj.get_or_create_emoji(f"{rank.name}Medal",
+                                                     image=DBG_STATIC_URL.format(ELO_RANK_ICONS[rank.name]),
+                                                     roles=[rank.role, d_obj.guild.self_role])
 
         if not rank.role.icon:
+            if not rank.emoji:
+                await d_obj.d_log(f"Couldn't create emoji for {rank.name} rank! Downloading image instead...")
+                image = await tools.download_image(DBG_STATIC_URL.format(ELO_RANK_ICONS[rank.name]))
+            else:
+                image = await rank.emoji.read()
+
             if image and "ROLE_ICONS" in d_obj.guild.features:  # Set icon if allowed and have image
                 try:
                     await rank.role.edit(icon=image)

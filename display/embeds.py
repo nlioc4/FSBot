@@ -774,9 +774,17 @@ def elo_rank_leaderboard(elo_ranks, rank_list_dict, last_update, next_update, el
         title=f'Ranked Duels Elo Leaderboard',
         description=
         "Current ranked duels ELO Leaderboard!\n"
-        "You must have participated in at least 5 ranked matches to be move out of the Unranked section.",
+        "Leaderboard is updated every hour on the hour!\n"
+        "You must have participated in at least 5 ranked matches to be move out of the Unranked section.\n"
+        "Ranked Players are given a corresponding role and emoji (seen below) only usable by players of that rank!\n",
         timestamp=dt.now()
     )
+    ranked_roles_string = ''
+    for rank in elo_ranks:
+        if rank.role:
+            ranked_roles_string += f'{rank.emoji_str}{rank.mention}\n'
+    if ranked_roles_string:
+        embed.description += f'**Ranked Roles:**\n{ranked_roles_string}\n'
 
     embed.add_field(
         name="Leaderboard",
@@ -784,7 +792,7 @@ def elo_rank_leaderboard(elo_ranks, rank_list_dict, last_update, next_update, el
     )
 
     for rank in elo_ranks:
-        players_string = f'{rank.mention}\n'
+        players_string = ''
         for i, player in enumerate(rank_list_dict[rank.name]):
             players_string += f"[{i + 1}]<@{player.id}>({player.name}):``{player.elo:.0f} - " \
                               f"{player.total_matches} - {player.match_win_percentage:.0%}``\n"
@@ -792,11 +800,10 @@ def elo_rank_leaderboard(elo_ranks, rank_list_dict, last_update, next_update, el
                 break
         player_count = len(rank_list_dict[rank.name])
         if not player_count:
-            players_string = f"{rank.mention}\n" \
-                             f"No Players in this Rank"
+            players_string += f"No Players in this Rank\n"
 
         embed.add_field(
-            name=f"{rank.name} Rank - {rank.percentile_threshold}%, {rank.elo_threshold:.0f}+ Elo, "
+            name=f"{rank.emoji_str}{rank.name} Rank - {rank.percentile_threshold}%, {rank.elo_threshold:.0f}+ Elo, "
                  f"{player_count} Player{'s' if player_count != 1 else ''}",
             value=players_string,
             inline=False
