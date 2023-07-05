@@ -69,7 +69,7 @@ class EloRank:
 
 # Create EloRank objects for each rank
 EloRank("Auraxium", 1500, 10, 99)
-EloRank("Gold", 1500, 5, 90)
+EloRank("Gold", 1500, 5, 80)
 EloRank("Silver", 1200, 5, 60)
 EloRank("Bronze", 1000, 5, 20)
 EloRank("Unranked", 0, 1, 0)

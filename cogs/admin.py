@@ -207,11 +207,9 @@ class AdminCog(commands.Cog):
             return
         # check / update player status
         if invited.match or owner.match:
-            return await disp.ADMIN_MATCH_CREATE_ERROR.send_priv(ctx)
-        if invited.lobby:
-            await invited.lobby.lobby_leave(invited)
-        if owner.lobby:
-            await owner.lobby.lobby_leave(owner)
+            return await disp.ADMIN_MATCH_CREATE_ALREADY.send_priv(ctx)
+        if invited == owner:
+            return await disp.ADMIN_MATCH_CREATE_SAME.send_priv(ctx)
 
         # check for match type
         lobby = Lobby.get(match_type) or Lobby.channel_to_lobby(ctx.channel) or Lobby.get("casual")
@@ -219,6 +217,11 @@ class AdminCog(commands.Cog):
         match = await lobby.accept_invite(owner, invited)
         match.log(f"Admin Created Match: {Player.get(ctx.user.id).name}")
         await disp.MATCH_CREATE.send_priv(ctx, match.thread.mention, match.id_str)
+
+        if invited.lobby:
+            await invited.lobby.lobby_leave(invited, match=match)
+        if owner.lobby:
+            await owner.lobby.lobby_leave(owner, match=match)
 
     @match_admin.command(name="end")
     async def end_match(self, ctx: discord.ApplicationContext,
@@ -358,7 +361,7 @@ class AdminCog(commands.Cog):
             await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
             return
         if p.account:
-            await accounts.terminate(p.account)
+            await accounts.terminate(p.account, force_clean=True)
         if not acc_id:
             acc = accounts.pick_account(p)
         else:
@@ -556,6 +559,9 @@ class AdminCog(commands.Cog):
         member = member or ctx.user
         if not (p := await d_obj.registered_check(ctx, member)):
             return
+        if not p.has_own_account and not p.account:
+            return await disp.ADMIN_PLAYER_NO_ACCOUNT.send_priv(ctx, p.mention)
+
         # Auto-complete character name from players characters
         found_chars = [char for char in p.ig_names if char.lower().find(character.lower()) >= 0] if character else False
         character = found_chars[0] if found_chars else character
@@ -565,8 +571,8 @@ class AdminCog(commands.Cog):
             await census.login(char_id, accounts.account_char_ids, Player.map_chars_to_players())
             await disp.ADMIN_PLAYER_LOGIN_SET.send_priv(ctx, p.mention, character)
         # If no character, set player as offline
-        elif p.online_id and not character:
-            await census.logout(p.online_id, accounts.account_char_ids, Player.map_chars_to_players())
+        elif p.online_name and not character:
+            await census.logout(p.char_id_by_name(p.online_name), accounts.account_char_ids, Player.map_chars_to_players())
             await disp.ADMIN_PLAYER_LOGOUT_SET.send_priv(ctx, p.mention)
         # If character not found, send error
         elif character:

@@ -14,7 +14,7 @@ import re
 from enum import Enum
 from datetime import datetime
 
-log = getLogger("fs_Bot")
+log = getLogger("fs_bot")
 
 WORLD_ID = 19  # Jaeger ID
 
@@ -245,7 +245,7 @@ class Player:
             case 'register':
                 await db.async_db_call(db.set_field, 'users', self.id, {'is_registered': self.__is_registered})
             case 'account':
-                doc = {'ig_ids': self.ig_ids, 'ig_names': self.ig_names}
+                doc = {'ig_ids': self.__ig_ids, 'ig_names': self.__ig_names}
                 if self.has_own_account:
                     await db.async_db_call(db.set_field, 'users', self.id, doc)
                 else:
@@ -297,10 +297,14 @@ class Player:
         from modules import discord_obj
         return await discord_obj.bot.get_or_fetch_user(self.id)
 
-    async def get_stats(self):
+    async def get_or_fetch_stats(self):
         """Returns the players stats object."""
         from . import PlayerStats
         return await PlayerStats.get_or_fetch(p_id=self.id, p_name=self.name)
+
+    def get_stats(self):
+        from . import PlayerStats
+        return PlayerStats.get(self.id)
 
     @property
     def ig_names(self):
@@ -516,10 +520,10 @@ class Player:
                 if not self.__is_registered:
                     self.__is_registered = True
                     await self.db_update('register')
-                    log.info(f"{self.name} registered with {self.__ig_names, self.ig_names}")
+                    log.info(f"{self.name} registered with {self.__ig_names, self.__ig_ids}")
                     return True
                 await self.db_update('account')
-                log.info(f"{self.name} changed registration to {self.__ig_names, self.ig_names}")
+                log.info(f"{self.name} changed registration to {self.__ig_names, self.__ig_ids}")
                 return True
 
     async def _add_characters(self, char_list: list) -> bool:
@@ -611,68 +615,6 @@ class ActivePlayer:
         return self.__player
 
     @property
-    def match(self):
-        return self.__player.match
-
-    @property
-    def has_own_account(self):
-        return self.__player.has_own_account
-
-    @property
-    def account(self):
-        return self.__player.account
-
-    @property
-    def id(self):
-        return self.__player.id
-
-    @property
-    def name(self):
-        return self.__player.name
-
-    @property
-    def mention(self):
-        return self.__player.mention
-
-    @property
-    def member(self):
-        return self.__player.member
-
-    @property
-    def ig_names(self):
-        if self.player.has_own_account:
-            return self.player.ig_names
-        elif self.account:
-            return self.account.ig_names
-        else:
-            return False
-
-    @property
-    def ig_ids(self):
-        if self.player.has_own_account:
-            return self.player.ig_ids
-        elif self.account:
-            return self.account.ig_ids
-        else:
-            return False
-
-    @property
-    def online_id(self):
-        return self.player.online_id
-
-    @property
-    def online_name(self):
-        return self.player.online_name
-
-    @property
-    def current_ig_id(self):
-        return self.player.current_ig_id
-
-    @property
-    def current_faction(self):
-        return self.player.current_faction
-
-    @property
     def on_assigned_faction(self):
         return self.current_faction == self.assigned_faction_abv
 
@@ -715,5 +657,9 @@ class ActivePlayer:
         return f"{self.name}({self.assigned_faction_abv}" + \
             f"{cfg.emojis[self.assigned_faction_abv]}{self.assigned_faction_char})"
 
-    def on_quit(self):
-        return self.player.on_quit()
+    def __getattr__(self, item):
+        """Passes all other attributes to Player"""
+        try:
+            return getattr(self.__player, item)
+        except AttributeError:
+            raise AttributeError(f"'ActivePlayer' object has no attribute '{item}'")

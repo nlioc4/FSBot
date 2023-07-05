@@ -195,7 +195,7 @@ class RegisterCharacterModal(discord.ui.Modal):
 
                 # Remove player account if successfully registered
                 if registered and p.account:
-                    await accounts_handler.terminate(player=p)
+                    await accounts_handler.terminate(player=p, force_clean=True)
                 # Reset login status if player was online
                 if registered and p.online_id:
                     p.online_id = None

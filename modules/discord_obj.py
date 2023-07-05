@@ -128,6 +128,9 @@ async def d_log(message: str = '', source: str = '', error=None) -> bool:
     return False
 
 
+def d_log_task(message: str = '', source: str = '', error=None):
+    asyncio.create_task(d_log(message, source, error))
+
 async def get_or_create_role(name: str, **kwargs) -> discord.Role:
     """get a role by name, or creates it if it doesn't exist
     Returns the role object
@@ -142,6 +145,7 @@ async def get_or_create_role(name: str, **kwargs) -> discord.Role:
     """
     if not (role := discord.utils.find(lambda r: r.name == name, guild.roles)):
         role = await guild.create_role(name=name, **kwargs)
+        log.info(f"Role {name} not found, creating new role...")
     roles.update({name: role})  # add role to roles dict
     return role
 
@@ -159,6 +163,7 @@ async def get_or_create_emoji(name: str, **kwargs) -> discord.Emoji | None:
             kwargs['image'] = await tools.download_image(kwargs['image'])
         try:
             emoji = await guild.create_custom_emoji(name=name, **kwargs)
+            log.info(f"Emoji {name} not found, creating new emoji...")
         except discord.Forbidden as e:
             log.error(f"Could not create emoji {name}", exc_info=e)
             return

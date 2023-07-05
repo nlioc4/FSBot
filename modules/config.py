@@ -69,6 +69,7 @@ emojis = {
 # Discord Channel ID's
 channels = {
     "chat": "",
+    "general_voice": "",
     "casual_lobby": "",
     "ranked_lobby": "",
     "ranked_leaderboard": "",

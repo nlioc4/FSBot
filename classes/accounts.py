@@ -19,7 +19,7 @@ class Account:
         self.a_player = None
         self.__last_usage = {"account_id": self.id}
         self.__unique_usages = unique_usages
-        self.message = None
+        self.message: None | discord.Message = None
         self.view = None
         self.timeout_coro = None
         self.logout_reminders = 0
@@ -112,6 +112,7 @@ class Account:
         """Set a new timestamp for the account timeout"""
         self.__timeout_at = tools.timestamp_now() + timeout_delay
 
+    @property
     def timeout_delta(self):
         """Return the remaining time before the account timeout"""
         return self.__timeout_at - tools.timestamp_now()
@@ -149,8 +150,10 @@ class Account:
 
     def terminate(self):
         """Mark account as terminated, add end time to last usage."""
-        self.__terminated = True
-        self.__last_usage['end_time'] = tools.timestamp_now()
+        if not self.__terminated:
+            self.__terminated = True
+            self.__last_usage['end_time'] = tools.timestamp_now()
+        return self.__terminated
 
     def login(self):
         """Add login usage to last usage."""

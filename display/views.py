@@ -260,7 +260,7 @@ class ConfirmView(FSBotView):
         self.disable_all_items()
         self.cancel_button.style = discord.ButtonStyle.grey
         try:
-            await self.message.edit(view=self)
+            await disp.NONE.edit(self.message, view=self)
             await self.message.delete(delay=5)
         except discord.NotFound:
             pass
@@ -275,7 +275,7 @@ class ConfirmView(FSBotView):
         self.disable_all_items()
         self.confirm_button.style = discord.ButtonStyle.grey
         try:
-            await self.message.edit(view=self)
+            await disp.NONE.edit(self.message, view=self)
             await self.message.delete(delay=5)
         except discord.NotFound:
             pass
@@ -286,7 +286,7 @@ class ConfirmView(FSBotView):
         self.disable_all_items()
         self.confirm_button.style = discord.ButtonStyle.grey
         try:
-            await self.message.edit(content=f"**TIMED OUT**\n{self.message.content}", view=self)
+            await disp.ANY.edit(self.message, f"**TIMED OUT**\n{self.message.content}", view=self)
             await self.message.delete(delay=10)
         except (discord.NotFound, discord.HTTPException):
             pass

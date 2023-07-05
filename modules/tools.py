@@ -69,7 +69,10 @@ def compare_embeds(embed1, embed2) -> bool:
         embed1dict, embed2dict = embed1.to_dict(), embed2.to_dict()
     except AttributeError:  # case for one of the entries being None / not an embed
         return False
-    del embed1dict['timestamp'], embed2dict['timestamp']
+    try:
+        del embed1dict['timestamp'], embed2dict['timestamp']
+    except KeyError:  # case for one / both of the entries not having a timestamp
+        pass
     return embed1dict == embed2dict
 
 

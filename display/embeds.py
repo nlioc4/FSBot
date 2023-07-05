@@ -611,24 +611,30 @@ def ranked_match_info(match) -> Embed:
                     inline=False)
 
     # Current Round
-    online, offline = "🟢", "🔴"
     if match.factions_picked and not match.is_ended:  # check if match is in progress
-        player1_online = online if match.player1.on_assigned_faction else offline
-        player2_online = online if match.player2.on_assigned_faction else offline
 
-        player1_submitted = "✉️" if match.get_player_submitted_score(match.player1) else ""
-        player2_submitted = "✉️" if match.get_player_submitted_score(match.player2) else ""
-
-        round_string = \
-            f"{match.player1.name}: {player1_online}{match.player1.assigned_char_display}{player1_submitted}\n" \
-            f"{match.player2.name}: {player2_online}{match.player2.assigned_char_display}{player2_submitted}\n"
         embed.add_field(name=f"Current Round: [{match.current_round}/{match.MATCH_LENGTH}]",
-                        value=round_string,
+                        value=match.get_round_string(),
                         inline=False)
 
     for field in match.get_log_fields(2):
         embed.append_field(field)
 
+    return fs_author(embed)
+
+
+def ranked_match_round(match) -> Embed:
+    """Embed for each round of a ranked match"""
+    from classes.match import RankedMatch, MatchState
+    match: RankedMatch
+
+    colour = Colour.og_blurple() if match.status == MatchState.SUBMITTING else Colour.green()
+    embed = Embed(
+        colour=colour,
+        title=f"Round [{match.current_round}/{match.MATCH_LENGTH}]",
+        description=f"{match.get_round_string()}\n"
+                    f"Submit your round results using the buttons below!\n"
+    )
     return fs_author(embed)
 
 
@@ -672,7 +678,8 @@ def match_log(match) -> Embed:
                         value=match.get_score_string(),
                         inline=False)
 
-        if match.has_standard_end:
+        if match.has_standard_end and \
+                match.player1_stats.last_match_id == match.player2_stats.last_match_id == match.id:
             elo_change_string = ""
             for p in [match.player1_stats, match.player2_stats]:
                 elo_change_string += f"{p.name}: {(p.elo - p.last_elo_change):.0f} " \
@@ -694,21 +701,24 @@ def match_log(match) -> Embed:
     return fs_author(embed)
 
 
-def elo_change(match, player, new_elo: float, elo_delta: float, match_thread_mention: str) -> Embed:
+def elo_change(match, player) -> Embed:
     """Embed to show players their elo change after a match."""
     from classes.match import RankedMatch
     match: RankedMatch
 
+    p_stats = player.get_stats()
+
     # Green if positive elo change, Red if negative
-    colour = Colour.green() if elo_delta >= 0 else Colour.red()
+    colour = Colour.green() if p_stats.last_elo_change >= 0 else Colour.red()
 
     embed = Embed(
         colour=colour,
         title=f'Ranked Match [{match.id_str}] Elo Change',
-        description=f'{player.mention} versus {match.get_opponent(player).mention} in {match_thread_mention} has ended.\n'
+        description=f'{player.mention} versus {match.get_opponent(player).mention} has ended.\n'
+                    f'Match Thread: {match.thread.mention}\n'
                     f'**Scoreline**\n{match.get_score_string()}\n'
-                    f'{player.mention}\'s elo has changed by ``{elo_delta:.0f}`` points.\n'
-                    f'{player.mention}\'s elo is now ``{new_elo:.0f}`` points.\n',
+                    f'{player.mention}\'s elo has changed by ``{p_stats.last_elo_change:+.0f}`` points.\n'
+                    f'{(p_stats.elo - p_stats.last_elo_change):.0f} -> {p_stats.elo:.0f}\n',
         timestamp=dt.now()
     )
     return fs_author(embed)
@@ -719,10 +729,6 @@ def elo_summary(player_stats):
     from classes.player_stats import PlayerStats
     player_stats: PlayerStats
     last_five = 'No Matches Recorded'
-    if player_stats.last_five_changes:
-        last_five = ''
-        for match_id, change in player_stats.last_five_changes:
-            last_five += f'[{match_id}]: ``{change:+.0f}``\n'
 
     embed = Embed(
         colour=Colour.dark_gold(),
@@ -733,10 +739,23 @@ def elo_summary(player_stats):
         f"Match Losses: ``{player_stats.match_losses}``\n"
         f"Match Draws: ``{player_stats.match_draws}``\n"
         f"Total Matches: ``{player_stats.total_matches}``\n"
-        f"**Last Five Match Results:**\n{last_five}\n",
+        f"Win Rate: ``{player_stats.match_win_percentage:.0%}``\n"
+        f"\n"
+        f"NC Rounds Won: ``{player_stats.nc_round_wins}``\n"
+        f"NC Rounds Lost: ``{player_stats.nc_round_losses}``\n"
+        f"TR Rounds Won: ``{player_stats.tr_round_wins}``\n"
+        f"TR Rounds Lost: ``{player_stats.tr_round_losses}``\n",
         timestamp=dt.now()
-
     )
+
+    if player_stats.last_five_changes:
+        last_five = ''
+        for match_id, change in player_stats.last_five_changes:
+            last_five += f'[{match_id}]: ``{change:+.0f}``\n'
+        embed.add_field(name='Recent Elo Changes',
+                        value=last_five,
+                        inline=False)
+
     return fs_author(embed)
 
 

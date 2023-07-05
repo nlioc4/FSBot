@@ -17,7 +17,8 @@ import modules.config as cfg
 import modules.census as census
 import modules.discord_obj as d_obj
 import modules.database as db
-from display import AllStrings as disp, views
+import modules.tools as tools
+from display import AllStrings as disp, views, embeds
 
 eastern = pytz.timezone('US/Eastern')
 
@@ -202,17 +203,18 @@ class ValidateView(views.FSBotView):
         super().__init__(timeout=300)
         self.acc = acc
         self.end_session_button.disabled = True
+        self.update()
+
+    def update(self):
         if self.acc.is_validated:
-            self.validate()
+            self.validate_button.disabled = True
+            self.validate_button.style = discord.ButtonStyle.grey
+            self.end_session_button.disabled = False
+            self.timeout = None
         if self.acc.is_terminated:
             self.disable_all_items()
             self.stop()
-
-    def validate(self):
-        self.validate_button.disabled = True
-        self.validate_button.style = discord.ButtonStyle.grey
-        self.end_session_button.disabled = False
-        self.timeout = None
+        return self
 
     @discord.ui.button(label="Confirm Rules", style=discord.ButtonStyle.green)
     async def validate_button(self, button: discord.Button, inter: discord.Interaction):
@@ -243,8 +245,25 @@ class ValidateView(views.FSBotView):
 async def update_message(acc: classes.Account):
     """Updates the account message with the current account object"""
     if not acc.message:
+        log.info(f"Account {acc.id} has no message!")
         return False
-    await disp.ACCOUNT_EMBED.edit(acc.message, clear_content=True, acc=acc, view=acc.view)
+
+    # check if view has updated
+    def view_changed():
+        msg_view = discord.ui.View.from_message(acc.message)
+        try:
+            for new_child, old_child in zip(msg_view.children, acc.view.children, strict=True):
+                if new_child == old_child:
+                    continue
+                else:
+                    return True
+        except ValueError:
+            pass
+        return False
+
+    # Check if embed or view needs to be updated before wasting API calls
+    if (acc.message.embeds and tools.compare_embeds(acc.message.embeds[0], embeds.account(acc))) or view_changed():
+        await disp.ACCOUNT_EMBED.edit(acc.message, clear_content=True, acc=acc, view=acc.view.update())
 
 
 async def send_account(acc: classes.Account = None, player: classes.Player = None):
@@ -256,7 +275,7 @@ async def send_account(acc: classes.Account = None, player: classes.Player = Non
         return False
     player = player or acc.a_player
     user = player.member
-    account_timeout_delay(player=player, acc=acc, delay=MAX_TIME)  # start countdown to account timeout
+    account_timeout_delay(player=player, acc=acc, delay=MAX_TIME, update_msg=False)  # start timeout task
     for _ in range(3):
         try:
             acc.view = ValidateView(acc)
@@ -284,6 +303,7 @@ async def validate_account(acc: classes.Account = None, player: classes.Player =
 
     # Check if already validated
     if acc.is_validated or acc.is_terminated:  # Accounts should never be terminated here, but just in case?
+        await update_message(acc)
         return False
 
     # Update GSheet with Usage
@@ -316,9 +336,9 @@ async def validate_account(acc: classes.Account = None, player: classes.Player =
 
     # Show Player Account Details
     acc.validate()
-    if acc.view:
-        acc.view.validate()
     await update_message(acc)
+    if acc.a_player.match:
+        acc.a_player.match.update_soon()  # update match if player is in a match
 
     # Log Account Validation
     log.info(f'Account [{acc.id}] sent to player: ID: [{player.id}], name: [{player.name}]')  # Log validation
@@ -340,34 +360,34 @@ async def terminate(acc: classes.Account = None, player: classes.Player = None, 
     if not acc:  # this would fire if the account was terminated by another process subsequently
         return await d_obj.d_log(message=f"Terminating {player.name}'s account failed, no account object.")
 
-    if not acc.is_terminated:
-        acc.terminate()  # if not already terminated
-        if acc.view:
-            acc.view.disable_all_items()
-
+    if acc.terminate():  # if not already terminated:
         # End Account Timeout Countdown
         if acc.timeout_coro and not acc.timeout_coro.done():
             acc.timeout_coro.cancel()
             acc.timeout_coro = None
 
         # Send log-out message if logged in, adjust embed
-        if acc.message:
-            # choose which message to send depending on whether the account is currently online
-            send_coro = disp.ACCOUNT_TERM_LOG.send(acc.message, acc.online_name) if acc.online_id \
-                else disp.ACCOUNT_TERM.send(acc.message)
-            for _ in range(3):
-                try:
-                    if await send_coro:
-                        await update_message(acc)  # use acc.message context to edit
-                        break
-                except discord.Forbidden:
-                    continue
+        # choose which message to send depending on whether the account is currently online
+        send_coro = disp.ACCOUNT_TERM_LOG.send(acc.message, acc.online_name) if acc.online_id \
+            else disp.ACCOUNT_TERM.send(acc.message)
+        for _ in range(3):
+            try:
+                if await send_coro:
+                    break
+            except discord.Forbidden:
+                continue
+
+        if acc.online_id:  # if online, send reminder to log out
+            asyncio.create_task(logout_reminder(acc))
+
+        # Log Account Termination
+        d_obj.d_log_task(f'Account [{acc.id}] terminated for player: ID: [{player.id}], name: [{player.name}]')
+
+    await update_message(acc)  # Update message to show account is terminated
 
     # Clean if already offline or forced
-    if not acc.online_id or force_clean:
+    if acc.is_terminated and (not acc.online_id or force_clean):
         await clean_account(acc)
-    else:
-        asyncio.create_task(logout_reminder(acc))
 
 
 async def terminate_all():
@@ -389,6 +409,9 @@ async def clean_account(acc: classes.Account):
     del _busy_accounts[acc.id]
     _available_accounts[acc.id] = acc
 
+    # Log Account Clean
+    d_obj.d_log_task(f'Account [{acc.id}] cleaned, returned to available accounts.')
+
 
 async def unassigned_online(newest_login):
     """Send alert that an unassigned account has logged in"""
@@ -404,28 +427,33 @@ async def unassigned_online(newest_login):
                                           new=newest_login)
 
 
-async def _account_timeout_delay(player: classes.Player, acc: classes.Account, delay: int = 300):
+async def _account_timeout_delay(player: classes.Player, acc: classes.Account, delay: int, update_msg: bool):
     """Coroutine to terminate an account if specified delay is exceeded, unless player is in a match."""
     try:
         acc.set_timeout(delay)
-        if acc.message:  # Update embed with new timeout if it exists
-            await disp.ACCOUNT_EMBED.edit(acc.message, acc=acc, view=ValidateView(acc))
+        if update_msg:
+            await update_message(acc)
         await asyncio.sleep(delay)  # Wait for specified delay
+        if acc.timeout_at > tools.timestamp_now():  # Check if timeout was updated
+            # if so, restart coroutine using remaining time as delay
+            asyncio.get_event_loop().call_soon(account_timeout_delay, player, acc, acc.timeout_delta)
 
         if not player.match and acc.a_player == player:
-            await terminate(acc, player)
-        else:  # if Account is still being used, recreate timeout
+            asyncio.create_task(terminate(acc, player))  # Terminate account if player is not in a match
+            #  Use create_task to avoid cancelling this coroutine
+
+        else:  # if Account is still being used validly, recreate timeout with new delay
             asyncio.get_event_loop().call_soon(account_timeout_delay, player, acc, delay)
 
     except asyncio.CancelledError:
         pass
 
 
-def account_timeout_delay(player: classes.Player, acc: classes.Account, delay: int = 300):
+def account_timeout_delay(player: classes.Player, acc: classes.Account, delay: int = 300, update_msg: bool = True):
     """Coroutine to terminate an account if specified delay is exceeded, unless player is in a match."""
     if acc.timeout_coro and not acc.timeout_coro.done():
         acc.timeout_coro.cancel()
-    acc.timeout_coro = asyncio.create_task(_account_timeout_delay(player, acc, delay))
+    acc.timeout_coro = asyncio.create_task(_account_timeout_delay(player, acc, delay, update_msg))
 
 
 async def logout_reminder(acc: classes.Account):
@@ -435,7 +463,7 @@ async def logout_reminder(acc: classes.Account):
 
         await asyncio.sleep(300)
 
-        if acc.online_id:
+        if acc.online_id and acc.is_terminated:
             await disp.ACCOUNT_LOGOUT_WARN.send(acc.message, acc.online_name, ping=acc.a_player)
 
             acc.logout_reminders += 1
@@ -444,11 +472,13 @@ async def logout_reminder(acc: classes.Account):
                                   f' {acc.logout_reminders * 5} minutes after their session ended!')
 
             asyncio.create_task(logout_reminder(acc))
+        elif acc.is_terminated:  # should be redundant as accounts are cleaned on logout in modules.census
+            await clean_account(acc)
         else:
             pass
     except asyncio.CancelledError:
         pass
-    except discord.Forbidden:
+    except (discord.Forbidden, discord.NotFound, discord.HTTPException):
         await d_obj.d_log(f'Unable to DM {acc.a_player.mention} to log out of their Jaeger account.\n'
                           f'Force cleaning account...')
         await clean_account(acc)

@@ -24,8 +24,8 @@ def _player_rating_delta(player_win_expect, results):
     return K_FACTOR * (results - player_win_expect)
 
 
-async def update_elo(match) -> tuple[float, float]:
-    """Update PlayerStats for a specific match, return Elo Deltas """
+async def update_elo(match):
+    """Update PlayerStats for a specific match"""
     from classes.match import RankedMatch
     match: RankedMatch
 
@@ -46,6 +46,5 @@ async def update_elo(match) -> tuple[float, float]:
     match.player2_stats.add_match(match, player2_elo_delta)
     await asyncio.gather(match.player1_stats.push_to_db(), match.player2_stats.push_to_db())
 
-    return player1_elo_delta, player2_elo_delta
 
 

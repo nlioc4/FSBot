@@ -3,11 +3,10 @@
 # External Imports
 from __future__ import annotations
 import discord
-from discord import MessageType
 import asyncio
 from logging import getLogger
 from enum import Enum
-from typing import Coroutine, Union, NamedTuple, List, Literal
+from typing import Coroutine, NamedTuple, List, Literal
 
 # Internal Imports
 import modules.discord_obj as d_obj
@@ -120,8 +119,8 @@ class BaseMatch:
             p = Player.get(inter.user.id)
             if not await d_obj.registered_check(inter, p) or not await self.in_match_check(inter, p):
                 return
+            await inter.response.defer(ephemeral=True)
 
-            await disp.MATCH_LEAVE.send_priv(inter, p.mention)
             await self.match.leave_match(p.active)
 
         @discord.ui.button(label="Leave Match", style=discord.ButtonStyle.red)
@@ -151,23 +150,25 @@ class BaseMatch:
             elif p.has_own_account:
                 await disp.ACCOUNT_HAS_OWN.send_priv(inter)
                 return
+            elif p.account and p.account.is_terminated:
+                await accounts.clean_account(acc=p.account)
             elif p.account and p.account.message:
                 await disp.ACCOUNT_ALREADY.send_priv(inter, f"<#{p.account.message.channel.id}>")
                 return
             elif p.account and not p.account.message:
                 await d_obj.d_log(f"Account {p.account.id} has no message to {p.mention}.  Cleaning...")
                 await accounts.terminate(p.account, force_clean=True)
-            else:
-                acc = accounts.pick_account(p)
-                if acc:  # if account found
-                    msg = await accounts.send_account(acc)
-                    if msg:  # if allowed to dm user
-                        await disp.ACCOUNT_SENT.send_priv(inter, f"<#{msg.channel.id}>")
-                    else:  # if couldn't dm
-                        await disp.ACCOUNT_NO_DMS.send_priv(inter)
+                return
+            acc = accounts.pick_account(p)
+            if acc:  # if account found
+                msg = await accounts.send_account(acc)
+                if msg:  # if allowed to dm user
+                    await disp.ACCOUNT_SENT.send_priv(inter, f"<#{msg.channel.id}>")
+                else:  # if couldn't dm
+                    await disp.ACCOUNT_NO_DMS.send_priv(inter)
 
-                else:  # if no account found
-                    await disp.ACCOUNT_NO_ACCOUNT.send_priv(inter)
+            else:  # if no account found
+                await disp.ACCOUNT_NO_ACCOUNT.send_priv(inter)
 
         @discord.ui.button(label="Voice: Private", style=discord.ButtonStyle.red)
         async def voice_button(self, button: discord.Button, inter: discord.Interaction):
@@ -192,7 +193,7 @@ class BaseMatch:
         self.timeout_stamp = None
         self.timeout_warned = False
         self.was_timeout = False
-        self.status = MatchState.LOGGING_IN
+        self.__status = MatchState.LOGGING_IN
         self.__public_voice = False
         self._update_lock = asyncio.Lock()
         self._next_update_task: asyncio.Task | None = None  # store asyncio.Handle for next update call
@@ -219,8 +220,8 @@ class BaseMatch:
         self.__invited = list()
         self.match_log = list()  # logs recorded as list of tuples, (timestamp, message, Public)
 
-        self.__account_check_task = asyncio.create_task(
-            self._check_accounts_delay(*self.__players))  # Task for account checking
+        self.__account_check_tasks = [asyncio.create_task(
+            self._check_accounts_delay(*self.__players))]  # Task for account checking
         BaseMatch._active_matches[self.id] = self
 
     @classmethod
@@ -266,8 +267,9 @@ class BaseMatch:
         obj.log(f'{owner.name} created the match with {invited.name}')
 
         await obj._make_channels()  # Make thread ahd voice channel
+        await obj.send_embed()  # Send initial embed
 
-        await obj.update()  # Perform initial update, which will send first embed
+        obj.update_soon()  # Perform initial update
 
         # Show match creation message
         await disp.MATCH_CREATE.send(obj.thread, f'{owner.mention}{invited.mention}', obj.id_str)
@@ -317,10 +319,10 @@ class BaseMatch:
             await self.set_voice_public()
         return self.__public_voice
 
-    async def _clear_voice(self):
+    async def _clear_voice(self, all_users=False):
         #  gather disconnect coroutines if users not in match, and not admins
-        to_disconnect = [memb.move_to(None) for memb in self.voice_channel.members
-                         if memb.id not in [p.id for p in self.players] and not d_obj.is_admin(memb)]
+        to_disconnect = [memb.move_to(d_obj.channels['general_voice']) for memb in self.voice_channel.members
+                         if all_users or memb.id not in [p.id for p in self.players] or not d_obj.is_admin(memb)]
 
         await asyncio.gather(*to_disconnect)
 
@@ -366,10 +368,10 @@ class BaseMatch:
         await self._channel_update(player, True)
         await disp.MATCH_JOIN.send(self.thread, player.mention)
         self.log(f'{player.name} joined the match')
-        asyncio.create_task(self._check_accounts_delay(player))
         if player.account:
             accounts.account_timeout_delay(player, player.account, accounts.MAX_TIME)
-        await self.update()
+        self.__account_check_tasks.append(asyncio.create_task(self._check_accounts_delay(player)))
+        self.update_soon()
         return True
 
     async def leave_match(self, player: ActivePlayer):
@@ -388,7 +390,8 @@ class BaseMatch:
                     await self.end_match(EndCondition.FORFEIT, leaving_player=player)
                     return
 
-        if player in self.__players: self.__players.remove(player)
+        if player in self.__players:
+            self.__players.remove(player)
         self.__previous_players.append(player.on_quit())
         self.log(f'{player.name} left the match')
 
@@ -398,10 +401,12 @@ class BaseMatch:
 
         #  After-leave active Match conditions
         if not self.is_ended:
-            await self.update()
-            await self._channel_update(player, None)
-            await self._clear_voice()
-            await disp.MATCH_LEAVE.send(self.thread, player.mention, allowed_mentions=False)
+            await asyncio.gather(
+                self.update(),
+                self._channel_update(player, None),
+                self._clear_voice(),
+                disp.MATCH_LEAVE.send(self.thread, player.mention, allowed_mentions=False),
+            )
 
     async def change_owner(self, player: None | ActivePlayer = None):
         """Set a new owner if player provided, otherwise pick a new owner from players.
@@ -427,13 +432,14 @@ class BaseMatch:
             # Update vars, cancel next scheduled update
             self.end_stamp = tools.timestamp_now()
             self.status = MatchState.ENDED
-            self.__end_condition = end_condition
+            self.end_condition = end_condition
             self.log('Match Ended')
             self._cancel_update()
 
-            # Cancel Account check if not complete
-            if not self.__account_check_task.done():
-                self.__account_check_task.cancel()
+            # Cancel Account checks if not complete
+            for task in self.__account_check_tasks:
+                if not task.done():
+                    task.cancel()
 
             # Display match ended to users
             await asyncio.gather(
@@ -456,12 +462,13 @@ class BaseMatch:
                 for i in range(20):
                     del BaseMatch._recent_matches[keys[i]]
 
-            #  Delete voice channel, lock thread if not already deleted
+            #  Move Users to general voice, delete voice channel, lock thread if not already deleted
             try:
                 await asyncio.gather(
-                    self.thread.edit(archived=True, locked=True, reason='Match Ended'),
-                    self.voice_channel.delete(reason='Match Ended')
+                    self._clear_voice(True),
+                    self.thread.edit(archived=True, locked=True, reason='Match Ended')
                 )
+                await self.voice_channel.delete(reason='Match Ended')
             except discord.NotFound:
                 pass
 
@@ -618,6 +625,10 @@ class BaseMatch:
             # schedule next update
             d_obj.bot.loop.call_later(0.1, self._schedule_update_task)
 
+    def update_soon(self):
+        """Schedule an update for the match immediately, without waiting for the coroutine to finish"""
+        d_obj.bot.loop.create_task(self.update(), name=f'Match [{self.id_str}] Updater')
+
     async def _update_task(self):
         """Task wrapper around update call to add delay"""
         await asyncio.sleep(self.UPDATE_DELAY)
@@ -640,21 +651,25 @@ class BaseMatch:
         self.match_log.append((tools.timestamp_now(), message, public))
         log.info(f'Match ID [{self.id}]: {message}')
 
-    async def char_login(self, user):
+    def char_login(self, user):
         self.log(f"{user.name} logged in as {user.online_name}")
-        await self.update()
+        self.update_soon()
 
-    async def char_logout(self, user, char_name):
+    def char_logout(self, user, char_name):
         self.log(f"{user.name} logged out from {char_name}")
-        await self.update()
+        self.update_soon()
 
     @property
     def recent_logs(self):
         return self.match_log[-15:]
 
     def get_log_fields(self, max_fields=5, show_all=False):
-        """Return a list of EmbedFields, split by maximum embed string length if necessary (maximum string length of 1000).
-        :param max_fields: The maximum number of fields to return, defaults to 5.  Returns fields closest to current time.
+        """Return a list of EmbedFields, split by maximum embed string length
+        if necessary (maximum string length of 1000).
+
+        :param max_fields: The maximum number of fields to return, defaults to 5.
+        Returns fields closest to current time.
+        :param show_all: If True, all entries will be shown, otherwise only public entries will be shown.
         """
         fields = []
         current_field = discord.EmbedField(name='\u200b', value='', inline=False)
@@ -715,6 +730,16 @@ class BaseMatch:
         return self.__invited
 
     @property
+    def status(self):
+        return self.__status
+
+    @status.setter
+    def status(self, value):
+        if value not in MatchState:
+            raise ValueError(f'Status must be a value of MatchState, not {value}')
+        self.__status = value
+
+    @property
     def is_ended(self):
         return self.status == MatchState.ENDED
 
@@ -722,9 +747,15 @@ class BaseMatch:
     def end_condition(self):
         return self.__end_condition
 
+    @end_condition.setter
+    def end_condition(self, value):
+        if value not in EndCondition:
+            raise ValueError(f'End Condition must be a value of EndCondition, not {value}')
+        self.__end_condition = value
+
     @property
     def has_standard_end(self):
-        return self.__end_condition in [EndCondition.COMPLETED, EndCondition.FORFEIT]
+        return self.__end_condition in (EndCondition.COMPLETED, EndCondition.FORFEIT)
 
     @property
     def online_players(self):
@@ -808,12 +839,12 @@ class RankedMatch(BaseMatch):
 
             self.round_won_button = discord.ui.Button(label="Round Won", row=2, disabled=True,
                                                       style=discord.ButtonStyle.green)
-            self.round_won_button.callback = lambda ctx, won=True: self.match.submit_score_callback(won, ctx=ctx)
+            self.round_won_button.callback = lambda ctx: self.match.submit_score_callback(won=True, ctx=ctx)
             self.add_item(self.round_won_button)
 
             self.round_lost_button = discord.ui.Button(label="Round Lost", row=2, disabled=True,
                                                        style=discord.ButtonStyle.red)
-            self.round_lost_button.callback = lambda ctx, won=False: self.match.submit_score_callback(won, ctx=ctx)
+            self.round_lost_button.callback = lambda ctx: self.match.submit_score_callback(won=False, ctx=ctx)
             self.add_item(self.round_lost_button)
 
         def update(self):
@@ -853,16 +884,16 @@ class RankedMatch(BaseMatch):
             p = Player.get(inter.user.id)
             if not await d_obj.registered_check(inter, p) or not await self.in_match_check(inter, p):
                 return
+            await inter.response.defer(ephemeral=True)
 
             if self.match.is_ended:
                 # if Match has ended when button clicked.
-                await disp.MATCH_LEAVE.send_priv(inter, p.mention)
                 await self.match.leave_match(p.active)
                 return
 
             if self.match.rounds_complete == 0:
                 # If Match has not had a round completed yet
-                await disp.MATCH_LEAVE.send_priv(inter, p.mention)
+                await disp.MATCH_LEAVE.send(self.match.thread, p.mention)
                 await self.match.end_match(end_condition=EndCondition.CANCELLED, leaving_player=p)
 
             else:
@@ -1140,6 +1171,15 @@ class RankedMatch(BaseMatch):
         else:
             raise tools.UnexpectedError("Player not in match!")
 
+    def get_submitted_score_emoji(self, player):
+        """Return an emoji representation of a players score submission"""
+        if (score := self.get_player_submitted_score(player)) == 1:
+            return "✉️✅✉️"
+        elif score == -1:
+            return "✉️❌✉️"
+        else:
+            return ""
+
     def _check_scores_equal(self) -> bool:
         if not self._check_scores_submitted():
             raise tools.UnexpectedError("Scores not submitted on equal check!")
@@ -1231,6 +1271,24 @@ class RankedMatch(BaseMatch):
         """Returns a score string with only current scores for each player."""
         return f"{self.get_player1_wins()}:{self.get_player2_wins()}"
 
+    def get_round_string(self) -> str:
+        """Returns a string to display info on the current round: check if players are on the correct characters,
+        who has submitted, and the rounds score"""
+        online, offline = "🟢", "🔴"
+        player1_online = online if self.player1.on_assigned_faction else offline
+        player2_online = online if self.player2.on_assigned_faction else offline
+
+        player1_submitted = self.get_submitted_score_emoji(self.player1)
+        player2_submitted = self.get_submitted_score_emoji(self.player2)
+
+        round_string = \
+            f"{self.player1.name}[{self.get_player1_wins()}]: {player1_online}" \
+            f"{self.player1.assigned_char_display}{player1_submitted}\n" \
+            "**vs**\n" \
+            f"{self.player2.name}[{self.get_player2_wins()}]: {player2_online}" \
+            f"{self.player2.assigned_char_display}{player2_submitted}\n"
+        return round_string
+
     @property
     def wins_required(self):
         """Returns the number of wins required to win the match"""
@@ -1249,7 +1307,7 @@ class RankedMatch(BaseMatch):
                                     ctx: discord.Interaction):
         """Callback for when a player submits their score, for use in round won/lost buttons.
         """
-
+        await ctx.response.defer(ephemeral=True)
         if not (p := await self.player_check(ctx)):
             return False
         if not self.round_in_progress:  # Check correct state
@@ -1261,7 +1319,7 @@ class RankedMatch(BaseMatch):
         else:
             other_score = self._submit_score(p, -1)
 
-        await disp.RM_SCORE_SUBMITTED.send_temp(ctx, p.mention, "Round Won" if won else "Round Lost")
+        self.update_soon()
         return other_score
 
     def set_round_winner(self, winner: ActivePlayer):
@@ -1280,7 +1338,7 @@ class RankedMatch(BaseMatch):
             raise tools.UnexpectedError(f"Invalid player passed to set_round_winner: {winner}")
 
         self.log(disp.RM_ROUND_WINNER_SET(winner.name))
-
+        return True
 
     async def score_mismatch(self):
         """Display a score mismatch to the players, reset submitted scores, ask for new submission"""
@@ -1356,7 +1414,8 @@ class RankedMatch(BaseMatch):
                 # Update Display Objects
                 await asyncio.gather(
                     self.update_embed(),
-                    self.update_match_log()
+                    self.update_match_log(),
+                    self.update_round_msg()
                 )
 
         except asyncio.CancelledError:
@@ -1377,6 +1436,25 @@ class RankedMatch(BaseMatch):
 
     # Round Control Functions
 
+    async def update_round_msg(self):
+        """Update the round message, or send a new one if it doesn't exist (if it was deleted after round end)"""
+        if self.round_in_progress:
+            # Check there is a round in progress before sending / updating message
+            if self._round_message:
+                await disp.RM_ROUND_MESSAGE.edit(self._round_message, match=self, view=self.RankedRoundView(self))
+            else:
+                self._round_message = await disp.RM_ROUND_MESSAGE.send(self.thread,
+                                                                       match=self, view=self.RankedRoundView(self))
+
+    def _delete_round_msg(self):
+        """Delete the round message"""
+        if self._round_message:
+            try:
+                asyncio.create_task(self._round_message.delete())
+            except discord.NotFound:
+                pass
+            self._round_message = None
+
     async def _start_round(self):
         """Starts a new round, resets round variables"""
 
@@ -1389,21 +1467,14 @@ class RankedMatch(BaseMatch):
             f"Round [{self.current_round}/{self.MATCH_LENGTH}] "
             f"Started: {self.player1.assigned_faction_char} vs {self.player2.assigned_faction_char}")
 
-        # Send new round message
-        self._round_message = await disp.RM_ROUND_MESSAGE.send(self.thread, self.current_round,
-                                                               self.player1.assigned_faction_display,
-                                                               self.player2.assigned_faction_display,
-                                                               view=self.RankedRoundView(self))
+        # No need to send new round message, as it's sent as part of the update loop
 
     async def _end_round(self):
         """Ends current round, returns True if Match should also end"""
         self._decide_round_winner()
 
         # Delete old round message
-        try:
-            await self._round_message.delete()
-        except discord.NotFound:
-            pass
+        self._delete_round_msg()
 
         match_round = Round(
             round_number=self.current_round,
@@ -1419,7 +1490,7 @@ class RankedMatch(BaseMatch):
 
         # Publish Round winner
         await disp.RM_ROUND_WINNER.send(self.thread, self.__round_winner.mention,
-                                        self.current_round - 1, self.get_short_score_string())
+                                        self.current_round - 1, self.get_short_score_string(), allowed_mentions=False)
         self.log(disp.RM_ROUND_WINNER(self.__round_winner.name, self.current_round - 1, self.get_short_score_string()))
 
         # Check end conditions: Match length reached, or one player reaches win threshold
@@ -1437,7 +1508,10 @@ class RankedMatch(BaseMatch):
             return
         self._cancel_update()  # Cancel Updates if Incoming
         self.status = MatchState.ENDED  # Update Status
-        self.__end_condition = end_condition  # Set End Condition
+        self.end_condition = end_condition  # Set End Condition
+
+        # Delete round message if it exists
+        self._delete_round_msg()
 
         # EndCondition Conditionals
 
@@ -1475,6 +1549,10 @@ class RankedMatch(BaseMatch):
                 self.log("Match was ended due to excessive score conflicts!")
                 await disp.RM_ENDED_TOO_MANY_CONFLICTS.send(self.thread, ping=self.players)
 
+            case EndCondition.CANCELLED:
+                self.log(f"Match was cancelled! " + (f"{leaving_player.name} left before a round was completed!"
+                                                     if leaving_player else ""))
+
             case EndCondition.COMPLETED:
                 pass
                 # Normal End condition
@@ -1505,16 +1583,12 @@ class RankedMatch(BaseMatch):
                 self.log(disp.RM_DRAW())
 
             # Determine Elo Changes
-            player1_elo_delta, player2_elo_delta = await stats_handler.update_elo(self)
+            await stats_handler.update_elo(self)
 
             # Send players Elo Changes
             await asyncio.gather(
-                disp.ELO_DM_UPDATE.send(self.player1, match=self, player=self.player1,
-                                        new_elo=self._player1_stats.elo, elo_delta=player1_elo_delta,
-                                        match_thread_mention=self.thread.mention),
-                disp.ELO_DM_UPDATE.send(self.player2, match=self, player=self.player2,
-                                        new_elo=self._player2_stats.elo, elo_delta=player2_elo_delta,
-                                        match_thread_mention=self.thread.mention)
+                disp.ELO_DM_UPDATE.send(self.player1, match=self, player=self.player1),
+                disp.ELO_DM_UPDATE.send(self.player2, match=self, player=self.player2)
             )
 
         else:

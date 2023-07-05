@@ -492,11 +492,12 @@ class Lobby:
                     await msg.delete()
                 except discord.NotFound:
                     pass
-            if match:
-                self.lobby_log(f'{player.name} joined Match: {match.id_str}')
-            elif reason:
+
+            if reason:
                 self.lobby_log(f'{player.name} left the lobby due to {reason}.')
                 await disp.LOBBY_LEAVE_REASON.send_long(self.channel, player.mention, reason)
+            elif match:
+                self.lobby_log(f'{player.name} joined Match: {match.id_str}')
             else:
                 self.lobby_log(f'{player.name} left the lobby.')
                 await disp.LOBBY_LEAVE.send_temp(self.channel, player.mention)

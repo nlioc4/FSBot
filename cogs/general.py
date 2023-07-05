@@ -18,7 +18,6 @@ from modules import database as db
 
 import modules.config as cfg
 
-
 log = getLogger('fs_bot')
 
 
@@ -190,7 +189,7 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
             return
 
         await ctx.defer(ephemeral=True)
-        player_stats = await p.get_stats()
+        player_stats = await p.get_or_fetch_stats()
         await disp.ELO_SUMMARY.send_priv(ctx, player_stats=player_stats)
 
     @tasks.loop(seconds=5)
@@ -201,7 +200,7 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
     async def elo_rank_update(self):
         """Update ELO rankings every hour UTC"""
         await elo.update_player_ranks()
-        next_stamp = self.elo_rank_update.next_iteration.timestamp() or (dt.now() + timedelta(days=1)).timestamp()
+        next_stamp = self.elo_rank_update.next_iteration.timestamp() or (dt.now() + timedelta(hours=1)).timestamp()
 
         leaderboard_embed = display.embeds.elo_rank_leaderboard(elo.EloRank.get_all(),
                                                                 elo.create_rank_dict(),
@@ -211,9 +210,23 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
                                                                 )
 
         if not self.__ranked_leaderboard_msg:
-            await d_obj.channels['ranked_leaderboard'].purge()
-            self.__ranked_leaderboard_msg = await disp.NONE.send(d_obj.channels['ranked_leaderboard'],
-                                                                 embed=leaderboard_embed)
+            # Retrieve message ID from DB, edit existing message, or send new message if not found
+            try:
+                msg_id = await db.async_db_call(db.get_field, 'restart_data', 0, 'leaderboard_msg_id')
+                self.__ranked_leaderboard_msg = await d_obj.channels['ranked_leaderboard'].fetch_message(msg_id)
+                await self.__ranked_leaderboard_msg.edit(embed=leaderboard_embed)
+
+            except (KeyError, discord.NotFound):
+                log.info("Leaderboard message not found, sending new message...")
+                self.__ranked_leaderboard_msg = await disp.NONE.send(d_obj.channels['ranked_leaderboard'],
+                                                                     embed=leaderboard_embed)
+            finally:
+                await db.async_db_call(db.set_field, 'restart_data', 0,
+                                       {'leaderboard_msg_id': self.__ranked_leaderboard_msg.id})
+                # Purge all messages except for leaderboard
+                await d_obj.channels['ranked_leaderboard'].purge(check=
+                                                                 lambda m: m.id != self.__ranked_leaderboard_msg.id)
+
         else:
             await self.__ranked_leaderboard_msg.edit(embed=leaderboard_embed)
 

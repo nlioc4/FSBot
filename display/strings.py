@@ -10,7 +10,6 @@ import classes
 
 
 # Internal Imports
-import modules.config as cfg
 from .embeds import *
 from modules.tools import UnexpectedError
 
@@ -24,7 +23,7 @@ class AllStrings(Enum):
     with a context in the first positional argument to interface directly with discord.
 
     The Following Context types are currently supported:
-    - discord.Message, discord.TextChannel, discord.Thread, discord.User, discord.Member
+    - discord.Message, discord.WebhookMessage, discord.TextChannel, discord.Thread, discord.User, discord.Member
     - discord.Interaction, discord.InteractionResponse, discord.ApplicationContext
     - classes.Player, classes.ActivePlayer
 
@@ -52,11 +51,14 @@ class AllStrings(Enum):
 
     LEADERBOARD_UPDATED = "Leaderboard in {} was updated!"
 
-    ADMIN_MATCH_CREATE_ERROR = "One of the players used is already in a match!"
+    ADMIN_MATCH_CREATE_ALREADY = "One of the players used is already in a match!"
+    ADMIN_MATCH_CREATE_SAME = "Both players are the same! Please pass different players!"
     ADMIN_PLAYER_LOGIN_SET = "{}'s online character has been set to {}!"
     ADMIN_PLAYER_LOGOUT_SET = "{} has been set to offline!"
     ADMIN_PLAYER_LOGOUT_ALREADY = "{} is already offline!"
     ADMIN_PLAYER_CHAR_NOT_FOUND = "Character `{}` not found in relation to player {}!"
+    ADMIN_PLAYER_NO_ACCOUNT = "{} is registered with no Jaeger account and " \
+                              "has not been assigned an FSBot Jaeger Account!"
     ADMIN_PLAYER_CLEAN = "{} has been cleaned."
 
     CHECK_FAILURE = "You have failed a check to run this command!"
@@ -189,11 +191,9 @@ class AllStrings(Enum):
     RM_SCORES_WRONG = "Submitted scores don't match, both players should submit again!\n  If possible, use " \
                       "retroactive video recording now to ensure match integrity."
     RM_SCORES_WRONG_2 = "Couldn't resolve scores, ending match and reporting..."
-    RM_ROUND_MESSAGE = "Round: [{}] Starting!\n" \
-                       "Player 1: {}\n" \
-                       "Player 2: {}\n"
+    RM_ROUND_MESSAGE = None, ranked_match_round
     RM_SCORE_SUBMITTED = "{} Score Submitted: {}"
-    RM_ROUND_WINNER = "{} won round {}!  Current Score {}."
+    RM_ROUND_WINNER = "{} won round {}!  The score is now {}."
     RM_ROUND_WINNER_SET = "Round Winner set to {}!"
     RM_NO_CURRENT_ROUND = "There is no round currently in progress!"
     RM_APPEALED = "You have submitted an appeal for Match {}, it will be reviewed as soon as possible!"
@@ -321,55 +321,62 @@ class AllStrings(Enum):
         if kwargs.get('remove_embed'):
             args_dict['embed'] = None
 
+        msg = None
+
         match type(ctx):
             case discord.User | discord.Member | discord.TextChannel | discord.VoiceChannel | discord.Thread:
-                return await getattr(ctx, action)(**args_dict)
+                msg = await getattr(ctx, action)(**args_dict)
 
             case classes.Player | classes.ActivePlayer:
                 # Test case to send directly to player objects
                 import modules.discord_obj as d_obj
                 ctx = await d_obj.bot.get_or_fetch_user(ctx.id)
-                return await getattr(ctx, action)(**args_dict)
+                msg = await getattr(ctx, action)(**args_dict)
 
-            case discord.Message:
+            case discord.Message | discord.WebhookMessage:
                 if action == "send":
-                    return await getattr(ctx, "reply")(**args_dict)
+                    msg = await getattr(ctx, "reply")(**args_dict)
                 elif action == "edit":
-                    return await getattr(ctx, action)(**args_dict)
+                    msg = await getattr(ctx, action)(**args_dict)
 
             case discord.InteractionResponse:
                 if ctx.is_done():
                     ctx = ctx._parent
                     if action == 'send':
-                        return await getattr(ctx.followup, 'send')(**args_dict)
+                        msg = await getattr(ctx.followup, 'send')(**args_dict)
                     elif action == 'edit':
-                        return await getattr(ctx, 'edit_original_message')(**args_dict)
+                        msg = await getattr(ctx, 'edit_original_message')(**args_dict)
                 else:
-                    return await getattr(ctx, action + '_message')(**args_dict)
+                    msg = await getattr(ctx, action + '_message')(**args_dict)
 
             case discord.Webhook if ctx.type == discord.WebhookType.application:
                 if action == "send":
-                    return await getattr(ctx, 'send')(**args_dict)
+                    msg = await getattr(ctx, 'send')(**args_dict)
                 elif action == "edit":  # Probably (definitely) doesn't work
-                    return await getattr(await ctx.fetch_message(), 'edit_message')(**args_dict)
+                    msg = await getattr(await ctx.fetch_message(), 'edit_message')(**args_dict)
 
             case discord.Interaction:
                 if ctx.response.is_done():
                     if action == 'send':
-                        return await getattr(ctx.followup, 'send')(**args_dict)
+                        msg = await getattr(ctx.followup, 'send')(**args_dict)
                     elif action == 'edit':
-                        return await getattr(ctx, 'edit_original_message')(**args_dict)
+                        msg = await getattr(ctx, 'edit_original_message')(**args_dict)
                 else:
-                    return await getattr(ctx.response, action + '_message')(**args_dict)
+                    msg = await getattr(ctx.response, action + '_message')(**args_dict)
 
             case discord.ApplicationContext:
                 if action == "send":
-                    return await getattr(ctx, "respond")(**args_dict)
+                    msg = await getattr(ctx, "respond")(**args_dict)
                 elif action == "edit":
-                    return await getattr(ctx, action)(**args_dict)
+                    msg = await getattr(ctx, action)(**args_dict)
 
             case _:
                 raise UnexpectedError(f"Unrecognized Context, {type(ctx)}")
+
+        if msg and (view := args_dict.get('view')):
+            if not view.message:
+                view.message = msg
+        return msg
 
     async def send(self, ctx, *args, **kwargs):
         return await self._do_send('send', ctx, *args, **kwargs)
