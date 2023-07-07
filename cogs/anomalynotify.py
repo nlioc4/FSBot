@@ -456,6 +456,9 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
                 data = await resp.json()
 
         data = data.get('character_list')
+        if not data:
+            log.warning('No character data returned from API during Kill Info population.  Retrying...')
+            return await self.populate_char_kills_info(events)
 
         # Create a dict of character id to name and faction emoji
         for character in data:
