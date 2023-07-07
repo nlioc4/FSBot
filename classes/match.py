@@ -463,12 +463,12 @@ class BaseMatch:
                     del BaseMatch._recent_matches[keys[i]]
 
             #  Move Users to general voice, delete voice channel, lock thread if not already deleted
+            await self._clear_voice(all_users=True)
             try:
                 await asyncio.gather(
-                    self._clear_voice(True),
+                    self.voice_channel.delete(reason='Match Ended'),
                     self.thread.edit(archived=True, locked=True, reason='Match Ended')
                 )
-                await self.voice_channel.delete(reason='Match Ended')
             except discord.NotFound:
                 pass
 
