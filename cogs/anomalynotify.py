@@ -279,7 +279,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         # Start tracking VehicleDestroy events
         self.event_client.add_trigger(Trigger(event=auraxium.event.VehicleDestroy, worlds=WORLD_DICT.keys(),
                                               conditions=[lambda evt: evt.world_id in WORLD_DICT.keys()],
-                                              action=self.vehicle_desteroy_event_handler))
+                                              action=self.vehicle_destroy_event_handler))
 
         # Start event update loop
         self.anomaly_update_loop.start()
@@ -296,7 +296,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         """Updates the message with new data or send a new message if not found"""
         ping_str = f"Time to shoot some planes {self.notify_roles[anom.world_id].mention}!"
         log.debug(f'Updating anomaly {anom.unique_id} message')
-        self.update_from_graphql_data([self])
+        self.update_from_graphql_data([anom])
 
         if anom.message:
             anom.message = await disp.ANOMALY_EVENT.edit(anom.message, ping_str, anomaly=anom)
@@ -413,7 +413,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
             self.events[unique_id] = AnomalyEvent.from_evt(evt)
             self.update_event_embed(self.events[unique_id])
 
-    def vehicle_desteroy_event_handler(self, evt: auraxium.event):
+    def vehicle_destroy_event_handler(self, evt: auraxium.event):
         """Validate vehicle destroy events are relevant, and then update an anomaly with a vehicle destroy event"""
 
         # Check if vehicledestroy is on relevant world and zone

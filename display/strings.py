@@ -8,7 +8,6 @@ import inspect
 from logging import getLogger
 import classes
 
-
 # Internal Imports
 from .embeds import *
 from modules.tools import UnexpectedError
@@ -70,7 +69,6 @@ class AllStrings(Enum):
     CENSUS_LOOP_STATUS = "The Census loop is {}"
     CENSUS_LOOP_CHANGED = "The Census loop was {}, it has now been {}."
     SUGGESTION_ACCEPTED = "{} your suggestion has been submitted to the administration team. Thanks!"
-
 
     LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], mention: [{}], name: [{}]"
     LOG_ERROR = "Error: Source {} Error: {} {}."
@@ -279,6 +277,18 @@ class AllStrings(Enum):
     ANOMALY_REGISTER_CREATED = "Created Aerial Anomaly registration message in {}!"
     ANOMALY_EVENT = "{}", anomaly_event
     ANOMALY_MANUAL_LOOP = "Manually looping anomaly event updater!"
+
+    # Voice Room Strings
+    ROOM_NOT_IN = "You are not in a voice room!"
+    ROOM_NOT_OWNER = "You are not the owner of this voice room!"
+    ROOM_NOT_FOUND = "Voice room not found!"
+    ROOM_NOT_MEMBER = "{} is not a member of this voice room!"
+    ROOM_INVITED = "You have been invited to join {}'s voice room!"
+    ROOM_INVITE = "You have invited {} to join {}!"
+    ROOM_INVITED_ALREADY = "You have already invited {} to join {}!"
+    ROOM_KICKED = "{} was removed from the voice room!"
+    ROOM_KICK = "You have removed {} from the voice room {}!"
+    ROOM_CREATED = "Voice room for {} has been created! Use {} to invite users, or {} to remove them!"
 
     def __init__(self, string, embed=None):
         self.__string = string

@@ -87,7 +87,8 @@ channels = {
     "logs": "",
     "match_history": "",
     "content-plug": "",
-    "anomaly_notify": ""
+    "anomaly_notify": "",
+    "private_voice_creator": ""
 }
 
 # Discord Role ID's
