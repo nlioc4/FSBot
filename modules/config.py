@@ -36,6 +36,14 @@ factions = {
     4: "NS"
 }
 
+#: Dictionary to retrieve faction alignment by team id.
+
+teams = {
+    1: "VS",
+    2: "NC",
+    3: "TR",
+}
+
 #: Dictionary to retrieve faction id by name.
 i_factions = {v: k for k, v in factions.items()}
 
@@ -78,7 +86,8 @@ channels = {
     "staff": "",
     "logs": "",
     "match_history": "",
-    "content-plug": ""
+    "content-plug": "",
+    "anomaly_notify": ""
 }
 
 # Discord Role ID's

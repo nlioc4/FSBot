@@ -272,6 +272,14 @@ class AllStrings(Enum):
     STAT_TOTALS = "{} has participated in **{}** matches, over **{}** hours!"
     STAT_PARTNER_MATCH_COUNT = "<@{}> | {} matches"
 
+    # Anomaly Strings
+    ANOMALY_REGISTER = "You have registered for Aerial Anomaly alerts from {}!"
+    ANOMALY_UNREGISTER = "You have unregistered for Aerial Anomaly alerts from {}!"
+    ANOMALY_REGISTER_MSG = "Click the below buttons to register / deregister for Aerial Anomaly alerts for that server!"
+    ANOMALY_REGISTER_CREATED = "Created Aerial Anomaly registration message in {}!"
+    ANOMALY_EVENT = "{}", anomaly_event
+    ANOMALY_MANUAL_LOOP = "Manually looping anomaly event updater!"
+
     def __init__(self, string, embed=None):
         self.__string = string
         self.__embed = embed

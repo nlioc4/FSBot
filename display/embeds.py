@@ -22,7 +22,7 @@ def fs_author(embed: Embed) -> Embed:
     :return:  Embed, with author as FSBot
     """
     embed.set_author(name="FS Bot",
-                     url="https://www.discord.gg/flightschool",
+                     url="https://www.discord.gg/yzf4nByDC3",
                      icon_url="https://cdn.discordapp.com/attachments/875624069544939570/993393648559476776"
                               "/pfp.png")
     return embed
@@ -592,6 +592,7 @@ def ranked_match_info(match) -> Embed:
 
     if match.end_stamp:
         match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}\n'
+        match_info_str += f'Match End Condition: {match.end_condition}\n'
 
     elif match.timeout_at:
         match_info_str += f"Match will timeout {format_stamp(match.timeout_at, 'R')}\n"
@@ -663,6 +664,7 @@ def match_log(match) -> Embed:
                       )
     if match.is_ended:
         match_info_str += f'Match End Time: {format_stamp(match.end_stamp)}\n'
+        match_info_str += f'Match End Condition: {match.end_condition}\n'
 
     embed.add_field(name="Match Info",
                     value=match_info_str,
@@ -1075,3 +1077,67 @@ def fs_join_embed(mention) -> Embed:
               f" or ``staff `` "
     )
     return fs_author(embed)
+
+def anomaly_event(anomaly) -> Embed:
+    from cogs.anomalynotify import AnomalyEvent
+    anomaly: AnomalyEvent
+
+    colour = Colour.green() if anomaly.is_active else Colour.red()
+
+    embed = Embed(
+        colour=colour,
+        title=f"{'Active' if anomaly.is_active else 'Inactive'} Anomaly on {anomaly.world_name}",
+        description=
+        f"Server: {anomaly.world_name}\n"
+        f"Continent: {anomaly.zone_name}\n"
+        f"Started: {format_stamp(anomaly.timestamp, 'R')} at {format_stamp(anomaly.timestamp, 'f')}\n"
+        f"Status: {anomaly.state_name}\n",
+        timestamp=dt.now()
+    )
+    embed.description += '' if not anomaly.end_stamp else f"Ended: {format_stamp(anomaly.end_stamp, 'R')} at " \
+                                                          f"{format_stamp(anomaly.end_stamp, 'f')}\n"
+
+    embed.add_field(
+        name="Unique ID",
+        value=anomaly.unique_id,
+        inline=True
+    )
+
+    if not anomaly.is_active:
+        result_str = ""
+        for fac in cfg.teams.values():
+            score = int(getattr(anomaly, f'{fac.lower()}_progress'))
+            result_str += f"{cfg.emojis[fac]}{fac} Result: {score}{'🥇' if score >= 10000 else ''}\n"
+        embed.add_field(
+            name="Faction Results",
+            value=result_str,
+            inline=False
+        )
+    elif anomaly.vehicle_data:
+        for fac in cfg.teams.values():
+            vehicles_str = f"Total Faction Population: {anomaly.population.get(fac.lower(), 0)}\n"
+            for veh, count in anomaly.vehicle_data.get(fac.lower(), {}).items():
+                vehicles_str += f"{veh.capitalize()}s: ``{count}``\n"
+            if vehicles_str:
+                embed.add_field(
+                    name=f"{cfg.emojis[fac]} {fac} Aircraft: {anomaly.get_fac_total_vehicles(fac.lower())}",
+                    value=vehicles_str,
+                    inline=False
+                )
+
+    if anomaly.top_ten:
+        top_ten_str = ""
+        top_ten_list = sorted(anomaly.top_ten.items(), key=lambda x: x[1], reverse=True)
+        for i, (name, count) in enumerate(top_ten_list):
+            top_ten_str += f"[{i + 1}]{name}: {count}\n"
+        embed.add_field(
+            name="Top 10 Highest Aircraft Kills",
+            value=top_ten_str,
+            inline=False
+        )
+    embed.set_footer(text="Register for notifications in #roles!")
+
+    embed.set_thumbnail(url="https://i.imgur.com/Ch8QAZJ.png")  # Anomaly Image
+    return fs_author(embed)
+
+

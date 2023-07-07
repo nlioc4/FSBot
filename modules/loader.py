@@ -6,7 +6,7 @@ from discord import ExtensionAlreadyLoaded, ExtensionNotLoaded
 
 main_cogs = ['cogs.admin', 'cogs.general']
 standard_cogs = ['cogs.contentplug', 'cogs.duel_lobby', 'cogs.matches',
-                 'cogs.register', 'cogs.direct_messages']
+                 'cogs.register', 'cogs.direct_messages', 'cogs.anomalynotify']
 __is_global_locked = True
 
 log = getLogger('fs_bot')
@@ -19,7 +19,11 @@ def init(client):
 
 def load_secondary(client):
     for cog in standard_cogs:
-        client.load_extension(cog)
+        try:
+            client.load_extension(cog)
+        except ExtensionAlreadyLoaded:
+            log.debug(f"{cog} already loaded!")
+            pass
     log.info('Loaded Cogs: %s', list(client.cogs.keys()))
 
 

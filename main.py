@@ -109,7 +109,8 @@ async def on_ready():
     modules.signal.init(bot)
     d_obj.init(bot)
     bot.loop.create_task(modules.accounts_handler.init(cfg.GAPI_SERVICE, cfg.TEST), name="Accounts Handler Init")
-    loader.load_secondary(bot)
+    # loader.load_secondary(bot)
+    await loader.load_all(bot)
     bot.loop.create_task(elo_ranks.init_elo_ranks(), name="Elo Ranks Init")
     loader.unlock_all()
 
