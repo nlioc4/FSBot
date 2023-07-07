@@ -1,5 +1,5 @@
 """Cog to track Aerial Anomalies in game, and notify users when they are beginning on their selected servers."""
-import datetime
+
 # External Imports
 from logging import getLogger
 import discord
@@ -8,6 +8,7 @@ import asyncio
 import auraxium
 from auraxium import EventClient, Trigger
 import aiohttp
+import datetime
 
 # Internal Imports
 from modules import discord_obj as d_obj, tools, database as db, config as cfg, tools
@@ -46,7 +47,7 @@ class AnomalyEvent:
         """Create an AnomalyEvent from a MetagameEvent"""
         return cls(
             evt.metagame_event_id,
-            evt.timestamp.replace(tzinfo=datetime.UTC).timestamp(),
+            evt.timestamp.replace(tzinfo=datetime.timezone.utc).timestamp(),
             evt.zone_id,
             evt.world_id,
             evt.instance_id,
@@ -109,10 +110,10 @@ class AnomalyEvent:
         self.vs_progress = evt.faction_vs
         self.state_id = evt.metagame_event_state
         if not self.is_active:
-            self.end_stamp = evt.timestamp.replace(tzinfo=datetime.UTC).timestamp()
+            self.end_stamp = evt.timestamp.replace(tzinfo=datetime.timezone.utc).timestamp()
 
         self.last_update_stamp = tools.timestamp_now()
-        log.info(f'Updated {self} by evt')
+        log.debug(f'Updated {self} by evt')
         return self
 
     def update_from_dict(self, data: dict):
@@ -132,7 +133,7 @@ class AnomalyEvent:
         if data.get('kill_data'):
             self.kills_data = {int(char_id): int(count) for char_id, count in data['kill_data'].items()}
 
-        log.info(f'Updated {self} by dict')
+        log.debug(f'Updated {self} by dict')
         return self
 
     def update_vehicles(self, data: dict):
