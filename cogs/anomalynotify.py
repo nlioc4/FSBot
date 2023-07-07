@@ -222,6 +222,8 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         self.events: dict[str, AnomalyEvent] = {}
         self.notify_roles: dict[int, discord.Role] = {}
         self.char_id_to_name: dict[int, str] = {}
+        self.last_graphql_update_stamp = 0  # Timestamp of last graphql update
+        self.last_graphql_update_data = {}  # Cache of last graphql update
         self.notify_channel: discord.TextChannel | None = None
         self.view: views.FSBotView | None = None
         self.event_client = EventClient(loop=self.bot.loop, service_id=cfg.general['api_key'])
@@ -294,6 +296,8 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         """Updates the message with new data or send a new message if not found"""
         ping_str = f"Time to shoot some planes {self.notify_roles[anom.world_id].mention}!"
         log.debug(f'Updating anomaly {anom.unique_id} message')
+        self.update_from_graphql_data([self])
+
         if anom.message:
             anom.message = await disp.ANOMALY_EVENT.edit(anom.message, ping_str, anomaly=anom)
         else:
@@ -308,6 +312,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
     async def update_all_from_rest(self):
         """
         Update all events from the REST API, useful for updating faction progress
+        Returns a list of events that have ended
         """
         removed = []
         async with aiohttp.ClientSession() as session:
@@ -320,9 +325,8 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
                 data: list[dict[str, str]] = [event for event in data['world_event_list']  # type: ignore
                                               if int(event['metagame_event_id']) in ANOMALY_IDS]  # type: ignore
             except KeyError:
-                log.info('Could not retrieve anomaly events from REST API. Retrying...')
-                await asyncio.sleep(5)
-                return await self.update_all_from_rest()
+                log.info('Could not retrieve anomaly events from REST API.')
+                return  # No events found
 
             ended = []
             for event in data:
@@ -331,7 +335,6 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
                     anom.update_from_dict(event)
                     if not anom.is_active:  # remove inactive events
                         log.debug(f'Removing inactive anomaly {anom.unique_id}')
-                        self.update_event_embed(anom)  # Update Message here as it is being removed from self.events
                         ended.append(anom.unique_id)
                         removed.append(self.events.pop(anom.unique_id))
 
@@ -352,20 +355,31 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
                     log.debug(f'Adding new anomaly from REST {unique_id}')
         return removed
 
-    async def update_all_from_graphql(self):
+    async def fetch_graphql_data(self):
         """Update all events with the Saerro.ps2.live GraphQL API, fills out vehicle data"""
-        query_url = 'https://saerro.ps2.live/graphql?query={ allWorlds { name id zones { all { name id population' \
-                    '{ nc tr vs } vehicles { liberator { nc tr vs } dervish { nc tr vs } valkyrie { nc tr vs } galaxy ' \
+        query_url = 'https://saerro.ps2.live/graphql?query={ allWorlds { name id zones { all { name id population'\
+                    '{ nc tr vs } vehicles { liberator { nc tr vs } dervish { nc tr vs } valkyrie { nc tr vs } galaxy '\
                     '{ nc tr vs } scythe { vs } reaver { nc } mosquito { tr } } } } } }'
         #  yeah, it's gross
 
+        # Check if we have updated in the last 5 minutes: cancel update if so
+        if self.last_graphql_update_stamp + 300 > tools.timestamp_now():
+            log.debug('Skipping GraphQL update as it was done recently')
+            return
+
+        log.debug('Fetching GraphQL data...')
         async with aiohttp.ClientSession() as session:
             async with session.get(query_url) as resp:
                 data = await resp.json()
-        data = data['data']['allWorlds']
-        for event in self.events.values():
-            # Loop through all events, check if world / zone is in data
-            for world in data:
+
+        self.last_graphql_update_data = data['data']['allWorlds']
+        self.last_graphql_update_stamp = tools.timestamp_now()
+
+    def update_from_graphql_data(self, anoms: [AnomalyEvent]):
+        """Updates all events with the Saerro.ps2.live GraphQL API, fills out vehicle data"""
+        for event in anoms or self.events.values():
+            # Check if world / zone is in data
+            for world in self.last_graphql_update_data:
                 if world['id'] == event.world_id:
                     for zone in world['zones']['all']:
                         if zone['id'] == event.zone_id:
@@ -391,10 +405,8 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
             anom.update_from_evt(evt)
 
             if not anom.is_active:
-                await self.populate_char_kills_info([anom])
+                await self.build_top_ten_kills_list([anom])
                 self.events.pop(unique_id)
-            else:
-                await self.update_all_from_graphql()
             self.update_event_embed(anom)
 
         else:
@@ -425,7 +437,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         relevant_anom[0].add_kill(evt.attacker_character_id)
         log.debug(f'Added kill to anomaly {relevant_anom[0].unique_id} for {evt.attacker_character_id}')
 
-    async def populate_char_kills_info(self, events: list = None):
+    async def build_top_ten_kills_list(self, events: list = None):
         """Get player character names and factions for a top ten killers list"""
 
         character_ids_to_fetch = []
@@ -443,13 +455,28 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
             # Add the top ten to the list of character ids to fetch from the API
             character_ids_to_fetch.extend([str(char_id) for char_id in top_ten.keys()])
 
-        if not character_ids_to_fetch:
-            log.debug('No character ids to fetch from API')
+        # Fetch the character data from the API if required
+        await self.populate_char_name_cache(character_ids_to_fetch)
+
+        # Build the display top ten dict, and remove unused characters from the cache
+        used_ids = []
+        for event in self.all_events_list:
+            event.top_ten = {self.char_id_to_name[char_id]: kills for char_id, kills in event.top_ten_data.items()}
+            used_ids.extend(event.top_ten_data.keys())
+            log.debug(f"Top ten for {event.unique_id}: {event.top_ten}")
+        self.char_id_to_name = {char_id: name for char_id, name in self.char_id_to_name.items() if char_id in used_ids}
+
+    async def populate_char_name_cache(self, char_ids: list = None):
+        """Populate the char_id_to_name cache with character names from the API"""
+        # Check which character names are not already cached
+        char_ids = [char_id for char_id in char_ids if char_id not in self.char_id_to_name.keys()]
+        if not char_ids:
+            log.debug('Requested character ids are already cached')
             return
 
         # Fetch the character data from the API
         query = auraxium.census.Query(collection='character', service_id=cfg.general['api_key']).limit(10000)
-        query.add_term(field='character_id', value=','.join(character_ids_to_fetch))
+        query.add_term(field='character_id', value=','.join(char_ids))
 
         async with aiohttp.ClientSession() as session:
             async with session.get(query.url()) as resp:
@@ -457,28 +484,24 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
 
         data = data.get('character_list')
         if not data:
-            log.warning('No character data returned from API during Kill Info population.  Retrying...')
-            return await self.populate_char_kills_info(events)
+            log.warning('No character data returned from API name cache population')
 
-        # Create a dict of character id to name and faction emoji
+        # Update dict of character id to name and faction emoji (cache)
         for character in data:
             char_id = int(character['character_id'])
             fac_emoji = cfg.emojis[cfg.factions[int(character['faction_id'])]]
             self.char_id_to_name[char_id] = f"{fac_emoji}{character['name']['first']}"
+            log.debug(f'Added {char_id} to name cache')
 
-        # Build the display top ten dict
-        for event in self.all_events_list:
-            event.top_ten = {self.char_id_to_name[char_id]: kills for char_id, kills in event.top_ten_data.items()}
-            log.debug(f"Top ten for {event.unique_id}: {event.top_ten}")
-
-    @tasks.loop(minutes=2, seconds=30)
+    @tasks.loop(minutes=1, seconds=0)
     async def anomaly_update_loop(self):
         """Update all anomaly events through REST API calls, and GRAPHQL calls, and then update embeds"""
         log.debug('Updating anomaly events...')
         removed = await self.update_all_from_rest()
         all_events = list(self.events.values()) + removed
-        await self.update_all_from_graphql()
-        await self.populate_char_kills_info(all_events)
+        await self.fetch_graphql_data()
+        self.update_from_graphql_data(all_events)
+        await self.build_top_ten_kills_list(all_events)
         for anom in all_events:
             self.update_event_embed(anom)
         log.debug('Finished updating anomaly events...')

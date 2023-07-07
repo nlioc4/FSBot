@@ -1078,6 +1078,7 @@ def fs_join_embed(mention) -> Embed:
     )
     return fs_author(embed)
 
+
 def anomaly_event(anomaly) -> Embed:
     from cogs.anomalynotify import AnomalyEvent
     anomaly: AnomalyEvent
@@ -1094,8 +1095,13 @@ def anomaly_event(anomaly) -> Embed:
         f"Status: {anomaly.state_name}\n",
         timestamp=dt.now()
     )
-    embed.description += '' if not anomaly.end_stamp else f"Ended: {format_stamp(anomaly.end_stamp, 'R')} at " \
-                                                          f"{format_stamp(anomaly.end_stamp, 'f')}\n"
+    if not anomaly.is_active:
+        # Duration minutes and seconds
+        minutes, seconds = divmod(anomaly.end_stamp - anomaly.timestamp, 60)
+        embed.description += f"Ended: {format_stamp(anomaly.end_stamp, 'R')} at " \
+                             f"{format_stamp(anomaly.end_stamp, 'f')}\n" \
+                             f"Duration: {int(minutes)} minute{'s' if minutes != 1 else ''}, " \
+                             f"{int(seconds)}{'s' if seconds != 1 else ''}\n"
 
     embed.add_field(
         name="Unique ID",
@@ -1131,7 +1137,7 @@ def anomaly_event(anomaly) -> Embed:
         for i, (name, count) in enumerate(top_ten_list):
             top_ten_str += f"[{i + 1}]{name}: {count}\n"
         embed.add_field(
-            name="Top 10 Highest Aircraft Kills",
+            name="Top 10 Highest Aircraft vs Aircraft Kills",
             value=top_ten_str,
             inline=False
         )
@@ -1139,5 +1145,3 @@ def anomaly_event(anomaly) -> Embed:
 
     embed.set_thumbnail(url="https://i.imgur.com/Ch8QAZJ.png")  # Anomaly Image
     return fs_author(embed)
-
-
