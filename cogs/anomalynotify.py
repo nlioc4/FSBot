@@ -496,6 +496,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
             fac_emoji = cfg.emojis[cfg.factions[int(character['faction_id'])]]
             self.char_id_to_name[char_id] = f"{fac_emoji}{character['name']['first']}"
             log.debug(f'Added {char_id} to name cache')
+        return True
 
     @tasks.loop(minutes=1, seconds=0)
     async def anomaly_update_loop(self):
