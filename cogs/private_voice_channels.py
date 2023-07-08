@@ -12,12 +12,6 @@ from modules import discord_obj as d_obj, config as cfg
 from display.strings import AllStrings as disp
 
 
-@atexit.register
-def at_exit_delete_al():
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(PrivateVoiceChannels.delete_all())
-
-
 class PrivateVoiceChannels(commands.Cog):
     _voice_channels: dict
 
@@ -99,7 +93,7 @@ class PrivateVoiceChannels(commands.Cog):
             return False
 
         # Check the user is the owner or an admin of their channel
-        if ctx.user.id != self._voice_channels[room] or not d_obj.is_admin(ctx.user):
+        if not ctx.user.id == self._voice_channels[room] or not d_obj.is_admin(ctx.user):
             await disp.ROOM_NOT_OWNER.send_priv(ctx, delete_after=5)
             return False
 

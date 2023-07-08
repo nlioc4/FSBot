@@ -503,7 +503,8 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         """Update all anomaly events through REST API calls, and GRAPHQL calls, and then update embeds"""
         log.debug('Updating anomaly events...')
         removed = await self.update_all_from_rest()
-        all_events = list(self.events.values()) + removed
+        all_events = list(self.events.values())
+        all_events.extend(removed or [])
         await self.fetch_graphql_data()
         self.update_from_graphql_data(all_events)
         await self.build_top_ten_kills_list(all_events)

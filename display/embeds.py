@@ -796,7 +796,7 @@ def elo_rank_leaderboard(elo_ranks, rank_list_dict, last_update, next_update, el
         description=
         "Current ranked duels ELO Leaderboard!\n"
         "Leaderboard is updated every hour on the hour!\n"
-        "You must have participated in at least 5 ranked matches to be move out of the Unranked section.\n"
+        "You must have participated in at least 5 ranked matches to be moved out of the Unranked section.\n"
         "Ranked Players are given a corresponding role and emoji (seen below) only usable by players of that rank!\n",
         timestamp=dt.now()
     )

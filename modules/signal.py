@@ -11,6 +11,7 @@ import discord
 # Internal Imports
 import modules.database as db
 import cogs.direct_messages
+import cogs.private_voice_channels
 import modules.accounts_handler as accounts
 import modules.census as census
 import classes.match
@@ -35,6 +36,9 @@ async def save_state(loop):
     # save dm threads to DB, likely unnecessary as threads are saved on creation/deletion
     dm_dict = cogs.direct_messages.dm_threads_to_str()
     db.set_field('restart_data', 0, {'dm_threads': dm_dict})
+
+    # delete active voice rooms
+    await cogs.private_voice_channels.PrivateVoiceChannels.delete_all()
 
     # stop loop and exit
     log.info('Stopping...')
