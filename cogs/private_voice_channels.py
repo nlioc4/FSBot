@@ -1,7 +1,6 @@
 """Cog to create a temporary room for a user to join and use.
 Allows giving other users access to their own room."""
 
-
 # External Imports
 import discord
 from discord.ext import commands
@@ -11,6 +10,12 @@ import atexit
 # Internal Imports
 from modules import discord_obj as d_obj, config as cfg
 from display.strings import AllStrings as disp
+
+
+@atexit.register
+def at_exit_delete_al():
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(PrivateVoiceChannels.delete_all())
 
 
 class PrivateVoiceChannels(commands.Cog):
@@ -55,16 +60,10 @@ class PrivateVoiceChannels(commands.Cog):
         del self._voice_channels[channel]
 
     @classmethod
-    async def _delete_all(cls):
+    async def delete_all(cls):
         """Delete all temporary channels"""
         await asyncio.gather(*[channel.delete() for channel in cls._voice_channels.keys()])
         cls._voice_channels = {}
-
-    @atexit.register
-    @staticmethod
-    def at_exit_delete_al():
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(PrivateVoiceChannels._delete_all())
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member,

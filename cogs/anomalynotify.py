@@ -357,8 +357,8 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
 
     async def fetch_graphql_data(self):
         """Update all events with the Saerro.ps2.live GraphQL API, fills out vehicle data"""
-        query_url = 'https://saerro.ps2.live/graphql?query={ allWorlds { name id zones { all { name id population'\
-                    '{ nc tr vs } vehicles { liberator { nc tr vs } dervish { nc tr vs } valkyrie { nc tr vs } galaxy '\
+        query_url = 'https://saerro.ps2.live/graphql?query={ allWorlds { name id zones { all { name id population' \
+                    '{ nc tr vs } vehicles { liberator { nc tr vs } dervish { nc tr vs } valkyrie { nc tr vs } galaxy ' \
                     '{ nc tr vs } scythe { vs } reaver { nc } mosquito { tr } } } } } }'
         #  yeah, it's gross
 
@@ -456,12 +456,15 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
             character_ids_to_fetch.extend([str(char_id) for char_id in top_ten.keys()])
 
         # Fetch the character data from the API if required
-        await self.populate_char_name_cache(character_ids_to_fetch)
+        if not await self.populate_char_name_cache(character_ids_to_fetch):
+            log.warning('Failed to populate character name cache')
+            return
 
         # Build the display top ten dict, and remove unused characters from the cache
         used_ids = []
         for event in self.all_events_list:
-            event.top_ten = {self.char_id_to_name[char_id]: kills for char_id, kills in event.top_ten_data.items()}
+            event.top_ten = {self.char_id_to_name.get(char_id) or char_id: kills for char_id, kills in
+                             event.top_ten_data.items()}
             used_ids.extend(event.top_ten_data.keys())
             log.debug(f"Top ten for {event.unique_id}: {event.top_ten}")
         self.char_id_to_name = {char_id: name for char_id, name in self.char_id_to_name.items() if char_id in used_ids}
@@ -472,7 +475,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         char_ids = [char_id for char_id in char_ids if char_id not in self.char_id_to_name.keys()]
         if not char_ids:
             log.debug('Requested character ids are already cached')
-            return
+            return True
 
         # Fetch the character data from the API
         query = auraxium.census.Query(collection='character', service_id=cfg.general['api_key']).limit(10000)
@@ -485,6 +488,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         data = data.get('character_list')
         if not data:
             log.warning('No character data returned from API name cache population')
+            return False
 
         # Update dict of character id to name and faction emoji (cache)
         for character in data:
