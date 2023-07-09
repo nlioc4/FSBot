@@ -283,7 +283,7 @@ class AllStrings(Enum):
     ROOM_NOT_OWNER = "You are not the owner of this voice room!"
     ROOM_NOT_FOUND = "Voice room not found!"
     ROOM_NOT_MEMBER = "{} is not a member of this voice room!"
-    ROOM_INVITED = "You have been invited to join {}'s voice room!"
+    ROOM_INVITED = "{} you have been invited to join {}'s voice room!"
     ROOM_INVITE = "You have invited {} to join {}!"
     ROOM_INVITED_ALREADY = "You have already invited {} to join {}!"
     ROOM_KICKED = "{} was removed from the voice room!"
