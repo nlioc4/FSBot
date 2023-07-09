@@ -25,7 +25,7 @@ class PrivateVoiceChannels(commands.Cog):
 
         # Create a new channel
         new_channel = await member.guild.create_voice_channel(
-            name=f"{member.name or member.display_name}'s Room",
+            name=f"{member.display_name}'s Room",
             category=member.guild.get_channel(self._initial_channel_id).category,
             # Set permissions for the channel (allow the user, admins, and mods to view and connect
             overwrites={d_obj.guild.default_role: discord.PermissionOverwrite(view_channel=False, connect=False),
@@ -44,9 +44,9 @@ class PrivateVoiceChannels(commands.Cog):
         self._voice_channels[new_channel] = member.id
 
         # Send a message to the user
-        # await disp.ROOM_CREATED.send(new_channel, member.mention,
-        #                              self.invite_to_room.mention, self.kick_from_room.mention)
-        await disp.ROOM_CREATED.send(new_channel, member.mention, '/room invite', '/room kick')
+        await disp.ROOM_CREATED.send(new_channel, member.mention,
+                                     self.invite_to_room.mention, self.kick_from_room.mention)
+        # await disp.ROOM_CREATED.send(new_channel, member.mention, '/room invite', '/room kick')
 
     async def _delete_room(self, channel: discord.VoiceChannel):
         """Delete a room that a user created"""
@@ -93,7 +93,7 @@ class PrivateVoiceChannels(commands.Cog):
             return False
 
         # Check the user is the owner or an admin of their channel
-        if not ctx.user.id == self._voice_channels[room] or not d_obj.is_admin(ctx.user):
+        if not any((ctx.user.id == self._voice_channels[room], d_obj.is_admin(ctx.user))):
             await disp.ROOM_NOT_OWNER.send_priv(ctx, delete_after=5)
             return False
 
@@ -117,8 +117,8 @@ class PrivateVoiceChannels(commands.Cog):
         # Add the user to the channel
         await asyncio.gather(
             room.set_permissions(member, connect=True, speak=True, view_channel=True),
-            disp.ROOM_INVITED.send(room, ctx.user.mention),
-            disp.ROOM_INVITE.send_priv(ctx, member.mention, room.mention, delete_after=5)
+            disp.ROOM_INVITED.send(room, member.mention, ctx.user.mention),
+            disp.ROOM_INVITE.send_priv(ctx, member.mention, room.mention, delete_after=2)
         )
 
     @voice_room_commands.command(name='kick')

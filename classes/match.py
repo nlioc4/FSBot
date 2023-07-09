@@ -323,8 +323,8 @@ class BaseMatch:
         #  gather disconnect coroutines if users not in match, and not admins
         to_disconnect = [memb.move_to(d_obj.channels['general_voice']) for memb in self.voice_channel.members
                          if all_users or memb.id not in [p.id for p in self.players] or not d_obj.is_admin(memb)]
-
-        await asyncio.gather(*to_disconnect)
+        if to_disconnect:
+            await asyncio.gather(*to_disconnect)
 
     async def set_voice_private(self):
         """Set the matches voice channel to private, only allowing members of the match to join.
@@ -467,7 +467,8 @@ class BaseMatch:
             try:
                 await asyncio.gather(
                     self.voice_channel.delete(reason='Match Ended'),
-                    self.thread.edit(archived=True, locked=True, reason='Match Ended')
+                    self.thread.edit(archived=True, locked=True, reason='Match Ended'),
+                    return_exceptions=True
                 )
             except discord.NotFound:
                 pass
