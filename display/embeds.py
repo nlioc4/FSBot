@@ -1101,7 +1101,7 @@ def anomaly_event(anomaly) -> Embed:
         embed.description += f"Ended: {format_stamp(anomaly.end_stamp, 'R')} at " \
                              f"{format_stamp(anomaly.end_stamp, 'f')}\n" \
                              f"Duration: {int(minutes)} minute{'s' if minutes != 1 else ''}, " \
-                             f"{int(seconds)}{'s' if seconds != 1 else ''}\n"
+                             f"{int(seconds)} second{'s' if seconds != 1 else ''}\n"
 
     embed.add_field(
         name="Unique ID",

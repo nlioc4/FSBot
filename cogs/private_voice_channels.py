@@ -13,7 +13,7 @@ from display.strings import AllStrings as disp
 
 
 class PrivateVoiceChannels(commands.Cog):
-    _voice_channels: dict
+    _voice_channels: dict = {}
 
     def __init__(self, bot):
         self.bot = bot
