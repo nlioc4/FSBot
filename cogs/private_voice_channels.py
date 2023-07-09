@@ -29,8 +29,9 @@ class PrivateVoiceChannels(commands.Cog):
             category=member.guild.get_channel(self._initial_channel_id).category,
             # Set permissions for the channel (allow the user, admins, and mods to view and connect
             overwrites={d_obj.guild.default_role: discord.PermissionOverwrite(view_channel=False, connect=False),
-                        member: discord.PermissionOverwrite(view_channel=True, connect=True, manage_channels=True,
-                                                            mute_members=True, deafen_members=True, manage_roles=True),
+                        member: discord.PermissionOverwrite(view_channel=True, connect=True, stream=True,
+                                                            manage_channels=True, mute_members=True,
+                                                            deafen_members=True, manage_roles=True),
                         d_obj.roles['app_admin']: discord.PermissionOverwrite(view_channel=True, connect=True,
                                                                               send_messages=True),
                         d_obj.roles['admin']: discord.PermissionOverwrite(view_channel=True, connect=True),
@@ -116,7 +117,7 @@ class PrivateVoiceChannels(commands.Cog):
 
         # Add the user to the channel
         await asyncio.gather(
-            room.set_permissions(member, connect=True, speak=True, view_channel=True),
+            room.set_permissions(member, connect=True, speak=True, view_channel=True, stream=True),
             disp.ROOM_INVITED.send(room, member.mention, ctx.user.mention),
             disp.ROOM_INVITE.send_priv(ctx, member.mention, room.mention, delete_after=2)
         )
