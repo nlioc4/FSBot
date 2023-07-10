@@ -28,6 +28,7 @@ _busy_accounts = dict()
 _available_accounts = dict()
 all_accounts = None
 account_char_ids = dict()  # dict of account_char_id : account obj
+INITIALISED: asyncio.Future = asyncio.Future()
 
 UNASSIGNED_ONLINE_WARN = True
 MAX_TIME = 10800  # Maximum time for account assignments (limit is ignored if user is in a match)
@@ -134,7 +135,10 @@ async def init(service_account_path: str, test=False):
         del all_accounts[acc_id]
 
     await unassigned_online(None)  # Run check to ensure no accounts are online on startup.
-
+    global INITIALISED
+    if not INITIALISED or not INITIALISED.done():
+        INITIALISED = asyncio.get_event_loop().create_future()
+        INITIALISED.set_result(True)
     info = f'Initialized Accounts: {len(all_accounts)}'
     await d_obj.d_log(info)
     return info

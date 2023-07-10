@@ -699,14 +699,17 @@ class AdminCog(commands.Cog):
 
     @commands.Cog.listener('on_ready')
     async def on_ready(self):
+        if loader.is_all_loaded():
+            return
+
         #  Wait until the bot is ready before starting loops, ensure account_handler has finished init
-        await asyncio.sleep(5)
+        await accounts.INITIALISED
         self.account_sheet_reload.start()
         if cfg.TEST:  # Don't start census if in test mode.  Allows for easier faction assignment testing
             log.warning("TEST MODE: Census not started")
         else:
             self.census_rest.start()
-        self.census_watchtower = self.bot.loop.create_task(census.online_status_updater(Player.map_chars_to_players))
+            self.wss_restart.start()
 
     @tasks.loop(seconds=15)
     async def census_rest(self):

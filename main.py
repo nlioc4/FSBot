@@ -102,13 +102,11 @@ bot = commands.Bot(intents=intents)
 
 bot.activity = discord.Game(name="Hello Pilots!")
 
-LOADED = False
+
 @bot.event
 async def on_ready():
-    global LOADED
-    if LOADED:
+    if loader.is_all_loaded():
         return
-    LOADED = True
 
     log.info(f"Logged in as {bot.user} (ID: {bot.user.id})")
     modules.signal.init(bot)
@@ -118,6 +116,7 @@ async def on_ready():
     await loader.load_all(bot)
     bot.loop.create_task(elo_ranks.init_elo_ranks(), name="Elo Ranks Init")
     loader.unlock_all()
+    loader.set_all_loaded()
 
 
 #  Global Bot Interaction Check

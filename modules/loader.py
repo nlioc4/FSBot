@@ -8,6 +8,7 @@ main_cogs = ['cogs.admin', 'cogs.general']
 standard_cogs = ['cogs.contentplug', 'cogs.duel_lobby', 'cogs.matches',
                  'cogs.register', 'cogs.direct_messages', 'cogs.anomalynotify', 'cogs.private_voice_channels']
 __is_global_locked = True
+__is_loaded = False
 
 log = getLogger('fs_bot')
 
@@ -61,3 +62,12 @@ def unload_all(client):
 
 def is_all_locked():
     return __is_global_locked
+
+
+def is_all_loaded():
+    return __is_loaded
+
+
+def set_all_loaded():
+    global __is_loaded
+    __is_loaded = True

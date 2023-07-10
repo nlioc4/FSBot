@@ -9,7 +9,7 @@ import asyncio
 
 import display.embeds
 # Internal Imports
-from modules import discord_obj as d_obj, tools, bot_status, trello, account_usage, elo_ranks_handler as elo
+from modules import discord_obj as d_obj, tools, bot_status, trello, account_usage, loader, elo_ranks_handler as elo
 from modules.spam_detector import is_spam
 from display import AllStrings as disp, views
 from classes import Player, PlayerStats
@@ -29,6 +29,8 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
 
     @commands.Cog.listener(name='on_ready')
     async def on_ready(self):
+        if loader.is_all_loaded():
+            return
         self.bot.add_view(views.RemoveTimeoutView())
         self.activity_update.start()
         self.elo_rank_update.start()
