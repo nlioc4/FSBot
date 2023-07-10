@@ -102,9 +102,14 @@ bot = commands.Bot(intents=intents)
 
 bot.activity = discord.Game(name="Hello Pilots!")
 
-
+LOADED = False
 @bot.event
 async def on_ready():
+    global LOADED
+    if LOADED:
+        return
+    LOADED = True
+
     log.info(f"Logged in as {bot.user} (ID: {bot.user.id})")
     modules.signal.init(bot)
     d_obj.init(bot)
