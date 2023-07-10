@@ -1092,7 +1092,9 @@ def anomaly_event(anomaly) -> Embed:
         f"Server: {anomaly.world_name}\n"
         f"Continent: {anomaly.zone_name}\n"
         f"Started: {format_stamp(anomaly.timestamp, 'R')} at {format_stamp(anomaly.timestamp, 'f')}\n"
-        f"Status: {anomaly.state_name}\n",
+        f"Status: {anomaly.state_name}\n"
+        f"Total Aircraft Kills: {anomaly.total_kills}\n"
+        f"Total Players (1+ Aircraft Kill): {anomaly.total_players}\n",
         timestamp=dt.now()
     )
     if not anomaly.is_active:

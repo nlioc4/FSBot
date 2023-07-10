@@ -185,6 +185,16 @@ class AnomalyEvent:
         """Returns the name of the zone"""
         return ZONE_DICT[self.zone_id]
 
+    @property
+    def total_kills(self):
+        """Returns the total number of kills"""
+        return sum(self.kills_data.values())
+
+    @property
+    def total_players(self):
+        """Returns the total number of players"""
+        return len(self.kills_data)
+
 
 class AnomalyRegisterButton(discord.ui.Button):
     def __init__(self, role: discord.Role, world_name: str):
