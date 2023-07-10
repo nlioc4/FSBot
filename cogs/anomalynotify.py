@@ -227,6 +227,18 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         self.notify_channel: discord.TextChannel | None = None
         self.view: views.FSBotView | None = None
         self.event_client = EventClient(loop=self.bot.loop, service_id=cfg.general['api_key'])
+
+        # Define triggers
+        self.metagame_trigger = Trigger(event=auraxium.event.MetagameEvent,
+                                        worlds=WORLD_DICT.keys(),
+                                        conditions=[lambda evt: evt.metagame_event_id in ANOMALY_IDS and
+                                                                evt.world_id in WORLD_DICT.keys()],
+                                        action=self.anomaly_event_handler)
+
+        self.vehicle_destroy_trigger = Trigger(event=auraxium.event.VehicleDestroy, worlds=WORLD_DICT.keys(),
+                                               conditions=[lambda evt: evt.world_id in WORLD_DICT.keys()],
+                                               action=self.vehicle_destroy_event_handler)
+
         self.anomaly_initialize.start()
 
     @property
@@ -270,16 +282,10 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         self.bot.add_view(self.view)
 
         # Start listening to anomaly events
-        self.event_client.add_trigger(Trigger(event=auraxium.event.MetagameEvent,
-                                              worlds=WORLD_DICT.keys(),
-                                              conditions=[lambda evt: evt.metagame_event_id in ANOMALY_IDS and
-                                                                      evt.world_id in WORLD_DICT.keys()],
-                                              action=self.anomaly_event_handler))
+        self.event_client.add_trigger(self.metagame_trigger)
 
         # Start tracking VehicleDestroy events
-        self.event_client.add_trigger(Trigger(event=auraxium.event.VehicleDestroy, worlds=WORLD_DICT.keys(),
-                                              conditions=[lambda evt: evt.world_id in WORLD_DICT.keys()],
-                                              action=self.vehicle_destroy_event_handler))
+        self.event_client.add_trigger(self.vehicle_destroy_trigger)
 
         # Start event update loop
         self.anomaly_update_loop.start()
@@ -287,6 +293,16 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
     @anomaly_initialize.before_loop
     async def before_anomaly_initialize(self):
         await self.bot.wait_until_ready()
+
+    @tasks.loop(minutes=5)
+    async def websocket_health_check(self):
+        """Checks websocket health and restarts if necessary"""
+        if self.event_client and self.event_client.websocket.closed:
+            log.warning('Websocket closed, restarting...')
+            await self.event_client.close()
+            self.event_client = EventClient(loop=self.bot.loop, service_id=cfg.general['api_key'])
+            self.event_client.add_trigger(self.metagame_trigger)
+            self.event_client.add_trigger(self.vehicle_destroy_trigger)
 
     @staticmethod
     def anomaly_check(event: auraxium.event.MetagameEvent):
@@ -336,7 +352,8 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
                     if not anom.is_active:  # remove inactive events
                         log.debug(f'Removing inactive anomaly {anom.unique_id}')
                         ended.append(anom.unique_id)
-                        removed.append(self.events.pop(anom.unique_id))
+                        if unique_id in self.events:
+                            removed.append(self.events.pop(anom.unique_id))
 
                 elif event['metagame_event_state_name'] == 'ended':
                     # if event is not stored and is ended, add it to ended list to check against started events
@@ -406,7 +423,8 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
 
             if not anom.is_active:
                 await self.build_top_ten_kills_list([anom])
-                self.events.pop(unique_id)
+                if unique_id in self.events:
+                    self.events.pop(unique_id)
             self.update_event_embed(anom)
 
         else:
