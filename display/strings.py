@@ -277,6 +277,7 @@ class AllStrings(Enum):
     ANOMALY_REGISTER_CREATED = "Created Aerial Anomaly registration message in {}!"
     ANOMALY_EVENT = "{}", anomaly_event
     ANOMALY_MANUAL_LOOP = "Manually looping anomaly event updater!"
+    ANOMALY_WSS_RESTART = "Restarting WSS for anomaly event updater!"
 
     # Voice Room Strings
     ROOM_NOT_IN = "You are not in a voice room!"

@@ -137,7 +137,6 @@ async def init(service_account_path: str, test=False):
     await unassigned_online(None)  # Run check to ensure no accounts are online on startup.
     global INITIALISED
     if not INITIALISED or not INITIALISED.done():
-        INITIALISED = asyncio.get_event_loop().create_future()
         INITIALISED.set_result(True)
     info = f'Initialized Accounts: {len(all_accounts)}'
     await d_obj.d_log(info)
