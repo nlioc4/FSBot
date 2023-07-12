@@ -706,10 +706,11 @@ class AdminCog(commands.Cog):
         await accounts.INITIALISED
         self.account_sheet_reload.start()
         if cfg.TEST:  # Don't start census if in test mode.  Allows for easier faction assignment testing
-            log.warning("TEST MODE: Census not started")
+            log.warning("TEST MODE: Census and WSS not started")
         else:
             self.census_rest.start()
             self.wss_restart.start()
+            log.info("Census REST and WSS Started..")
 
     @tasks.loop(seconds=15)
     async def census_rest(self):
@@ -724,7 +725,10 @@ class AdminCog(commands.Cog):
     async def wss_restart(self):
         """Restart the census_watchtower regularly in order to stop it from dying?"""
         if self.census_watchtower and not self.census_watchtower.done():
-            await census.EVENT_CLIENT.close()
+            try:
+                await census.EVENT_CLIENT.close()
+            except Exception as e:
+                log.error(f"Failed to close WSS: {e}")
             self.census_watchtower.cancel()
         self.census_watchtower = self.bot.loop.create_task(census.online_status_updater(Player.map_chars_to_players))
 

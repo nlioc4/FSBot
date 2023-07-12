@@ -300,6 +300,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
 
         # Start event update loop
         self.anomaly_update_loop.start()
+        self.websocket_health_check.start()
 
     @anomaly_initialize.before_loop
     async def before_anomaly_initialize(self):
@@ -308,9 +309,13 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
     @tasks.loop(minutes=5)
     async def websocket_health_check(self):
         """Checks websocket health and restarts if necessary"""
-        if self.event_client and self.event_client.websocket.closed:
+        if not self.event_client or (self.event_client and self.event_client.websocket
+                                     and self.event_client.websocket.closed):
             log.warning('Websocket closed, restarting...')
-            await self.event_client.close()
+            try:
+                await self.event_client.close()
+            except AttributeError:
+                pass
             self.event_client = EventClient(loop=self.bot.loop, service_id=cfg.general['api_key'])
             self.event_client.add_trigger(self.metagame_trigger)
             self.event_client.add_trigger(self.vehicle_destroy_trigger)
@@ -567,6 +572,13 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         await ctx.defer(ephemeral=True)
         await self.anomaly_update_loop()
         await disp.ANOMALY_MANUAL_LOOP.send_priv(ctx, delete_after=5)
+
+    @anomaly_commands.command(name="restartwss")
+    async def anomalyrestartwss(self, ctx: discord.ApplicationContext):
+        """Restart websocket"""
+        await ctx.defer(ephemeral=True)
+        await self.websocket_health_check()
+        await disp.ANOMALY_WSS_RESTART.send_priv(ctx, delete_after=5)
 
 
 def setup(client):

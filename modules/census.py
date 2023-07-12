@@ -5,8 +5,8 @@ Census module for tracking Jaeger players.  Currently used to ensure FS block ac
 
 # External Imports
 import auraxium
-from logging import getLogger
 import asyncio
+from logging import getLogger
 
 # Internal Imports
 import modules.config as cfg

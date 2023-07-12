@@ -45,9 +45,9 @@ log = logging.getLogger('fs_bot')
 log.setLevel(numeric_level)
 log_formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s')
 # Log to file
-log_path = f'{pathlib.Path(__file__).parent.absolute()}/../FSBotData/Logs/fs_bot.log'
-if not os.path.exists(log_path.rstrip('fs_bot.log')):
-    os.makedirs(log_path.rstrip('fs_bot.log'))
+log_path = f'{pathlib.Path(__file__).parent.absolute()}/../FSBotData/Logs/'
+if not os.path.exists(log_path):
+    os.makedirs(log_path)
 
 # Log to console
 console_handler = logging.StreamHandler(sys.stdout)
@@ -59,10 +59,25 @@ discord_logger = logging.getLogger('discord')
 discord_logger.setLevel(logging.INFO)
 discord_logger.addHandler(console_handler)
 
+# Auraxium Logging
+
+# Logging configuration
+fmt = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+fh = logging.FileHandler(filename=f"{log_path}fs_auraxium.log", encoding='utf-8', mode='w+')
+fh.setFormatter(fmt)
+sh = logging.StreamHandler()
+sh.setFormatter(fmt)
+sh.setLevel(logging.DEBUG if cfg.TEST else logging.INFO)
+
+auraxium_logger = logging.getLogger('auraxium')
+auraxium_logger.setLevel(logging.DEBUG)
+auraxium_logger.addHandler(fh)
+auraxium_logger.addHandler(sh)
+
 # Log to file only if not testing
 if not c_args.get('test'):
     # single_log_handler = logging.FileHandler(filename=log_path, encoding='utf-8', mode='w')  # single log
-    log_handler = logging.handlers.TimedRotatingFileHandler(log_path, when='D',
+    log_handler = logging.handlers.TimedRotatingFileHandler(f'{log_path}fs_bot.log', when='D',
                                                             interval=1)  # rotating log files, every day
     log_handler.setFormatter(log_formatter)
     log.addHandler(log_handler)
