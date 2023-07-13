@@ -121,6 +121,9 @@ class BaseMatch:
                 return
             await inter.response.defer(ephemeral=True)
 
+            if self.match.is_ended:  # do nothing if match already ended
+                return
+
             await self.match.leave_match(p.active)
 
         @discord.ui.button(label="Leave Match", style=discord.ButtonStyle.red)
@@ -889,7 +892,6 @@ class RankedMatch(BaseMatch):
 
             if self.match.is_ended:
                 # if Match has ended when button clicked.
-                await self.match.leave_match(p.active)
                 return
 
             if self.match.rounds_complete == 0:

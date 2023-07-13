@@ -65,14 +65,13 @@ class AnomalyEvent:
         self.nc_progress = 0.
         self.tr_progress = 0.
         self.vs_progress = 0.
-        self.population = {}  # Population {faction_str: count}
-        self.vehicle_data = {}  # Vehicle Data {faction_str: {vehicle_name: count}}
-        self.kills_data = {}  # Per character aircraft kills {char_id: kills}
-        self.top_ten_data = {}  # Top ten players {char_id: Kills}
-        self.top_ten = {}  # Top ten players {FactionEmoji-CharName: Kills}
+        self.population: dict[str, int] = {}  # Population {faction_str: count}
+        self.vehicle_data: dict[str, dict[str, int]] = {}  # Vehicle Data {faction_str: {vehicle_name: count}}
+        self.kills_data: dict[int, int] = {}  # Per character aircraft kills {char_id: kills}
+        self.top_ten_data: dict[int, int] = {}  # Top ten players {char_id: Kills}
+        self.top_ten: dict[str, int] = {}  # Top ten players {FactionEmoji-CharName: Kills}
 
         self.message = None
-        self.ping_str = ''  # String to ping role with
         self.unique_id = str(self)
         self.last_update_stamp = tools.timestamp_now()
 
@@ -298,9 +297,13 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         # Start tracking VehicleDestroy events
         self.event_client.add_trigger(self.vehicle_destroy_trigger)
 
+        # Wait until the eventclient is ready
+        await self.event_client.wait_ready()
+
         # Start event update loop
         self.anomaly_update_loop.start()
         self.websocket_health_check.start()
+        log.info('AnomalyCog initialized!')
 
     @anomaly_initialize.before_loop
     async def before_anomaly_initialize(self):
@@ -329,6 +332,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         ping_str = f"Time to shoot some planes {self.notify_roles[anom.world_id].mention}!"
         log.debug(f'Updating anomaly {anom.unique_id} message')
         self.update_from_graphql_data([anom])
+        await self.build_top_ten_kills_list([anom])
 
         if anom.message:
             anom.message = await disp.ANOMALY_EVENT.edit(anom.message, ping_str, anomaly=anom)
@@ -438,7 +442,6 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
             anom.update_from_evt(evt)
 
             if not anom.is_active:
-                await self.build_top_ten_kills_list([anom])
                 if unique_id in self.events:
                     self.events.pop(unique_id)
             self.update_event_embed(anom)
@@ -476,11 +479,11 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
 
         character_ids_to_fetch = []
         # Find the 10 players with the most kills in kills_data for each event
-        for event in events or self.all_events_list:
+        for event in events:
             top_ten = event.top_ten_data
             log.debug(f'Checking top ten for {event.unique_id}, pulling from {len(event.kills_data)} characters')
             for char_id, kills in event.kills_data.items():
-                if not event.top_ten or kills > min(top_ten.values()):
+                if not event.top_ten or kills >= min(top_ten.values()):
                     log.debug(f'Adding {char_id} to top ten for {event.unique_id}')
                     top_ten[char_id] = kills
                     if len(top_ten) > 10:
@@ -495,15 +498,18 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
             return
 
         # Build the display top ten dict, and remove unused characters from the cache
-        used_ids = []
+        current_ids = []
         for event in self.all_events_list:
             event.top_ten = {self.char_id_to_name.get(char_id) or char_id: kills for char_id, kills in
                              event.top_ten_data.items()}
-            used_ids.extend(event.top_ten_data.keys())
+            current_ids.extend(event.kills_data.keys())
             log.debug(f"Top ten for {event.unique_id}: {event.top_ten}")
-        self.char_id_to_name = {char_id: name for char_id, name in self.char_id_to_name.items() if char_id in used_ids}
 
-    async def populate_char_name_cache(self, char_ids: list = None):
+        # Update the character name cache to include only characters in active events
+        self.char_id_to_name = {char_id: name for char_id, name
+                                in self.char_id_to_name.items() if char_id in current_ids}
+
+    async def populate_char_name_cache(self, char_ids: list[str] = None):
         """Populate the char_id_to_name cache with character names from the API"""
         # Check which character names are not already cached
         char_ids = [char_id for char_id in char_ids if char_id not in self.char_id_to_name.keys()]
@@ -519,16 +525,39 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
             async with session.get(query.url()) as resp:
                 data = await resp.json()
 
-        data = data.get('character_list')
-        if not data:
+        chars_list = data.get('character_list')
+        if not chars_list:
             log.warning('No character data returned from API name cache population')
             return False
 
+        # Fetch HONU session data for each character, while adding to cache
+        HONU_DATA_URL = 'https://wt.honu.pw/api/character/many/honu-data?IDs={}'
+        honu_sesh_data = {}  # Dict of char ID to session ID
+        async with aiohttp.ClientSession() as session:
+            async with session.get(HONU_DATA_URL.format('&IDs='.join(char_ids))) as resp:
+                honu_data = await resp.json()
+        if honu_data:
+            for char_data in honu_data:
+                if (honu_char_id := char_data.get('id')) and char_data.get('sessionID'):
+                    honu_sesh_data[int(honu_char_id)] = char_data.get('sessionID')
+                    log.debug(f'Added {honu_char_id} to HONU session cache')
+            if len(honu_sesh_data) != len(char_ids):
+                log.warning(f'Failed to fetch HONU session data for {len(char_ids) - len(honu_sesh_data)} characters')
+        else:
+            log.warning(f'Failed to fetch HONU session data')
+
+        log.debug(f'Fetched HONU session data for {len(honu_sesh_data)} characters')
+        log.debug(f'HONU session data: {honu_sesh_data}')
+
         # Update dict of character id to name and faction emoji (cache)
-        for character in data:
+        for character in chars_list:
             char_id = int(character['character_id'])
             fac_emoji = cfg.emojis[cfg.factions[int(character['faction_id'])]]
-            self.char_id_to_name[char_id] = f"{fac_emoji}{character['name']['first']}"
+            if char_id in honu_sesh_data:
+                name_hyperlink = f"[{character['name']['first']}](https://wt.honu.pw/s/{honu_sesh_data.get(char_id)})"
+            else:
+                name_hyperlink = character['name']['first']
+            self.char_id_to_name[char_id] = f"{fac_emoji}{name_hyperlink}"
             log.debug(f'Added {char_id} to name cache')
         return True
 
@@ -541,7 +570,6 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         all_events.extend(removed or [])
         await self.fetch_graphql_data()
         self.update_from_graphql_data(all_events)
-        await self.build_top_ten_kills_list(all_events)
         for anom in all_events:
             self.update_event_embed(anom)
         log.debug('Finished updating anomaly events...')

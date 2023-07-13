@@ -61,16 +61,13 @@ discord_logger.addHandler(console_handler)
 
 # Auraxium Logging
 
-fmt = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
-fh = logging.FileHandler(filename=f"{log_path}fs_auraxium.log", encoding='utf-8', mode='w+')
-fh.setFormatter(fmt)
 sh = logging.StreamHandler()
-sh.setFormatter(fmt)
-sh.setLevel(logging.DEBUG if cfg.TEST else logging.warning)
+sh.setFormatter(log_formatter)
+sh.setLevel(logging.DEBUG if cfg.TEST else logging.WARNING)
 
 auraxium_logger = logging.getLogger('auraxium')
 auraxium_logger.setLevel(logging.DEBUG)
-auraxium_logger.addHandler(fh)
+
 auraxium_logger.addHandler(sh)
 
 # Log to file only if not testing
@@ -81,6 +78,12 @@ if not c_args.get('test'):
     log_handler.setFormatter(log_formatter)
     log.addHandler(log_handler)
     discord_logger.addHandler(log_handler)
+
+else:
+    # Auraxium Logging
+    fh = logging.FileHandler(filename=f"{log_path}fs_auraxium.log", encoding='utf-8', mode='w+')
+    fh.setFormatter(log_formatter)
+    auraxium_logger.addHandler(fh)
 
 
 class StreamToLogger(object):
@@ -112,6 +115,7 @@ else:
 
 intents = discord.Intents.all()
 
+# TODO move to subclassed bot.  Will allow passing more variables through to cogs if needed
 bot = commands.Bot(intents=intents)
 
 bot.activity = discord.Game(name="Hello Pilots!")
@@ -147,7 +151,7 @@ async def global_interaction_check(ctx):
         return False
 
     # Allow timed out users to use only /freeme command
-    if await d_obj.is_timeout_check(ctx) and not ctx.command.full_parent_name == "freeme":
+    if not ctx.command.full_parent_name == "freeme" and await d_obj.is_timeout_check(ctx):
         return False
 
     return True
@@ -212,11 +216,11 @@ async def on_member_update(before: discord.Member, after: discord.Member):
     if before.pending is True and after.pending is False:
         await display.AllStrings.SERVER_JOIN.send(d_obj.guild.system_channel, after.mention, mention=after.mention)
 
+
 # database init
 modules.database.init(cfg.database)
 modules.database.get_all_elements(classes.Player.new_from_data, 'users')
 log.info("Loaded Players from Database: %s", len(classes.Player.get_all_players()))
-
 
 loader.init(bot)
 bot.run(cfg.general['token'])

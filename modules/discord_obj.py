@@ -81,9 +81,8 @@ def is_player(user: discord.Member | discord.User) -> classes.Player | bool:
 def is_timeout(user: discord.Member | discord.User) -> bool | int:
     """Simple check if a user is timed out, returns timeout until stamp if True
     Also returns false if user is not a player."""
-    if p := classes.Player.get(user.id):
-        if p.is_timeout:
-            return p.timeout_until
+    if (p := classes.Player.get(user.id)) and p.is_timeout:
+        return p.timeout_until
     return False
 
 
@@ -91,9 +90,9 @@ async def is_timeout_check(ctx) -> bool | int:
     """Check for commands if player is timed out. returns timeout until stamp if True and sends message to user.
         Also returns false if user is not a player.
         """
-    if stamp := is_timeout(ctx.user):
+    if stamp_or_bool := is_timeout(ctx.user):
         await disp.DISABLED_PLAYER.send_priv(ctx)
-    return stamp
+    return stamp_or_bool
 
 
 async def registered_check(ctx, user: discord.Member | discord.User | classes.Player) -> bool | classes.Player:

@@ -1091,6 +1091,7 @@ def anomaly_event(anomaly) -> Embed:
         description=
         f"Server: {anomaly.world_name}\n"
         f"Continent: {anomaly.zone_name}\n"
+        f"Unique ID: {anomaly.unique_id}\n"
         f"Started: {format_stamp(anomaly.timestamp, 'R')} at {format_stamp(anomaly.timestamp, 'f')}\n"
         f"Status: {anomaly.state_name}\n"
         f"Total Aircraft Kills: {anomaly.total_kills}\n"
@@ -1105,11 +1106,8 @@ def anomaly_event(anomaly) -> Embed:
                              f"Duration: {int(minutes)} minute{'s' if minutes != 1 else ''}, " \
                              f"{int(seconds)} second{'s' if seconds != 1 else ''}\n"
 
-    embed.add_field(
-        name="Unique ID",
-        value=anomaly.unique_id,
-        inline=True
-    )
+        # Set URL to honu alert page
+        embed.url = f"https://wt.honu.pw/alert/{anomaly.unique_id}"
 
     if not anomaly.is_active:
         result_str = ""
@@ -1143,6 +1141,15 @@ def anomaly_event(anomaly) -> Embed:
             value=top_ten_str,
             inline=False
         )
+
+    embed.add_field(name='Data Sources',
+                    value=
+                    "Population and Vehicle Data from [saerro.ps2.live](https://saerro.ps2.live/)\n"
+                    "Kills data from [Daybreak Games](http://census.daybreakgames.com/) "
+                    "via [Auraxium](https://github.com/leonhard-s/auraxium/)\n"
+                    "Session data from [Honu](https://wt.honu.pw/)\n",
+                    inline=False)
+
     embed.set_footer(text="Register for notifications in #roles!")
 
     embed.set_thumbnail(url="https://i.imgur.com/Ch8QAZJ.png")  # Anomaly Image
