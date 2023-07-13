@@ -142,8 +142,10 @@ class PrivateVoiceChannels(commands.Cog):
         corus = [room.set_permissions(member, overwrite=None),
                  disp.ROOM_KICKED.send(room, member.mention),
                  disp.ROOM_KICK.send_priv(ctx, member.mention, room.mention, delete_after=5)]
+
+        # move to first channel in category (aim_better)
         if member in room.members:
-            corus.append(member.move_to(None))  # type: ignore
+            corus.append(member.move_to(d_obj.guild.get_channel(self._initial_channel_id).category.voice_channels[0]))
 
         await asyncio.gather(*corus)
 

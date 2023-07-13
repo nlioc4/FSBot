@@ -278,6 +278,8 @@ class AllStrings(Enum):
     ANOMALY_EVENT = "{}", anomaly_event
     ANOMALY_MANUAL_LOOP = "Manually looping anomaly event updater!"
     ANOMALY_WSS_RESTART = "Restarting WSS for anomaly event updater!"
+    ANOMALY_REMOVE_LEADERBOARD = "Removed {} from the anomaly leaderboard!"
+    ANOMALY_REMOVE_LEADERBOARD_NOT_FOUND = "Could not find {} in the anomaly leaderboard!"
 
     # Voice Room Strings
     ROOM_NOT_IN = "You are not in a voice room!"
