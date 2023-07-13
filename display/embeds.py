@@ -1109,7 +1109,7 @@ def anomaly_event(anomaly) -> Embed:
         # Set URL to honu alert page
         embed.url = f"https://wt.honu.pw/alert/{anomaly.unique_id}"
 
-    if not anomaly.is_active:
+        # Add faction results
         result_str = ""
         for fac in cfg.teams.values():
             score = int(getattr(anomaly, f'{fac.lower()}_progress'))
@@ -1117,8 +1117,8 @@ def anomaly_event(anomaly) -> Embed:
         embed.add_field(
             name="Faction Results",
             value=result_str,
-            inline=False
-        )
+            inline=False)
+
     elif anomaly.vehicle_data:
         for fac in cfg.teams.values():
             vehicles_str = f"Total Faction Population: {anomaly.population.get(fac.lower(), 0)}\n"
@@ -1131,10 +1131,9 @@ def anomaly_event(anomaly) -> Embed:
                     inline=False
                 )
 
-    if anomaly.top_ten:
+    if len(anomaly.top_ten) > 0:
         top_ten_str = ""
-        top_ten_list = sorted(anomaly.top_ten.items(), key=lambda x: x[1], reverse=True)
-        for i, (name, count) in enumerate(top_ten_list):
+        for i, (name, count) in enumerate(anomaly.top_ten.items()):
             top_ten_str += f"[{i + 1}]{name}: {count}\n"
         embed.add_field(
             name="Top 10 Highest Aircraft vs Aircraft Kills",
@@ -1153,4 +1152,24 @@ def anomaly_event(anomaly) -> Embed:
     embed.set_footer(text="Register for notifications in #roles!")
 
     embed.set_thumbnail(url="https://i.imgur.com/Ch8QAZJ.png")  # Anomaly Image
+    return fs_author(embed)
+
+
+def top_ten_anomlay_kills(top_ten_data) -> Embed:
+    """Returns an embed with the top ten aircraft vs aircraft kills tracked in an anomaly"""
+    embed = Embed(
+        colour=Colour.blurple(),
+        title="Top 10 Anomaly Kills",
+        description="This leaderboard tracks the most aircraft vs aircraft kills by a single character in one anomaly.",
+        thumbnail="https://i.imgur.com/Ch8QAZJ.png",
+        timestamp=dt.now()
+    )
+    top_ten_str = ""
+    for i, (name, count) in enumerate(top_ten_data.items()):
+        top_ten_str += f"[{i + 1}]{name}: {count}\n"
+    embed.add_field(
+        name="Top 10",
+        value=top_ten_str,
+        inline=False
+    )
     return fs_author(embed)

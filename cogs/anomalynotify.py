@@ -233,6 +233,8 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         self.char_id_to_name: dict[int, str] = {}
         self.last_graphql_update_stamp = 0  # Timestamp of last graphql update
         self.last_graphql_update_data = {}  # Cache of last graphql update
+        self.top_ten_all_time_data: dict[str, int] = {}  # Most kills leaderboard (char_display-unique_id: kills)
+        self.top_ten_message: discord.Message | None = None  # Message object for top ten leaderboard
         self.notify_channel: discord.TextChannel | None = None
         self.view: views.FSBotView | None = None
         self.event_client = EventClient(loop=self.bot.loop, service_id=cfg.general['api_key'])
@@ -269,7 +271,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         # set notify channel
         self.notify_channel = d_obj.channels['anomaly_notify']
 
-        # Retrieve existing events from DB as list of
+        # Retrieve existing events from DB as AnomalyEvent objects
         try:
             old_events = await db.async_db_call(db.get_field, 'restart_data', 0, 'anomaly_events')
         except KeyError:
@@ -282,6 +284,20 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
                 log.info(f'Could not find message for anomaly {anom.unique_id}.  Waiting for REST to update...')
 
         log.info(f'Loaded anomaly events from DB: {len(self.events)}')
+
+        # Retrieve Existing Top Ten data from DB
+        try:
+            self.top_ten_all_time_data = await db.async_db_call(db.get_field, 'restart_data', 0,
+                                                                'top_ten_all_time_data')
+        except KeyError:
+            log.debug('No top ten data found in DB')
+            self.top_ten_all_time_data = {}
+
+        try:
+            top_ten_msg_id = await db.async_db_call(db.get_field, 'restart_data', 0, 'top_ten_message_id')
+            self.top_ten_message = await self.notify_channel.fetch_message(top_ten_msg_id)
+        except KeyError:
+            self.top_ten_message = None
 
         # Create view
         self.view = views.FSBotView()
@@ -310,10 +326,10 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         await self.bot.wait_until_ready()
 
     @tasks.loop(minutes=5)
-    async def websocket_health_check(self):
+    async def websocket_health_check(self, force=False):
         """Checks websocket health and restarts if necessary"""
-        if not self.event_client or (self.event_client and self.event_client.websocket
-                                     and self.event_client.websocket.closed):
+        if force or not self.event_client or (self.event_client and not self.event_client.websocket or
+                                              (self.event_client.websocket and self.event_client.websocket.closed)):
             log.warning('Websocket closed, restarting...')
             try:
                 await self.event_client.close()
@@ -339,6 +355,11 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         else:
             anom.message = await disp.ANOMALY_EVENT.send(d_obj.channels['anomaly_notify'],
                                                          '' if not anom.is_active else ping_str, anomaly=anom)
+
+        # Here to ensure it's after building top ten kills list
+        if not anom.is_active:
+            await self.update_top_ten_all_time(anom)
+
         return anom.message
 
     def update_event_embed(self, anom: AnomalyEvent):
@@ -384,7 +405,6 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
                     # check if there is an ended event with the same world and instance id
                     if unique_id in ended or \
                             int(event['timestamp']) + 108000 < tools.timestamp_now():  # if event is older than 30 mins
-                        log.debug(f'Skipping anomaly {unique_id} as it is ended')
                         continue
 
                     # if event is not stored and is active, store it
@@ -480,39 +500,39 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         character_ids_to_fetch = []
         # Find the 10 players with the most kills in kills_data for each event
         for event in events:
-            top_ten = event.top_ten_data
             log.debug(f'Checking top ten for {event.unique_id}, pulling from {len(event.kills_data)} characters')
             for char_id, kills in event.kills_data.items():
-                if not event.top_ten or kills >= min(top_ten.values()):
+                if len(event.top_ten_data) < 10 or kills > min(event.top_ten_data.values()):
                     log.debug(f'Adding {char_id} to top ten for {event.unique_id}')
-                    top_ten[char_id] = kills
-                    if len(top_ten) > 10:
-                        top_ten.pop(min(top_ten, key=top_ten.get))
+                    event.top_ten_data[char_id] = kills
+                    if len(event.top_ten_data) > 10:
+                        event.top_ten_data.pop(min(event.top_ten_data, key=event.top_ten_data.get))
 
             # Add the top ten to the list of character ids to fetch from the API
-            character_ids_to_fetch.extend([str(char_id) for char_id in top_ten.keys()])
+            character_ids_to_fetch.extend([str(char_id) for char_id in event.top_ten_data.keys()])
 
         # Fetch the character data from the API if required
         if not await self.populate_char_name_cache(character_ids_to_fetch):
             log.warning('Failed to populate character name cache')
             return
 
-        # Build the display top ten dict, and remove unused characters from the cache
-        current_ids = []
-        for event in self.all_events_list:
+        # Build the display top ten dict for events
+        for event in events:
             event.top_ten = {self.char_id_to_name.get(char_id) or char_id: kills for char_id, kills in
-                             event.top_ten_data.items()}
-            current_ids.extend(event.kills_data.keys())
+                             sorted(event.top_ten_data.items(), key=lambda item: item[1], reverse=True)}
             log.debug(f"Top ten for {event.unique_id}: {event.top_ten}")
 
         # Update the character name cache to include only characters in active events
         self.char_id_to_name = {char_id: name for char_id, name
-                                in self.char_id_to_name.items() if char_id in current_ids}
+                                in self.char_id_to_name.items() if char_id in
+                                [char_id for event in self.all_events_list for char_id in event.kills_data.keys()]}
+        log.debug(f'Updated character name cache to include {len(self.char_id_to_name)} characters')
+        # list comprehension for all char_ids from all events kills data
 
     async def populate_char_name_cache(self, char_ids: list[str] = None):
         """Populate the char_id_to_name cache with character names from the API"""
         # Check which character names are not already cached
-        char_ids = [char_id for char_id in char_ids if char_id not in self.char_id_to_name.keys()]
+        char_ids = [char_id for char_id in char_ids if int(char_id) not in self.char_id_to_name.keys()]
         if not char_ids:
             log.debug('Requested character ids are already cached')
             return True
@@ -549,7 +569,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         log.debug(f'Fetched HONU session data for {len(honu_sesh_data)} characters')
         log.debug(f'HONU session data: {honu_sesh_data}')
 
-        # Update dict of character id to name and faction emoji (cache)
+        # Update dict of {character id : [factionemoji:name](honu_session_url)}
         for character in chars_list:
             char_id = int(character['character_id'])
             fac_emoji = cfg.emojis[cfg.factions[int(character['faction_id'])]]
@@ -560,6 +580,40 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
             self.char_id_to_name[char_id] = f"{fac_emoji}{name_hyperlink}"
             log.debug(f'Added {char_id} to name cache')
         return True
+
+    async def update_top_ten_all_time(self, event: AnomalyEvent | None):
+        """Update the all-time top ten from an ended event
+        Pass no event if extnerally updating all_time_top_ten_data"""
+
+        if event and not event.is_active:
+            # Update the all-time top ten
+            for char_disp, kills in event.top_ten.items():
+                if self.top_ten_all_time_data and kills > min(self.top_ten_all_time_data.values()) \
+                        or len(self.top_ten_all_time_data) < 10:
+                    log.debug(f'Adding {char_disp} to all time top ten from {event.unique_id}')
+                    self.top_ten_all_time_data[f"{char_disp}({event.unique_id})"] = kills
+
+                    if len(self.top_ten_all_time_data) > 10:
+                        self.top_ten_all_time_data.pop(min(self.top_ten_all_time_data,
+                                                           key=self.top_ten_all_time_data.get))
+            log.debug(f'All time top ten: {self.top_ten_all_time_data}')
+
+        # Sort top ten list for display
+        self.top_ten_all_time_data = dict(sorted(self.top_ten_all_time_data.items(), key=lambda item: item[1],
+                                                 reverse=True))
+        log.debug(f'All time top ten post sort: {self.top_ten_all_time_data}')
+
+        # Update the all-time top ten embed if required
+        embed = embeds.top_ten_anomlay_kills(self.top_ten_all_time_data)
+        if self.top_ten_message and not tools.compare_embeds(embed, self.top_ten_message.embeds[0]):
+            await disp.NONE.edit(self.top_ten_message, embed=embed)
+        elif self.top_ten_all_time_data:  # send new message if needed
+            self.top_ten_message = await disp.NONE.send(self.notify_channel, embed=embed)
+            await self.top_ten_message.pin()
+            await db.async_db_call(db.set_field, 'restart_data', 0, {'top_ten_message_id': self.top_ten_message.id})
+
+        # Save the all-time top ten data to DB
+        await db.async_db_call(db.set_field, 'restart_data', 0, {'top_ten_all_time_data': self.top_ten_all_time_data})
 
     @tasks.loop(minutes=1, seconds=0)
     async def anomaly_update_loop(self):
@@ -605,8 +659,28 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
     async def anomalyrestartwss(self, ctx: discord.ApplicationContext):
         """Restart websocket"""
         await ctx.defer(ephemeral=True)
-        await self.websocket_health_check()
+        await self.websocket_health_check(force=True)
         await disp.ANOMALY_WSS_RESTART.send_priv(ctx, delete_after=5)
+
+    def leaderboard_remove_autocomplete(self, ctx: discord.AutocompleteContext):
+        """Autocomplete for leaderboard remove
+        Find an entry from a character name"""
+        return [name for name in self.top_ten_all_time_data.keys() if ctx.value.lower() in name.lower()] \
+            or self.top_ten_all_time_data.keys()
+
+    @anomaly_commands.command(name='remove_leaderboard_entry')
+    async def anomalyremoveleaderboardentry(self, ctx: discord.ApplicationContext,
+                                            entry: discord.Option(str,
+                                                                  'Entry on the leaderboard to'
+                                                                  ' remove (playername(unique_id))',
+                                                                  autocomplete=leaderboard_remove_autocomplete)):
+        """Remove a leaderboard entry from the all-time top ten"""
+        if entry in self.top_ten_all_time_data:
+            self.top_ten_all_time_data.pop(entry)
+            await self.update_top_ten_all_time(None)
+            await disp.ANOMALY_REMOVE_LEADERBOARD.send_priv(ctx, entry, delete_after=5)
+        else:
+            await disp.ANOMALY_REMOVE_LEADERBOARD_NOT_FOUND.send_priv(ctx, entry, delete_after=5)
 
 
 def setup(client):
