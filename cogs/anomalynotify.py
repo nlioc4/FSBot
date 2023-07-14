@@ -260,7 +260,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
     @property
     def top_ten_all_time(self):
         """Returns the top ten all time kills"""
-        return sorted(self.top_ten_all_time_data.items(), key=lambda x: x[1], reverse=True)[:10]
+        return dict(sorted(self.top_ten_all_time_data.items(), key=lambda x: x[1], reverse=True)[:10])
 
     @tasks.loop(count=1)
     async def anomaly_initialize(self):
@@ -670,8 +670,8 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
     def leaderboard_remove_autocomplete(self, ctx: discord.AutocompleteContext):
         """Autocomplete for leaderboard remove
         Find an entry from a character name"""
-        return [name for name in self.top_ten_all_time_data.keys() if ctx.value.lower() in name.lower()] \
-            or self.top_ten_all_time_data.keys()
+        return [name for name in self.top_ten_all_time.keys() if ctx.value.lower() in name.lower()] \
+            or self.top_ten_all_time.keys()
 
     @anomaly_commands.command(name='remove_leaderboard_entry')
     async def anomalyremoveleaderboardentry(self, ctx: discord.ApplicationContext,
