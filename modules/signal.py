@@ -30,7 +30,7 @@ async def save_state(loop):
     await accounts.terminate_all()
 
     # Ensure Auraxium event client's session is closed
-    if census.EVENT_CLIENT.websocket:
+    if census.EVENT_CLIENT and census.EVENT_CLIENT.websocket:
         try:
             await census.EVENT_CLIENT.close()
         except Exception as e:
