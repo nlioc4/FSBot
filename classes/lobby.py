@@ -380,6 +380,11 @@ class Lobby:
                                                                               tools.format_time_from_stamp(
                                                                                   p.lobby_timeout_stamp, 'R'))
 
+    def remove_match(self, match):
+        """Remove a match from the lobby"""
+        if match in self.__matches:
+            self.__matches.remove(match)
+
     def update_matches(self):
         """Remove matches from match list if ended"""
         for match in self.__matches:
@@ -441,7 +446,7 @@ class Lobby:
             pass
         else:
             # schedule next update if update completes successfully
-            d_obj.bot.loop.call_soon(self._schedule_update_task)
+            d_obj.bot.loop.call_later(0.01, self._schedule_update_task)
 
     async def _update_task(self):
         await asyncio.sleep(self.UPDATE_DELAY)

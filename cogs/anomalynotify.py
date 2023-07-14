@@ -257,6 +257,11 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
     def all_events_list(self):
         return list(self.events.values())
 
+    @property
+    def top_ten_all_time(self):
+        """Returns the top ten all time kills"""
+        return sorted(self.top_ten_all_time_data.items(), key=lambda x: x[1], reverse=True)[:10]
+
     @tasks.loop(count=1)
     async def anomaly_initialize(self):
         """Called on bot restart, initializes, listens to and creates view as before or loads existing view.
@@ -589,11 +594,11 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
             # Update the all-time top ten
             for char_disp, kills in event.top_ten.items():
                 if self.top_ten_all_time_data and kills > min(self.top_ten_all_time_data.values()) \
-                        or len(self.top_ten_all_time_data) < 10:
+                        or len(self.top_ten_all_time_data) < 50:
                     log.debug(f'Adding {char_disp} to all time top ten from {event.unique_id}')
                     self.top_ten_all_time_data[f"{char_disp}({event.unique_id})"] = kills
 
-                    if len(self.top_ten_all_time_data) > 10:
+                    if len(self.top_ten_all_time_data) > 50:
                         self.top_ten_all_time_data.pop(min(self.top_ten_all_time_data,
                                                            key=self.top_ten_all_time_data.get))
             log.debug(f'All time top ten: {self.top_ten_all_time_data}')
@@ -604,7 +609,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         log.debug(f'All time top ten post sort: {self.top_ten_all_time_data}')
 
         # Update the all-time top ten embed if required
-        embed = embeds.top_ten_anomlay_kills(self.top_ten_all_time_data)
+        embed = embeds.top_ten_anomlay_kills(self.top_ten_all_time)
         if self.top_ten_message and not tools.compare_embeds(embed, self.top_ten_message.embeds[0]):
             await disp.NONE.edit(self.top_ten_message, embed=embed)
         elif self.top_ten_all_time_data:  # send new message if needed

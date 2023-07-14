@@ -438,6 +438,7 @@ class BaseMatch:
             self.end_condition = end_condition
             self.log('Match Ended')
             self._cancel_update()
+            self.__lobby.remove_match(self)
 
             # Cancel Account checks if not complete
             for task in self.__account_check_tasks:
