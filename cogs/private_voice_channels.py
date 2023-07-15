@@ -66,6 +66,10 @@ class PrivateVoiceChannels(commands.Cog):
                                     after: discord.VoiceState):
         """Create a room if a user joins the creator channel, or delete a channel if the owner leaves"""
 
+        # If a users channel hasn't changed
+        if before.channel == after.channel:
+            return
+
         # if the user joins the creator channel from their voice room, move them to their room
         if before.channel and before.channel.id in self._voice_channels.keys() and \
                 self._voice_channels[before.channel] == member.id and after.channel.id == self._initial_channel_id:

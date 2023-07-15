@@ -128,7 +128,7 @@ async def init_elo_ranks():
 async def update_player_rank_role(player_stat: PlayerStats):
     """Remove old rank role from player, add new rank role to player"""
     if not (p := Player.get(player_stat.id)) or not p.member:
-        log.warning(f"Couldn't find player {p.id} or their Member Object in memory!")
+        log.debug(f"Couldn't find player {p.id} or their Member Object in memory!")
         return
 
     new_rank = EloRank.get(player_stat.rank)
