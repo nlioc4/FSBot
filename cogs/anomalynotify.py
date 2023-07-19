@@ -231,6 +231,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         self.events: dict[str, AnomalyEvent] = {}
         self.notify_roles: dict[int, discord.Role] = {}
         self.char_id_to_name: dict[int, str] = {}
+        self.update_lock: asyncio.Lock = asyncio.Lock()  # Lock for self.events, used when adding/removing events
         self.last_graphql_update_stamp = 0  # Timestamp of last graphql update
         self.last_graphql_update_data = {}  # Cache of last graphql update
         self.top_ten_all_time_data: dict[str, int] = {}  # Most kills leaderboard (char_display-unique_id: kills)
@@ -394,13 +395,14 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
             for event in data:
                 unique_id = f"{event['world_id']}-{event['instance_id']}"
                 if anom := self.events.get(unique_id):
-                    # if event is already stored, update it
-                    anom.update_from_dict(event)
-                    if not anom.is_active:  # remove inactive events
-                        log.debug(f'Removing inactive anomaly {anom.unique_id}')
-                        ended.append(anom.unique_id)
-                        if unique_id in self.events:
-                            removed.append(self.events.pop(anom.unique_id))
+                    async with self.update_lock:
+                        # if event is already stored, update it
+                        anom.update_from_dict(event)
+                        if not anom.is_active:  # remove inactive events
+                            log.debug(f'Removing inactive anomaly {anom.unique_id}')
+                            ended.append(anom.unique_id)
+                            if unique_id in self.events:
+                                removed.append(self.events.pop(anom.unique_id))
 
                 elif event['metagame_event_state_name'] == 'ended':
                     # if event is not stored and is ended, add it to ended list to check against started events
@@ -411,10 +413,10 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
                     if unique_id in ended or \
                             int(event['timestamp']) + 108000 < tools.timestamp_now():  # if event is older than 30 mins
                         continue
-
-                    # if event is not stored and is active, store it
-                    self.events[unique_id] = AnomalyEvent.from_dict(event)
-                    log.debug(f'Adding new anomaly from REST {unique_id}')
+                    async with self.update_lock:
+                        # if event is not stored and is active, store it
+                        self.events[unique_id] = AnomalyEvent.from_dict(event)
+                        log.debug(f'Adding new anomaly from REST {unique_id}')
         return removed
 
     async def fetch_graphql_data(self):
@@ -461,19 +463,21 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         log.info(f'Saved {len(self.events)} anomaly events to DB...')
 
     async def anomaly_event_handler(self, evt: auraxium.event):
-        # Check if event is stored already
-        unique_id = f'{evt.world_id}-{evt.instance_id}'
-        if anom := self.events.get(unique_id):
-            anom.update_from_evt(evt)
+        """Validate anomaly events are relevant, and then update an anomaly with an anomaly event"""
+        async with self.update_lock:
+            # Check if event is stored already
+            unique_id = f'{evt.world_id}-{evt.instance_id}'
+            if anom := self.events.get(unique_id):
+                anom.update_from_evt(evt)
 
-            if not anom.is_active:
-                if unique_id in self.events:
-                    self.events.pop(unique_id)
-            self.update_event_embed(anom)
+                if not anom.is_active:
+                    if unique_id in self.events:
+                        self.events.pop(unique_id)
+                self.update_event_embed(anom)
 
-        else:
-            self.events[unique_id] = AnomalyEvent.from_evt(evt)
-            self.update_event_embed(self.events[unique_id])
+            else:
+                self.events[unique_id] = AnomalyEvent.from_evt(evt)
+                self.update_event_embed(self.events[unique_id])
 
     def vehicle_destroy_event_handler(self, evt: auraxium.event):
         """Validate vehicle destroy events are relevant, and then update an anomaly with a vehicle destroy event"""
