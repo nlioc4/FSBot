@@ -55,7 +55,11 @@ class MatchesCog(commands.Cog, name="MatchesCog",
 
         if not (match := BaseMatch.active_match_thread_ids().get(message.channel.id)):
             return
-        image = f"<Image:{[img.url for img in message.attachments]}>" if message.attachments else ""
+
+        image = ''
+        if message.attachments:
+            for img in message.attachments:
+                image += f"[Image]({img.url})"
 
         if p := Player.get(message.author.id):
             match.log(

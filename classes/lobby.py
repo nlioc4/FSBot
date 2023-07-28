@@ -532,13 +532,13 @@ class Lobby:
         """Send an invitation to a player, and invite them to a match if sent"""
         for _ in range(3):
             try:
-                memb = d_obj.guild.get_member(invited.id)
+                memb = invited.member or await invited.get_user()
                 view = views.InviteView(self, owner, invited)
                 name_str = f'{owner.mention}({owner.name})[{owner.skill_level.rank}]'
                 invite_timeout = tools.format_time_from_stamp(tools.timestamp_now() + view.timeout, "R")
                 await disp.DM_INVITED.send(memb, invited.mention, name_str, invite_timeout, view=view)
                 return self.invite(owner, invited)
-            except discord.Forbidden:
+            except (discord.Forbidden, tools.UnexpectedError):
                 return False
 
     def invite(self, owner: Player, invited: Player):

@@ -396,13 +396,15 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
                 unique_id = f"{event['world_id']}-{event['instance_id']}"
                 if anom := self.events.get(unique_id):
                     async with self.update_lock:
-                        # if event is already stored, update it
-                        anom.update_from_dict(event)
-                        if not anom.is_active:  # remove inactive events
-                            log.debug(f'Removing inactive anomaly {anom.unique_id}')
-                            ended.append(anom.unique_id)
-                            if unique_id in self.events:
-                                removed.append(self.events.pop(anom.unique_id))
+                        # Re-check after acquiring lock
+                        if unique_id in self.events:
+                            # if event is already stored, update it
+                            anom.update_from_dict(event)
+                            if not anom.is_active:  # remove inactive events
+                                log.debug(f'Removing inactive anomaly {anom.unique_id}')
+                                ended.append(anom.unique_id)
+                                if unique_id in self.events:
+                                    removed.append(self.events.pop(anom.unique_id))
 
                 elif event['metagame_event_state_name'] == 'ended':
                     # if event is not stored and is ended, add it to ended list to check against started events
@@ -414,9 +416,10 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
                             int(event['timestamp']) + 108000 < tools.timestamp_now():  # if event is older than 30 mins
                         continue
                     async with self.update_lock:
-                        # if event is not stored and is active, store it
-                        self.events[unique_id] = AnomalyEvent.from_dict(event)
-                        log.debug(f'Adding new anomaly from REST {unique_id}')
+                        if unique_id not in self.events:  # re-check after acquiring lock
+                            # if event is not stored and is active, store it
+                            self.events[unique_id] = AnomalyEvent.from_dict(event)
+                            log.debug(f'Adding new anomaly from REST {unique_id}')
         return removed
 
     async def fetch_graphql_data(self):
@@ -475,7 +478,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
                         self.events.pop(unique_id)
                 self.update_event_embed(anom)
 
-            else:
+            elif evt.metagame_event_state_name == 'started':
                 self.events[unique_id] = AnomalyEvent.from_evt(evt)
                 self.update_event_embed(self.events[unique_id])
 

@@ -1013,9 +1013,11 @@ def fsbot_info_embed() -> Embed:
 
     embed.add_field(
         name="Elo",
-        value="A separate ranked lobby with 1v1 Elo Rated matches and a leaderboard is available to those who wish to"
-              " test their skill against other players.  This gamemode is in an alpha state, "
-              "and change should be expected.",
+        value=
+        f"""A separate ranked [lobby]({d_obj.channels['ranked_lobby'].jump_url}) with 1v1 Elo Rated matches and \
+        a [leaderboard]({d_obj.channels['ranked_leaderboard'].jump_url}) is available to those who wish to\
+        test their skill against other players.  This game mode is in an alpha state, \
+        and change should be expected.""",
         inline=False
     )
     return fs_author(embed)
