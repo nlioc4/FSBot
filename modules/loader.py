@@ -6,7 +6,7 @@ from discord import ExtensionAlreadyLoaded, ExtensionNotLoaded
 
 main_cogs = ['cogs.admin', 'cogs.general']
 standard_cogs = ['cogs.contentplug', 'cogs.duel_lobby', 'cogs.matches',
-                 'cogs.register', 'cogs.direct_messages', 'cogs.anomalynotify', 'cogs.private_voice_channels']
+                 'cogs.register', 'cogs.direct_messages', 'cogs.private_voice_channels']
 __is_global_locked = True
 __is_loaded = False
 
