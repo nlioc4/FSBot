@@ -60,10 +60,16 @@ class FSBotView(discord.ui.View):
     async def disable_and_stop(self):
         self.disable_all_items()
         self.stop()
-        try:
-            await self.message.edit(view=self)
-        except discord.NotFound:
-            pass
+        if obj := self.message or self.parent:
+            try:
+                self._message = await obj.edit(view=self)
+            except discord.NotFound:
+                pass
+
+    async def on_timeout(self) -> None:
+        """Disable and stop the view on timeout if disable_on_timeout is True"""
+        if self.disable_on_timeout:
+            await self.disable_and_stop()
 
 
 class InviteView(FSBotView):
@@ -297,9 +303,9 @@ class CustomLobbyTimeoutView(FSBotView):
     Next timeout check: {Player Timeout}
     **Player will not be timed out, currently Online** if online
     [-30 Min][-5 Min][Custom][+5 Min][+30 Min]"""
+
     def __init__(self):
         super().__init__(timeout=60)
-
 
     async def update_timeout(self, inter, timeout_delta, new_stamp=0):
         """
@@ -312,7 +318,7 @@ class CustomLobbyTimeoutView(FSBotView):
             await disp.CANT_USE.edit(inter, view=self, delete_after=5)
             return
 
-        elif await p.lobby.check_player_timeout_status(p): # Cancel if player is online
+        elif await p.lobby.check_player_timeout_status(p):  # Cancel if player is online
             self.stop()
             self.disable_all_items()
             return await disp.LOBBY_TIMEOUT_ONLINE.edit(inter, view=self, delete_after=5)
@@ -324,11 +330,10 @@ class CustomLobbyTimeoutView(FSBotView):
             return await disp.LOBBY_TIMEOUT_INVALID.edit(inter,
                                                          tools.format_time_from_stamp(p.lobby_timeout_stamp, "t"),
                                                          tools.format_time_from_stamp(new_timeout_stamp, "R")
-                                                        )
+                                                         )
 
         await p.lobby.lobby_timeout_set(p, new_timeout_stamp)
         await disp.LOBBY_TIMEOUT_CUSTOM.edit(inter, tools.format_time_from_stamp(new_timeout_stamp, "t"), view=self)
-
 
     @discord.ui.button(label="-30 Minutes", style=discord.ButtonStyle.red)
     async def minus_thirty_button(self, button: discord.ui.Button, inter: discord.Interaction):
@@ -367,8 +372,8 @@ class CustomLobbyTimeoutView(FSBotView):
                 hours, minutes = int(response[0]), int(response[1])
                 timeout_at = tools.timestamp_now() + (hours * 60 * 60) + (minutes * 60)
                 return await self.parent.update_timeout(inter, None, timeout_at)
-        await inter.response.send_modal(CustomTimeoutModal(self))
 
+        await inter.response.send_modal(CustomTimeoutModal(self))
 
     @discord.ui.button(label="+5 Minutes", style=discord.ButtonStyle.green)
     async def plus_five_button(self, button: discord.ui.Button, inter: discord.Interaction):
@@ -377,7 +382,3 @@ class CustomLobbyTimeoutView(FSBotView):
     @discord.ui.button(label="+30 Minutes", style=discord.ButtonStyle.green)
     async def plus_thirty_button(self, button: discord.ui.Button, inter: discord.Interaction):
         await self.update_timeout(inter, 30 * 60)
-
-
-
-
