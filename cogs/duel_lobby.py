@@ -43,7 +43,6 @@ class DuelLobbyCog(commands.Cog, name="DuelLobbyCog"):
         ranked_lobby = await Lobby.create_lobby("ranked", d_obj.channels['ranked_lobby'],
                                                 timeout_minutes=30, match_type=RankedMatch)
 
-
     @commands.user_command(name="Invite To Match")
     async def user_match_invite(self, ctx: discord.ApplicationContext, user: discord.Member):
         # if invited self, cancel

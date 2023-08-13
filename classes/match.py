@@ -141,6 +141,7 @@ class BaseMatch:
 
             else:
                 await self.match.reset_timeout()
+                await self.match.update()
                 await disp.MATCH_TIMEOUT_RESET.send_priv(inter.response, inter.user.mention)
 
         @discord.ui.button(label="Request Account", style=discord.ButtonStyle.blurple)
@@ -194,7 +195,6 @@ class BaseMatch:
         self.end_stamp = None
         self.__end_condition = None
         self.timeout_stamp = None
-        self.timeout_warned = False
         self.was_timeout = False
         self.__status = MatchState.LOGGING_IN
         self.__public_voice = False
@@ -573,35 +573,32 @@ class BaseMatch:
 
     async def reset_timeout(self):
         """Resets the matches current timeout if one is set, deletes old timeout warning"""
-        if self.__timeout_message:
+        if self.timeout_warned:
+            self.log("Match Timeout Reset")
             try:
                 await self.__timeout_message.delete()
             except discord.errors.NotFound:
                 log.error("No timeout warning message found for match %s", self.id_str)
+                self.__timeout_message = None
         if self.timeout_stamp:  # only reset if timeout_stamp is set
             self.timeout_stamp = None
-            if self.timeout_warned:  # only log if warned
-                self.timeout_warned = False
-                self.log("Match Timeout Reset")
-            await self.update()
 
     async def update_timeout(self):
         # check timeout, reset if at least 2 players and online_players
         if self.online_players and len(self.players) >= 2:
-            asyncio.create_task(self.reset_timeout())  # Reset timeout, create task as this coro uses update lock
+            await self.reset_timeout()
+
+        # Check Timeout Conditions
         else:
-            if not self.timeout_stamp:  # set timeout stamp
+            if not self.timeout_stamp:  # If first iteration without players requirements set timeout stamp
                 self.timeout_stamp = tools.timestamp_now()
-                self.timeout_warned = False
             elif self.should_timeout and not self.was_timeout:  # Timeout Match
-                self.was_timeout = True
                 self.log("Match timed out for inactivity...")
                 await disp.MATCH_TIMEOUT.send(self.thread, self.all_mentions)
-                # Use create_task, so that on_update doesn't wait for on_timeout
+                # Use create_task, so that update doesn't wait for timeout
                 asyncio.create_task(self.end_match(end_condition=EndCondition.TIMEOUT))
                 raise asyncio.CancelledError
             elif self.should_warn and not self.timeout_warned:  # Warn of timeout
-                self.timeout_warned = True
                 self.log("Unless the timeout is reset, the match will timeout soon...")
                 self.__timeout_message = await disp.MATCH_TIMEOUT_WARN.send(
                     self.thread, self.all_mentions,
@@ -779,6 +776,11 @@ class BaseMatch:
         if not self.timeout_stamp:
             return False
         return self.timeout_stamp + MATCH_TIMEOUT_TIME
+
+    @property
+    def timeout_warned(self):
+        """Use the existence of a timeout message to determine if a warning has been sent"""
+        return bool(self.__timeout_message)
 
     @property
     def should_warn(self):

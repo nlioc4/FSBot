@@ -111,7 +111,7 @@ class DashboardView(views.FSBotView):
             else:
                 await disp.LOBBY_NO_DM_ALL.send_priv(inter, owner.mention)
 
-            self.lobby.schedule_dashboard_update()
+            self.lobby.update_now()
 
     @discord.ui.button(label="Join Lobby", style=discord.ButtonStyle.green)
     async def join_lobby_button(self, button: discord.Button, inter: discord.Interaction):
@@ -125,7 +125,7 @@ class DashboardView(views.FSBotView):
             self.enable_all_items()
             await disp.LOBBY_JOIN.send_temp(inter, player.mention)
             self.lobby.lobby_join(player)
-            self.lobby.schedule_dashboard_update()
+            self.lobby.update_now()
 
         else:
             await disp.LOBBY_ALREADY_IN.send_priv(inter, player.mention)
@@ -332,7 +332,7 @@ class Lobby:
 
     def schedule_dashboard_update(self):
         """Schedules a dashboard update"""
-        task = d_obj.bot.loop.create_task(self.update_dashboard())
+        d_obj.bot.loop.create_task(self.update_dashboard())
 
     async def check_player_timeout_status(self, player: Player) -> bool:
         """Checks if a player should have timeout_stamp updated based on Player discord Status.
@@ -394,7 +394,7 @@ class Lobby:
     async def _send_lobby_pings(self, player):
         """Gets list of players that could potentially be pinged, checks online status pursuant to preferences.
         Pings passing players, and marks them as pinged."""
-        #TODO This can be refactored to be more efficient, but it's not a priority.
+        # TODO This can be refactored to be more efficient, but it's not a priority.
         # Could use new Player.member to avoid the extra dict mapping
 
         # Collect set of all players requesting these skill levels, if they haven't already been pinged
@@ -444,11 +444,17 @@ class Lobby:
                 await self.update_dashboard()
         except asyncio.CancelledError:
             pass
-        else:
-            # schedule next update if update completes successfully
+        finally:
+            # schedule next update
             d_obj.bot.loop.call_later(0.01, self._schedule_update_task)
 
+    def update_now(self):
+        """Schedule an update to run, without the update_task delay"""
+        self._cancel_update()
+        self.__next_update_task = d_obj.bot.loop.create_task(self.update(), name=f"Lobby [{self.name}] Updater")
+
     async def _update_task(self):
+        """Task that runs the lobby update loop, after a set delay"""
         await asyncio.sleep(self.UPDATE_DELAY)
         await self.update()
 
@@ -506,7 +512,7 @@ class Lobby:
             else:
                 self.lobby_log(f'{player.name} left the lobby.')
                 await disp.LOBBY_LEAVE.send_temp(self.channel, player.mention)
-            self.schedule_dashboard_update()
+            self.update_now()
             return True
         else:
             return False
