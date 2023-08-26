@@ -16,7 +16,7 @@ multidict~=6.0.4
 setuptools==68.0.0
 six~=1.16.0
 cachetools==5.3.1
-certifi==2023.5.7
+certifi==2023.7.22
 urllib3==2.0.3
 aiohttp~=3.8.4
 yarl==1.9.2
