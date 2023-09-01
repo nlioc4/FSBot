@@ -633,6 +633,7 @@ class AdminCog(commands.Cog):
                                                      min_length=5, max_length=5),
                             zone: discord.Option(str, name="timezone",
                                                  description="Defaults to UTC", default="UTC",
+                                                 # TODO Use an autocomplete to find timezone choices
                                                  choices=tools.pytz_discord_options())
                             ):
         """Timeout a player until a specific date/time, useful for long timeouts.  Timezone defaults to UTC."""

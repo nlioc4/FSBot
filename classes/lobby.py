@@ -208,6 +208,10 @@ class Lobby:
         self.__next_update_task: asyncio.Task | None = None
         self.__next_update: Coroutine | None = None
 
+        # Lobby Ping
+        self.__lobby_ping_task: asyncio.Task | None = None
+        self.__ping_for: list[Player] = []
+
         #  Display
         self.dashboard_msg: discord.Message | None = None
         self.dashboard_embed: discord.Embed | None = None
@@ -391,14 +395,34 @@ class Lobby:
             if match.is_ended:
                 self.__matches.remove(match)
 
-    async def _send_lobby_pings(self, player):
+    def _schedule_pings(self, player):
+        """Schedule a Ping task after a player joins a lobby"""
+        self.__ping_for.append(player)
+        if self.__lobby_ping_task and not self.__lobby_ping_task.done():
+            self.__lobby_ping_task.cancel()
+        self.__lobby_ping_task = d_obj.bot.loop.create_task(self._ping_task(), name=f"Lobby [{self.name}] Pinger")
+
+    async def _ping_task(self):
+        """Alert players that a new player has joined the lobby according to skill levels.
+        Send after a delay to ensure player is still in lobby."""
+        log.info(f"Starting Lobby Ping Task for {self.name}")
+        await asyncio.sleep(120)  # Wait two minutes to ensure player(s) still in lobby
+
+        self.__ping_for = [p for p in self.__ping_for if p in self.lobbied]
+        if not self.__ping_for:
+            return
+        await self._send_lobby_pings(*self.__ping_for)
+
+    async def _send_lobby_pings(self, *players):
         """Gets list of players that could potentially be pinged, checks online status pursuant to preferences.
         Pings passing players, and marks them as pinged."""
         # TODO This can be refactored to be more efficient, but it's not a priority.
         # Could use new Player.member to avoid the extra dict mapping
 
         # Collect set of all players requesting these skill levels, if they haven't already been pinged
-        players_to_ping = Player.get_players_to_ping(player.skill_level)
+        players_to_ping = set()
+        for joined in players:
+            players_to_ping.update(Player.get_players_to_ping(joined.skill_level))
         if not players_to_ping:
             return
 
@@ -417,7 +441,7 @@ class Lobby:
         ping_coros = []
         for p_m in player_membs_dict:
             player_membs_dict[p_m].lobby_last_ping = tools.timestamp_now()  # mark players as pinged
-            ping_coros.append(disp.LOBBY_PING.send(p_m, player.mention, self.mention,
+            ping_coros.append(disp.LOBBY_PING.send(p_m, ', '.join([joined.mention for joined in players]), self.mention,
                                                    player_membs_dict[p_m].lobby_ping_freq))
         # Actually send all pings
         sent_pings = await asyncio.gather(*ping_coros, return_exceptions=True)
@@ -527,8 +551,8 @@ class Lobby:
             self.__lobbied_players.append(player)
             self.lobby_log(f'{player.name} joined the lobby.')
 
-            # schedule update_pings call, so that lobby join doesn't have to wait for it to complete
-            asyncio.create_task(self._send_lobby_pings(player))
+            # schedule lobby ping task, to avoid pinging if a player leaves the lobby before the ping is sent
+            self._schedule_pings(player)
 
             return True
         else:
