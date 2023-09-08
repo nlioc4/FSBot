@@ -325,7 +325,7 @@ class BaseMatch:
     async def _clear_voice(self, all_users=False):
         #  gather disconnect coroutines if users not in match, and not admins
         to_disconnect = [memb.move_to(d_obj.channels['general_voice']) for memb in self.voice_channel.members
-                         if all_users or memb.id not in [p.id for p in self.players] or not d_obj.is_admin(memb)]
+                         if all_users or (memb.id not in [p.id for p in self.players] or not d_obj.is_admin(memb))]
         if to_disconnect:
             await asyncio.gather(*to_disconnect)
 

@@ -44,12 +44,13 @@ class PlayerStats:
 
     @classmethod
     async def get_all_from_db(cls):
-        """Update all PlayerStats objects from database, return all PlayerStats objects"""
+        """Update all PlayerStats objects from database if required, return all PlayerStats objects"""
         from . import Player
         stats_from_db = []
         await db.async_db_call(db.get_all_elements, stats_from_db.append, cfg.database['collections']['user_stats'])
         for data in stats_from_db:
-            cls(data['_id'], Player.get(data['_id']).name, data=data)
+            if not cls.get(data['_id']):
+                cls(data['_id'], Player.get(data['_id']).name, data=data)
         return cls.get_all()
 
     @classmethod
@@ -209,10 +210,9 @@ class PlayerStats:
     @property
     def last_five_changes(self):
         """Helper to return list of last five match results w/ match ID.  Tuples of (match_id, elo_delta)"""
-        last_five = dict()
-        for match_id in self.__match_ids[-5:]:
-            last_five[match_id] = self.__elo_history[match_id]
-        return last_five.items()
+        if len(self.__elo_history) == 0:
+            return []
+        return [(match_id, self.__elo_history[match_id]) for match_id in self.__match_ids[-5:]]
 
     @property
     def last_elo_change(self):
