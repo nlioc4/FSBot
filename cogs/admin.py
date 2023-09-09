@@ -41,11 +41,26 @@ class AdminCog(commands.Cog):
         self.online_cache = set()
         self.census_watchtower: asyncio.Task | None = None
 
-    admin = discord.SlashCommandGroup(
-        name='admin',
-        description='Admin Only Commands',
-        guild_ids=[cfg.general['guild_id']]
+    common_kwargs = dict(
+        guild_ids=[cfg.general['guild_id']],
+        default_member_permissions=discord.Permissions(manage_guild=True),
+        guild_only=True,
     )
+
+    admin = discord.SlashCommandGroup(
+        name="admin",
+        description="Admin Commands",
+        **common_kwargs
+    )
+
+    async def cog_check(self, ctx: discord.ApplicationContext):
+        return await d_obj.is_admin_check(ctx)
+
+    async def cog_command_error(self, ctx, exception):
+        if isinstance(exception, discord.CheckFailure):
+            pass
+        else:
+            await self.bot.on_application_command_error(ctx, exception)
 
     @admin.command(name="manual_leaderboard_update")
     async def manual_leaderboard_update(self, ctx: discord.ApplicationContext):
@@ -57,7 +72,7 @@ class AdminCog(commands.Cog):
         else:
             await disp.UNEXPECTED_ERROR.send_priv(ctx)
 
-    @admin.command()
+    @admin.command(name="loader")
     async def loader(self, ctx: discord.ApplicationContext,
                      action: discord.Option(str, "Lock or Unlock FSBot", choices=("Unlock", "Lock"),
                                             required=True)):
@@ -70,7 +85,7 @@ class AdminCog(commands.Cog):
                 loader.lock_all()
                 await disp.LOADER_TOGGLE.send_priv(ctx, action)
 
-    @admin.command()
+    @admin.command(name="contentplug")
     async def contentplug(self, ctx: discord.ApplicationContext,
                           action: discord.Option(str, "Enable, Disable or check status of the #contentplug filter",
                                                  choices=("Enable", "Disable", "Status"),
@@ -84,35 +99,6 @@ class AdminCog(commands.Cog):
             cog.enabled = False
         await d_obj.d_log(f"{action}ed {channel.mention}'s content filter")
         await ctx.respond(f"{action}ed {channel.mention}'s content filter", ephemeral=True)
-
-    @admin.command(name="censusonlinecheck")
-    async def manual_census(self, ctx: discord.ApplicationContext):
-        """Runs a REST census online check, to catch any login/logouts that the websocket may have missed"""
-        ran = await self.census_rest()
-        await disp.MANUAL_CENSUS.send_priv(ctx, "successful." if ran else "failed.")
-
-    @admin.command(name='census')
-    async def census_control(self, ctx: discord.ApplicationContext,
-                             action: discord.Option(str, "Enable, Disable, or check status of the Census Loop",
-                                                    choices=("Enable", "Disable", "Status"),
-                                                    required=False)):
-        """Control the REST Census loop"""
-
-        match action:
-
-            case "Enable" if self.census_rest.is_running():
-                self.census_rest.restart()
-                await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Running", "restarted")
-            case "Enable":
-                self.census_rest.start()
-                await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Stopped", "started")
-            case "Disable" if self.census_rest.is_running():
-                self.census_rest.stop()
-                await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Running", "stopped")
-            case _:
-                await disp.CENSUS_LOOP_STATUS.send_priv(ctx, "Running" if self.census_rest.is_running() else "Stopped")
-                return
-        await d_obj.d_log(f"{ctx.user.mention} {action}d the Census Loop.")
 
     @admin.command(name="rulesinit")
     async def rulesinit(self, ctx: discord.ApplicationContext,
@@ -146,10 +132,47 @@ class AdminCog(commands.Cog):
             await ctx.channel.send(content="", view=register.RegisterView(), embed=embeds.fsbot_info_embed())
         await ctx.respond(content="Register and Settings Message Posted", ephemeral=True)
 
+    census_group = discord.SlashCommandGroup(
+        name='census',
+        description='Census Admin Commands',
+        **common_kwargs
+    )
+
+    @census_group.command(name="censusonlinecheck")
+    async def manual_census(self, ctx: discord.ApplicationContext):
+        """Runs a REST census online check, to catch any login/logouts that the websocket may have missed"""
+        ran = await self.census_rest()
+        await disp.MANUAL_CENSUS.send_priv(ctx, "successful." if ran else "failed.")
+
+    @census_group.command(name='rest')
+    async def census_control(self, ctx: discord.ApplicationContext,
+                             action: discord.Option(str, "Enable, Disable, or check status of the Census Loop",
+                                                    choices=("Enable", "Disable", "Status"),
+                                                    required=False)):
+        """Control the REST Census loop"""
+
+        match action:
+
+            case "Enable" if self.census_rest.is_running():
+                self.census_rest.restart()
+                await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Running", "restarted")
+            case "Enable":
+                self.census_rest.start()
+                await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Stopped", "started")
+            case "Disable" if self.census_rest.is_running():
+                self.census_rest.stop()
+                await disp.CENSUS_LOOP_CHANGED.send_priv(ctx, "Running", "stopped")
+            case _:
+                await disp.CENSUS_LOOP_STATUS.send_priv(ctx, "Running" if self.census_rest.is_running() else "Stopped")
+                return
+        await d_obj.d_log(f"{ctx.user.mention} {action}d the Census Loop.")
+
     ##########################################################
 
-    match_admin = admin.create_subgroup(
-        name="match", description="Admin Match Commands"
+    match_admin = discord.SlashCommandGroup(
+        name="match",
+        description="Admin Match Commands",
+        **common_kwargs
     )
 
     @match_admin.command(name="addplayer")
@@ -237,38 +260,36 @@ class AdminCog(commands.Cog):
         await disp.MATCH_END.send_priv(ctx, match.id_str)
         await match.end_match(EndCondition.EXTERNAL)
 
+    @match_admin.command(name="roundwin")
+    async def match_setroundwinner(self, ctx: discord.ApplicationContext,
+                                   winner: discord.Option(discord.Member, "Member to set as winner", required=True),
+                                   match_id: discord.Option(int, "Match ID to set winner for", required=False)):
+        """Set the winner of the current round for a given match.  Uses current channel if no ID provided"""
+        await ctx.defer(ephemeral=True)
+        match = BaseMatch.get(match_id) or BaseMatch.get_by_thread(ctx.channel_id)
 
+        if not match:
+            return await disp.MATCH_NOT_FOUND.send_priv(ctx, (match_id or ctx.channel.mention))
 
-    # TODO Split admin commands into seperate subgroups. command has become too large.
+        if match.TYPE != 'Ranked':
+            return await disp.MATCH_NOT_RANKED.send_priv(ctx, match.id_str)
 
-    # @match_admin.command(name="roundwin")
-    # async def match_setroundwinner(self, ctx: discord.ApplicationContext,
-    #                                winner: discord.Option(discord.Member, "Member to set as winner", required=True),
-    #                                match_id: discord.Option(int, "Match ID to set winner for", required=False)):
-    #     """Set the winner of the current round for a given match.  Uses current channel if no ID provided"""
-    #     await ctx.defer(ephemeral=True)
-    #     match = BaseMatch.get(match_id) or BaseMatch.get_by_thread(ctx.channel_id)
-    #
-    #     if not match:
-    #         return await disp.MATCH_NOT_FOUND.send_priv(ctx, (match_id or ctx.channel.mention))
-    #
-    #     if match.TYPE != 'Ranked':
-    #         return await disp.MATCH_NOT_RANKED.send_priv(ctx, match.id_str)
-    #
-    #     if not (a_p := match.get_player(winner)):
-    #         return await disp.MATCH_NOT_IN_3.send_priv(ctx, winner.mention, match.id_str)
-    #
-    #     if not match.set_round_winner(a_p):
-    #         return await disp.RM_NO_CURRENT_ROUND.send_priv(ctx)
-    #
-    #     else:
-    #         await match.update()
-    #         await disp.RM_ROUND_WINNER_SET.send_priv(ctx, winner.mention)
+        if not (a_p := match.get_player(winner)):
+            return await disp.MATCH_NOT_IN_3.send_priv(ctx, winner.mention, match.id_str)
+
+        if not match.set_round_winner(a_p):
+            return await disp.RM_NO_CURRENT_ROUND.send_priv(ctx)
+
+        else:
+            await match.update()
+            await disp.RM_ROUND_WINNER_SET.send_priv(ctx, winner.mention)
 
     #########################################################
     # Lobby Admin Commands
-    lobby_admin = admin.create_subgroup(
-        name="lobby", description="Admin Lobby Commands"
+    lobby_admin = discord.SlashCommandGroup(
+        name="lobby",
+        description="Admin Lobby Commands",
+        **common_kwargs
     )
 
     @lobby_admin.command(name="lock")
@@ -342,8 +363,10 @@ class AdminCog(commands.Cog):
 
     #########################################################
     # Accounts Admin Commands
-    accounts_admin = admin.create_subgroup(
-        name="accounts", description="Admin Accounts Commands"
+    accounts_admin = discord.SlashCommandGroup(
+        name="accounts",
+        description="Admin Accounts Commands",
+        **common_kwargs
     )
 
     @accounts_admin.command(name="assign")
@@ -458,7 +481,7 @@ class AdminCog(commands.Cog):
         await d_obj.d_log(info)
         await disp.ANY.send_priv(ctx, info)
 
-    @commands.message_command(name="Assign Account")
+    @commands.message_command(name="Assign Account", **common_kwargs)
     @commands.max_concurrency(number=1, wait=True)
     async def msg_assign_account(self, ctx: discord.ApplicationContext, message: discord.Message):
         """
@@ -503,8 +526,10 @@ class AdminCog(commands.Cog):
 
     ##########################################################
 
-    player_admin = admin.create_subgroup(
-        name="player", description="Admin Player Commands"
+    player_admin = discord.SlashCommandGroup(
+        name="player",
+        description="Admin Player Commands",
+        **common_kwargs
     )
 
     @player_admin.command(name='info')
@@ -514,6 +539,19 @@ class AdminCog(commands.Cog):
         p = Player.get(member.id)
         if not p:
             await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
+            return
+
+        await disp.REG_INFO.send_priv(ctx, player=p)
+
+    @commands.user_command(name="Player Info", **common_kwargs)
+    async def user_player_info(self, ctx: discord.ApplicationContext, user: discord.User):
+        """
+            Get Player Info via User Interaction
+        """
+        await ctx.defer(ephemeral=True)
+        p = Player.get(user.id)
+        if not p:
+            await disp.NOT_PLAYER_2.send_priv(ctx, user.mention)
             return
 
         await disp.REG_INFO.send_priv(ctx, player=p)
@@ -572,7 +610,8 @@ class AdminCog(commands.Cog):
             await disp.ADMIN_PLAYER_LOGIN_SET.send_priv(ctx, p.mention, character)
         # If no character, set player as offline
         elif p.online_name and not character:
-            await census.logout(p.char_id_by_name(p.online_name), accounts.account_char_ids, Player.map_chars_to_players())
+            await census.logout(p.char_id_by_name(p.online_name), accounts.account_char_ids,
+                                Player.map_chars_to_players())
             await disp.ADMIN_PLAYER_LOGOUT_SET.send_priv(ctx, p.mention)
         # If character not found, send error
         elif character:
@@ -581,8 +620,10 @@ class AdminCog(commands.Cog):
         else:
             await disp.ADMIN_PLAYER_LOGOUT_ALREADY.send_priv(ctx, p.mention)
 
-    register_admin = admin.create_subgroup(
-        name="register", description="Admin Registration Commands"
+    register_admin = discord.SlashCommandGroup(
+        name="register",
+        description="Admin Registration Commands",
+        **common_kwargs
     )
 
     @register_admin.command(name="noaccount")
@@ -608,8 +649,10 @@ class AdminCog(commands.Cog):
 
     ###############################################################
 
-    timeout_admin = admin.create_subgroup(
-        name="timeout", description="Admin Timeout Commands"
+    timeout_admin = discord.SlashCommandGroup(
+        name="timeout",
+        description="Admin Timeout Commands",
+        **common_kwargs
     )
 
     @timeout_admin.command(name='check')

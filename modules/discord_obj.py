@@ -71,6 +71,14 @@ def is_admin(user: discord.Member | discord.User) -> bool:
         return False
 
 
+async def is_admin_check(ctx) -> bool:
+    """Check for commands if user is admin, sends message to user if not"""
+    if not is_admin(ctx.user):
+        await disp.CANT_USE.send_priv(ctx)
+        return False
+    return True
+
+
 def is_player(user: discord.Member | discord.User) -> classes.Player | bool:
     """Simple check if a user is a player, returns Player if passed"""
     if p := classes.Player.get(user.id):
