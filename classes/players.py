@@ -358,22 +358,20 @@ class Player:
         return self.__timeout['mod_id']
 
     async def set_timeout(self, timeout_until, timeout_msg_id=0, reason='', mod_id=0):
-        """Should be rewritten to just always send values instead of conditionally updating values."""
-        if timeout_until == 0:
+        """Set a timeout for the player, with optional timeout_msg_id, reason, and mod_id
+        If timeout_until is 0, remove the timeout.
+        If timeout is already set, only update the timeout_until value.
+        :param timeout_until: timestamp of when the timeout ends
+        :param timeout_msg_id: id of the timeout message
+        :param reason: reason for the timeout
+        :param mod_id: id of the moderator who issued the timeout
+        """
+
+        timeout_dict = {'stamp': timeout_until, 'msg_id': timeout_msg_id, 'reason': reason, 'mod_id': mod_id}
+        if self.is_timeout and timeout_until != 0:
             self.__timeout['stamp'] = timeout_until
-            self.__timeout['msg_id'] = 0
-            self.__timeout['reason'] = ''
-            self.__timeout['mod_id'] = 0
-        elif self.is_timeout:
-            self.__timeout['stamp'] = timeout_until
-            self.__timeout['mod_id'] = mod_id
-            if reason:
-                self.__timeout['reason'] = reason
         else:
-            self.__timeout['stamp'] = timeout_until
-            self.__timeout['msg_id'] = timeout_msg_id
-            self.__timeout['reason'] = reason
-            self.__timeout['mod_id'] = mod_id
+            self.__timeout.update(timeout_dict)
         await self.db_update('timeout')
 
     @property
