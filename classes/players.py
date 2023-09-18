@@ -272,10 +272,12 @@ class Player:
     def name(self):
         return self.__name
 
-    def rename(self, name):
+    async def rename(self, name):
+        """Update a players name if it matches the name regex, and update the database"""
         if not re.match(cfg.name_regex, name):
             return False
         self.__name = name
+        await self.db_update('name')
         return True
 
     @property

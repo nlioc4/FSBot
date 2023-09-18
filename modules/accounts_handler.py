@@ -238,6 +238,12 @@ class ValidateView(views.FSBotView):
         await terminate(acc=self.acc, view=self)
 
     async def on_timeout(self) -> None:
+        if self.acc.online_id:
+            # Account is Online During timeout? Validate and continue
+            await validate_account(acc=self.acc)
+            await disp.ACCOUNT_VALIDATE_AUTO.send(d_obj.channels['logs'], self.acc.id, self.acc.a_player.name)
+            return
+
         if not self.acc.is_validated:
             log.info(f"Validate View Timed out for Acc: {self.acc.id}, Player: {self.acc.a_player.name}")
             self.disable_all_items()
@@ -296,7 +302,9 @@ async def send_account(acc: classes.Account = None, player: classes.Player = Non
 
 
 async def validate_account(acc: classes.Account = None, player: classes.Player = None) -> bool:
-    """Player accepted account, track usage and update object.  Returns True if validated, usage logged"""
+    """Player accepted account, track usage and update object.
+    Updates account View and Message
+    Returns True if validated, usage logged"""
     if not acc:
         acc = player.account
     if not player:

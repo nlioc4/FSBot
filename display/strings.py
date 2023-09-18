@@ -242,6 +242,7 @@ class AllStrings(Enum):
                              "  Please try again, and if the issue persists please ask for help!"
     ACCOUNT_VALIDATE_ALREADY = "This account has already been validated!"
     ACCOUNT_VALIDATE_SUCCESS = "Account ID: {} has been validated successfully for Player: {}!"
+    ACCOUNT_VALIDATE_AUTO = "Account ID: {} is online and has been validated automatically for Player: {}!"
 
     TIMEOUT_UNTIL = "{}({}) is timed out, their timeout will expire {}, at {}."
     TIMEOUT_NOT = "{}({}) is not timed out."

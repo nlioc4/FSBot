@@ -565,7 +565,7 @@ class AdminCog(commands.Cog):
         if not p:
             await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
             return
-        if p.rename(name):
+        if await p.rename(name):
             await disp.REGISTER_RENAME.send_priv(ctx, member.mention, name)
             return
         await disp.REGISTER_INVALID_NAME.send_priv(ctx, name)
@@ -605,7 +605,8 @@ class AdminCog(commands.Cog):
         character = found_chars[0] if found_chars else character
 
         # If character is valid, set it as online
-        if character and (char_id := p.char_id_by_name(character)):
+        if character and (char_id := p.
+                char_id_by_name(character)):
             await census.login(char_id, accounts.account_char_ids, Player.map_chars_to_players())
             await disp.ADMIN_PLAYER_LOGIN_SET.send_priv(ctx, p.mention, character)
         # If no character, set player as offline
