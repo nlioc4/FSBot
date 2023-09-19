@@ -106,9 +106,9 @@ async def init(service_account_path: str, test=False):
         await asyncio.sleep(30)
         char_id_map = await census.get_ids_facs_from_chars(all_chars)
         if not char_id_map:
-            await d_obj.d_log(message=f'{d_obj.roles["app_admin"].mention}\n'
-                                      f'Failed to retrieve character information from Census API.  '
-                                      f'Characters have not been checked, please run account init when possible!.')
+            await d_obj.d_log(message=f'Failed to retrieve character information from Census API.  '
+                                      f'Characters have not been checked, please run account init when possible!.',
+                              ping=d_obj.roles["app_admin"])
             return
 
     # List comprehension, for all acc_id, for all char_names per acc_id
@@ -122,8 +122,8 @@ async def init(service_account_path: str, test=False):
     for acc_id, char_id in [(acc_id, char_id) for acc_id in all_accounts
                             for char_id in all_accounts[acc_id].ig_ids]:
         if char_id == 0 and acc_id not in to_drop:
-            await d_obj.d_log(message=f'{d_obj.roles["app_admin"].mention}\n'
-                                      f'Account ID: {acc_id} has a missing character! Dropping account object...')
+            await d_obj.d_log(message=f'Account ID: {acc_id} has a missing character! Dropping account object...',
+                              ping=d_obj.roles["app_admin"])
             to_drop.append(acc_id)
 
         if char_id != 0:

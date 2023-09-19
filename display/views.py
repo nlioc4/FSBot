@@ -7,7 +7,7 @@ import sys
 import traceback
 from logging import getLogger
 
-# Interal Imports
+# Internal Imports
 import modules.discord_obj as d_obj
 from modules.spam_detector import is_spam, unlock
 import modules.tools as tools
@@ -27,8 +27,7 @@ class FSBotView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if is_all_locked():
-            memb = d_obj.guild.get_member(interaction.user.id)
-            if d_obj.is_admin(memb):
+            if d_obj.is_admin(interaction.user):
                 return True
             else:
                 await disp.ALL_LOCKED.send_priv(interaction)
@@ -237,6 +236,11 @@ class RegisterPingsView(FSBotView):
 class RemoveTimeoutView(FSBotView):
     def __init__(self):
         super().__init__()
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if await is_spam(interaction, view=True):
+            return False
+        return True
 
     @discord.ui.button(label="Free Me!", custom_id="free_me", style=discord.ButtonStyle.green)
     async def free_me_button(self, button: discord.ui.Button, inter: discord.Interaction):

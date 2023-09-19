@@ -114,20 +114,28 @@ async def registered_check(ctx, user: discord.Member | discord.User | classes.Pl
     return False
 
 
-async def d_log(message: str = '', source: str = '', error=None) -> bool:
-    """Utility function to send logs to #logs channel and fsbot Log"""
+async def d_log(message: str = '', source: str = '', error=None, ping=None) -> bool | discord.Message:
+    """Utility function to send logs to #logs channel and fsbot Log
+    Ping must be mentionable object, or None"""
+    if not message:
+        log.error("No message passed to d_log")
+        return False
 
-    #  TODO send log messages through embeds instead of regular messages to avoid pings
-    #  TODO develop method to convert mentions to text without sending message
+    # Create converted message with replaced mentions.  Convert ID's to names
+    clean_message = tools.convert_mentions(bot, message)
+
     try:
         if error:
-            msg = await disp.LOG_ERROR.send(channels['logs'], source, message, error,
+            msg = await disp.LOG_EMBED.send(channels['logs'], source=tools.convert_mentions(bot, source),
+                                            message=message,
+                                            error=error,
                                             ping=roles['app_admin'])
-            log.error(msg.clean_content[7:], exc_info=error)
+            log.error(f"Source: {source} {clean_message}", exc_info=error)
             return msg
 
-        msg = await disp.LOG_GENERAL.send(channels['logs'], message)
-        log.info(msg.clean_content[5:])
+        msg = await disp.LOG_MESSAGE.send(channels['logs'], f"{f'(From {source}): ' if source else ''} {message}",
+                                          ping=ping, allowed_mentions=False)
+        log.info(clean_message)
         return msg
     except (discord.HTTPException, discord.Forbidden) as error_2:
         log.error("Could not send message to logs channel", exc_info=error_2)

@@ -4,6 +4,7 @@ from datetime import datetime as dt
 from typing import Literal
 from enum import Enum
 import aiohttp
+import re
 
 import discord
 
@@ -159,3 +160,61 @@ async def download_image(url: str):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             return await resp.read()
+
+
+def convert_mentions(bot: discord.Bot, message: str) -> str:
+    """Use REGEX to find different types of mentions, and search for the corresponding object to convert the mention
+    to a human-readable string.  Returns the message with the mentions converted.
+    Will only pull mentions from the bot's cache, so if the bot is not in the server, it will not be able to convert"""
+
+    user_mentions = re.findall(r'<@!?(\d+)>', message)
+    role_mentions = re.findall(r'<@&(\d+)>', message)
+    channel_mentions = re.findall(r'<#(\d+)>', message)
+    date_stamps = re.findall(r'<t:(\d+):?([TtDdFfR])?>', message)
+    for user_id in user_mentions:
+
+        user = bot.get_user(int(user_id))
+        if user:
+            message = re.sub(rf'<@!?{user_id}>', f'@{user.name}', message)
+        else:
+            message = re.sub(rf'<@!?{user_id}>', f'@{user_id}', message)
+
+    for role_id in role_mentions:
+        for guild in bot.guilds:
+            if role := guild.get_role(int(role_id)):
+                message = message.replace(f'<@&{role_id}>', f'@{role.name}')
+                break
+        else:
+            message = message.replace(f'<@&{role_id}>', f'@{role_id}')
+
+    for channel_id in channel_mentions:
+        channel = bot.get_channel(int(channel_id))
+        if channel:
+            message = message.replace(f'<#{channel_id}>', f'#{channel.name}')
+        else:
+            message = message.replace(f'<#{channel_id}>', f'#{channel_id}')
+
+    for date_stamp, frmt in date_stamps:
+        match frmt:
+            case 't':
+                format_str = '%H:%M'
+            case 'T':
+                format_str = '%H:%M:%S'
+            case 'd':
+                format_str = '%Y-%m-%d'
+            case 'D':
+                format_str = '%d %B %Y'
+            case 'f':
+                format_str = '%Y-%m-%d %H:%M'
+            case 'F':
+                format_str = '%A, %d %B %Y %H:%M'
+            case 'R':
+                format_str = 'R%Y-%m-%d %H:%M:%S'
+            case _:
+                format_str = '%Y-%m-%d %H:%M:%S'
+                frmt = 'R'
+        string_time = dt.fromtimestamp(int(date_stamp)).strftime(format_str)
+        # fix to catch group properly use re.replace
+        message = re.sub(rf'<t:{date_stamp}:?{frmt}?>', string_time, message)
+
+    return message

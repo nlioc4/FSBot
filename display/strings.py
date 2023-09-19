@@ -42,7 +42,7 @@ class AllStrings(Enum):
     CANCELLED = "Cancelled: {}"
     STOP_SPAM = "{}: Please stop spamming!"
     ALL_LOCKED = "FSBot is currently disabled, please try again later!"
-    DISABLED_PLAYER = "You are not currently allowed to use FSBot!"
+    DISABLED_PLAYER = "You are not currently allowed to use FSBot!  Check your DM's for more info!"
     AS = "As {}: {}"
     SERVER_JOIN = "Welcome {}!", fs_join_embed
     GUILD_ONLY = "This can only be used in the Flight School Discord!"
@@ -71,8 +71,8 @@ class AllStrings(Enum):
     SUGGESTION_ACCEPTED = "{} your suggestion has been submitted to the administration team. Thanks!"
 
     LOG_ACCOUNT = "Account [{}] sent to player: ID: [{}], mention: [{}], name: [{}]"
-    LOG_ERROR = "Error: Source {} Error: {} {}."
-    LOG_GENERAL = "Log: {}"
+    LOG_EMBED = None, fsbot_error
+    LOG_MESSAGE = "FSBot Log: {}"
     LOG_GENERAL_ERROR = "An error has occurred, {}"
 
     DM_ONLY = "This command can only be used in DM's!   "
@@ -307,7 +307,9 @@ class AllStrings(Enum):
             args_dict['content'] = self.__string.format(*args)
         if kwargs.get('clear_content'):
             args_dict['content'] = None
-        elif ping := kwargs.get('ping'):  # elif so clear_content and ping are mutually exclusive
+        if ping := kwargs.get('ping'):
+            if not args_dict.get('content'):  # Ensure Content is set to empty string if no content
+                args_dict['content'] = ''
             try:
                 if type(ping) in [list, tuple]:
                     args_dict['content'] = ''.join([pingable.mention for pingable in ping]) + args_dict['content']

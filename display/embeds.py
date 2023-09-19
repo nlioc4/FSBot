@@ -28,6 +28,19 @@ def fs_author(embed: Embed) -> Embed:
     return embed
 
 
+def fsbot_error(message: str, source: str = None, error=None) -> Embed:
+    embed = Embed(
+        title=f"{'❌' if error else ''}FSBot {'Error' if error else 'Log'}{f' from {source}' if source else ''}",
+        description=message,
+        colour=Colour.red() if error else Colour.blue(),
+        timestamp=dt.now()
+    )
+    if error:
+        embed.add_field(name="Error", value=error, inline=False)
+
+    return fs_author(embed)
+
+
 def account(acc) -> Embed:
     """Jaeger Account Embed
     """
@@ -272,6 +285,7 @@ def player_info(player) -> Embed:
     if player.lobby:
         embed.add_field(name="Player Lobby",
                         value=f"Current Lobby: {player.lobby.channel.mention}\n"
+                              f"Lobby Joined: {format_stamp(player.lobbied_stamp)}\n"
                               f"Lobby Timeout: {format_stamp(player.lobby_timeout_stamp)}")
     if player.match:
         embed.add_field(name="Player Match",
