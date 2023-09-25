@@ -341,8 +341,7 @@ class Lobby:
     async def check_player_timeout_status(self, player: Player) -> bool:
         """Checks if a player should have timeout_stamp updated based on Player discord Status.
         Updates players timestamp if necessary, returns whether timestamp was updated"""
-        player_memb = d_obj.guild.get_member(player.id)
-        if player_memb.status in [discord.Status.online, discord.Status.do_not_disturb, discord.Status.streaming]:
+        if player.discord_active:
             await self.lobby_timeout_set(player)
             return True
         return False

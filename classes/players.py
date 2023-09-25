@@ -13,6 +13,7 @@ from logging import getLogger
 import re
 from enum import Enum
 from datetime import datetime
+from discord import Status
 
 log = getLogger("fs_bot")
 
@@ -293,6 +294,11 @@ class Player:
         """Returns the players discord guild member object."""
         from modules import discord_obj
         return discord_obj.guild.get_member(self.id)
+
+    @property
+    def discord_active(self) -> bool:
+        """Return whether the player is active on Discord.  Returns false if member object not found."""
+        return self.member.status in (Status.online, Status.streaming, Status.do_not_disturb) if self.member else False
 
     async def get_user(self):
         """Returns the players discord user object."""
