@@ -106,21 +106,12 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
         get_player_matches = await db.async_db_call(db.find_elements,
                                                     "matches",
                                                     {
-                                                        "$and": [
-                                                            {
-                                                                "$or": [
-                                                                    {"current_players": player.id},
-                                                                    {"previous_players": player.id}
-                                                                ]
-                                                            },
-                                                            {
-                                                                "end_condition": {"$ne": EndCondition.FORFEIT.name}
-                                                            },
-                                                            {
-                                                                "end_condition": {"$ne": EndCondition.TIMEOUT.name}
-                                                            }
+                                                        "$or": [
+                                                            {"current_players": player.id},
+                                                            {"previous_players": player.id}
                                                         ]
-                                                    })
+                                                    }
+                                                    )
         player_matches = list(get_player_matches)
         player_match_count = len(player_matches)
 

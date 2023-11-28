@@ -152,7 +152,7 @@ class BaseMatch:
             if not await d_obj.registered_check(inter, p) or not await self.in_match_check(inter, p):
                 return
             elif p.has_own_account:
-                await disp.ACCOUNT_HAS_OWN.send_priv(inter)
+                await disp.ACCOUNT_HAS_OWN.send_priv(inter, d_obj.channels['register'].mention)
                 return
             elif p.account and p.account.is_terminated:
                 await accounts.clean_account(acc=p.account)
