@@ -102,66 +102,79 @@ class GeneralCog(commands.Cog, name="GeneralCog"):
 
         await ctx.defer(ephemeral=True)
 
-        # This could become rather expensive over time...
-        get_player_matches = await db.async_db_call(db.find_elements,
-                                                    "matches",
-                                                    {
-                                                        "$or": [
-                                                            {"current_players": player.id},
-                                                            {"previous_players": player.id}
-                                                        ]
-                                                    }
-                                                    )
-        player_matches = list(get_player_matches)
-        player_match_count = len(player_matches)
+        # Use an aggregation pipeline to find all matches where the player is a current or previous player
+        player_match_aggregate = await db.async_db_call(db.aggregate,
+                                                        "matches",
+                                                        [
+                                                            {"$match":
+                                                                {"$or":
+                                                                    [
+                                                                        {"current_players": player.id},
+                                                                        {"previous_players": player.id}
+                                                                    ]
+                                                                }
+                                                            },
+                                                            {"$group": {
+                                                                "_id": None,
+                                                                "totalDuration": {"$sum":
+                                                                                      {"$subtract": ["$end_stamp",
+                                                                                                     "$start_stamp"]}},
+                                                                "totalMatches": {"$sum": 1},
 
-        if player_match_count == 0:
-            return await disp.STAT_NO_MATCHES.send_priv(ctx, user.mention)
+                                                            }},
+                                                            {"$project": {
+                                                                "_id": 0,
+                                                                "totalDuration": 1,
+                                                                "totalMatches": 1,
+                                                            }}
+                                                        ])
 
-        # Sum match time and count times partners appear across all matches
-        total_duel_sec = 0
-        partners = {}
+        # Use an aggregation pipeline to find the top 3 players the player dueled, and time dueled against
+        player_match_partners_aggregate = \
+            await db.async_db_call(db.aggregate,
+                                   "matches",
+                                   [
+                                       {"$project": {
+                                           "players": {"$setUnion": ["$current_players", "$previous_players"]},
+                                           "matchDuration": {"$subtract": ["$end_stamp", "$start_stamp"]}
+                                       }},
+                                       {"$match":
+                                            {"players": player.id}},
+                                       {"$unwind": "$players"},
+                                       {"$match": {"players": {"$ne": player.id}}},
+                                       {"$group": {"_id": "$players",
+                                                   "count": {"$sum": 1},
+                                                   "totalDuration": {"$sum": "$matchDuration"}}
+                                        },
+                                       {"$project": {"_id": 0, "player_id": "$_id", "count": 1, "totalDuration": 1}},
+                                       {"$sort": {"count": -1}},
+                                       {"$limit": 3}
+                                   ]
+                                   )
+        # Convert the aggregate cursor to a list
+        match_info = list(player_match_aggregate)
+        partner_info = list(player_match_partners_aggregate)
 
-        for match in player_matches:
-            total_duel_sec += match["end_stamp"] - match["start_stamp"]
+        # If the player has no matches, return a message saying so
+        if not match_info:
+            return await disp.STAT_NO_MATCHES.send_priv(ctx, player.mention)
 
-            for player_id in match["current_players"]:
-                if player_id == player.id:
-                    continue
-                if player_id in partners:
-                    partners[player_id] += 1
-                else:
-                    partners[player_id] = 1
+        # If the player has matches, retrieve the data from the aggregate
+        player_match_count = match_info[0]['totalMatches']
+        total_duel_sec = match_info[0]['totalDuration']
 
-            for player_id in match["previous_players"]:
-                if player_id == player.id:
-                    continue
-                if player_id in partners:
-                    partners[player_id] += 1
-                else:
-                    partners[player_id] = 1
+        # Create a list of the top 3 players the player has dueled against
+        duel_partners_list = []
+        for partner in partner_info:
+            if (partner_p := Player.get(partner['player_id'])) is None:
+                duel_partners_list.append((f"PID:{partner['player_id']}", partner['count'], partner['totalDuration']))
+            else:
+                duel_partners_list.append((partner_p.mention, partner['count'], partner['totalDuration']))
 
-        #  Count up top 3 duel partners
-        highest_partner = None
         duel_partners = ""
-
-        for i in range(3):
-            if len(partners) == 0:
-                break
-
-            # Find the partner with which we've had the most matches
-            for partner_id, match_count in partners.items():
-                if highest_partner is None or highest_partner[1] < match_count:
-                    highest_partner = (partner_id, match_count)
-
-            # Check if we selected a new highest partner
-            if highest_partner is None or highest_partner[0] not in partners:
-                continue
-
-            # We've found a new highest partner. Add them and move on
-            duel_partners += disp.STAT_PARTNER_MATCH_COUNT.value.format(highest_partner[0], highest_partner[1])
-            duel_partners += "\n"
-            partners.pop(highest_partner[0])
+        for p, c, d in duel_partners_list:
+            hours_time = f"**{(d // 3600):.1f}** hour{'s' if d // 3600 != 1 else ''}"
+            duel_partners += f"{p}|**{c}** match{'es' if c != 1 else ''} in {hours_time}\n"
 
         return await disp.STAT_RESPONSE.send_priv(
             ctx,

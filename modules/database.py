@@ -212,7 +212,7 @@ def find_elements(collection: str, query: dict, projection=None):
     return _collections[collection].find(query)
 
 
-def aggregate_fields(collection: str, query: list):
+def aggregate(collection: str, query: list):
     """
     Aggregate a collection via query list, using keywords for $match, $group, $project dicts etc
     """
