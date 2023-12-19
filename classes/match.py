@@ -323,9 +323,19 @@ class BaseMatch:
         return self.__public_voice
 
     async def _clear_voice(self, all_users=False):
-        #  gather disconnect coroutines if users not in match, and not admins
-        to_disconnect = [memb.move_to(d_obj.channels['general_voice']) for memb in self.voice_channel.members
-                         if all_users or (memb.id not in [p.id for p in self.players] or not d_obj.is_admin(memb))]
+        """Clean participants in the voice channel.  By default, removes only players not in match and not admin,
+        but the all_users param can be set to True to remove all users.
+        Moves disconnected users to the general voice channel
+        """
+
+        if all_users:
+            to_disconnect = [memb.move_to(d_obj.channels['general_voice']) for memb in self.voice_channel.members]
+        else:
+            p_ids = self.players_ids
+            to_disconnect = [memb.move_to(d_obj.channels['general_voice'])
+                             for memb in self.voice_channel.members
+                             if not ((memb.id in p_ids) or d_obj.is_admin(memb))]
+
         if to_disconnect:
             await asyncio.gather(*to_disconnect)
 
@@ -404,12 +414,11 @@ class BaseMatch:
 
         #  After-leave active Match conditions
         if not self.is_ended:
-            await asyncio.gather(
-                self.update(),
-                self._channel_update(player, None),
-                self._clear_voice(),
-                disp.MATCH_LEAVE.send(self.thread, player.mention, allowed_mentions=False),
-            )
+            corus = [self._channel_update(player, False),
+                     disp.MATCH_LEAVE.send(self.thread, player.mention, allowed_mentions=False)]
+            if not self.public_voice:
+                corus.append(self._clear_voice())
+            await asyncio.gather(*corus)
 
     async def change_owner(self, player: None | ActivePlayer = None):
         """Set a new owner if player provided, otherwise pick a new owner from players.
@@ -718,6 +727,10 @@ class BaseMatch:
     @property
     def players(self):
         return self.__players
+
+    @property
+    def players_ids(self):
+        return [p.id for p in self.__players]
 
     @property
     def prev_players(self):
