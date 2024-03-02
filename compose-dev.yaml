@@ -1,0 +1,26 @@
+# Comments are provided throughout this file to help you get started.
+# If you need more help, visit the Docker compose reference guide at
+# https://docs.docker.com/go/compose-spec-reference/
+
+services:
+  fsbot:
+    container_name: fsbot-dev
+    build:
+      context: .
+    secrets:
+      - source: config
+        target: /app/config.ini
+      - source: config_test
+        target: /app/config_test.ini
+      - source: google_service_account
+        target: /app/service_account.json
+    command: python3 main.py --loglevel=DEBUG --test=TRUE
+
+
+secrets:
+  config:
+    file: config.ini
+  config_test:
+    file: config_test.ini
+  google_service_account:
+    file: service_account.json
