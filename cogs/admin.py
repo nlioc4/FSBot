@@ -72,6 +72,21 @@ class AdminCog(commands.Cog):
         else:
             await disp.UNEXPECTED_ERROR.send_priv(ctx)
 
+    @admin.command(name="spamfilter")
+    async def spam_filter_control(self, ctx: discord.ApplicationContext,
+                                  action: discord.Option(str, "Enable or Disable the Spam Filter",
+                                                         choices=("Enable", "Disable"), required=True)):
+        """Enable or Disable the Spam Filter"""
+        spam = self.bot.cogs.get('SpamCheckCog')
+        if not spam:
+            return await disp.UNEXPECTED_ERROR.send_priv(ctx)
+        if action == "Enable":
+            spam.enabled = True
+            await disp.SPAM_LINK_DETECTOR.send_priv(ctx, "enabled")
+        else:
+            spam.enabled = False
+            await disp.SPAM_LINK_DETECTOR.send_priv(ctx, "disabled")
+
     @admin.command(name="loader")
     async def loader(self, ctx: discord.ApplicationContext,
                      action: discord.Option(str, "Lock or Unlock FSBot", choices=("Unlock", "Lock"),
