@@ -4,9 +4,11 @@
 
 services:
   fsbot:
+    build: .
     container_name: fsbot-dev
-    build:
-      context: .
+    image: colinvdp/fsbot
+    volumes:
+      - ./FSBotData/Logs:/FSBotData/Logs/
     secrets:
       - source: config
         target: /app/config.ini
@@ -14,7 +16,7 @@ services:
         target: /app/config_test.ini
       - source: google_service_account
         target: /app/service_account.json
-    command: python3 main.py --loglevel=DEBUG --test=TRUE
+    command: --loglevel=DEBUG --test=TRUE
 
 
 secrets:

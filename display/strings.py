@@ -47,6 +47,9 @@ class AllStrings(Enum):
     SERVER_JOIN = "Welcome {}!", fs_join_embed
     GUILD_ONLY = "This can only be used in the Flight School Discord!"
     CONTENT_ONLY = 'Oops {}, messages in this channel must contain either an attachment or a link!'
+    SPAM_LINK_DETECTOR = "Spam link Detector has been {}!"
+    SPAM_LINK_KICK = "Kicked user {}({}) for posting a spam link."
+    SPAM_LINK_KICKED = "You have been kicked for posting a suspected spam link!"
 
     LEADERBOARD_UPDATED = "Leaderboard in {} was updated!"
 
