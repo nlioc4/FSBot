@@ -305,12 +305,12 @@ async def validate_account(acc: classes.Account = None, player: classes.Player =
     """Player accepted account, track usage and update object.
     Updates account View and Message
     Returns True if validated, usage logged"""
+    if not acc and not player:
+        raise ValueError("No args provided")
     if not acc:
         acc = player.account
     if not player:
         player = acc.a_player
-    if not acc and not player:
-        raise ValueError("No args provided")
 
     # Check if already validated
     if acc.is_validated or acc.is_terminated:  # Accounts should never be terminated here, but just in case?

@@ -28,7 +28,7 @@ def fs_author(embed: Embed) -> Embed:
     return embed
 
 
-def fsbot_error(message: str, source: str = None, error=None) -> Embed:
+def fsbot_error(message: str, source: str = None, error=None, trace=None) -> Embed:
     embed = Embed(
         title=f"{'❌' if error else ''}FSBot {'Error' if error else 'Log'}{f' from {source}' if source else ''}",
         description=message,
@@ -37,6 +37,8 @@ def fsbot_error(message: str, source: str = None, error=None) -> Embed:
     )
     if error:
         embed.add_field(name="Error", value=error, inline=False)
+    if trace:
+        embed.add_field(name="Traceback", value=f"```{trace}```", inline=False)
 
     return fs_author(embed)
 

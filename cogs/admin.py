@@ -406,6 +406,7 @@ class AdminCog(commands.Cog):
             acc = accounts.all_accounts[acc_id]
             if acc.a_player:
                 return await disp.ACCOUNT_IN_USE.send_priv(ctx, acc.id)
+            accounts.set_account(p, acc)
 
         if not acc:
             return await disp.ACCOUNT_NO_ACCOUNT.send_priv(ctx)

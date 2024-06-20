@@ -7,6 +7,7 @@ from typing import Union
 from logging import getLogger
 import sys
 import aiohttp
+import traceback
 
 import asyncio
 import discord
@@ -126,10 +127,12 @@ async def d_log(message: str = '', source: str = '', error=None, ping=None) -> b
 
     try:
         if error:
+            tb = traceback.format_exception(etype=type(error), value=error, tb=error.__traceback__)
             msg = await disp.LOG_EMBED.send(channels['logs'], source=tools.convert_mentions(bot, source),
                                             message=message,
                                             error=error,
-                                            ping=roles['app_admin'])
+                                            trace=tb,
+                                            ping=ping or colin)
             log.error(f"Source: {source} {clean_message}", exc_info=error)
             return msg
 

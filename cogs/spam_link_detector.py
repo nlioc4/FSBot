@@ -54,5 +54,5 @@ class SpamCheckCog(commands.Cog, name="SpamCheckCog"):
                     d_obj.colin.mention)
 
 
-def setup(bot):
+def setup(bot): 
     bot.add_cog(SpamCheckCog())
