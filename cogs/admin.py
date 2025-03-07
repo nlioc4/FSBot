@@ -43,8 +43,7 @@ class AdminCog(commands.Cog):
 
     common_kwargs = dict(
         guild_ids=[cfg.general['guild_id']],
-        default_member_permissions=discord.Permissions(manage_guild=True),
-        guild_only=True,
+        default_member_permissions=discord.Permissions(manage_guild=True)
     )
 
     admin = discord.SlashCommandGroup(

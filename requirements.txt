@@ -5,7 +5,7 @@ asyncio~=3.4.3
 auraxium>=0.3.0
 pymongo[tls,srv]==4.4.1
 dnspython==2.4.0
-py-cord>=2.4.1
+py-cord>=2.6.1
 idna~=3.4
 attrs==23.1.0
 wheel==0.40.0
