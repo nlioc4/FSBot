@@ -600,7 +600,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
         if event and not event.is_active:
             # Update the all-time top ten
             for char_disp, kills in event.top_ten.items():
-                if self.top_ten_all_time_data and kills > min(self.top_ten_all_time_data.values()) \
+                if (self.top_ten_all_time_data and kills > min(self.top_ten_all_time_data.values())) \
                         or len(self.top_ten_all_time_data) < 50:
                     log.debug(f'Adding {char_disp} to all time top ten from {event.unique_id}')
                     self.top_ten_all_time_data[f"{char_disp}({event.unique_id})"] = kills
