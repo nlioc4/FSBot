@@ -242,7 +242,7 @@ class Player:
          skill_level, req_skill_levels, pref_factions, pref_factions, hidden: """
         match arg:
             case 'name':
-                await db.async_db_call(db.set_field, 'users', self.id, {'name', self.__name})
+                await db.async_db_call(db.set_field, 'users', self.id, {'name': self.__name})
             case 'register':
                 await db.async_db_call(db.set_field, 'users', self.id, {'is_registered': self.__is_registered})
             case 'account':
@@ -279,6 +279,7 @@ class Player:
             return False
         self.__name = name
         await self.db_update('name')
+        log.info(f"{self.id} renamed to {name}")
         return True
 
     @property

@@ -576,8 +576,8 @@ class AdminCog(commands.Cog):
                             member: discord.Option(discord.Member, "@mention to get info on", required=True),
                             name: discord.Option(str, "New name for Player, must be alphanumeric", required=True)):
         """Rename a given player"""
-        p = Player.get(member.id)
         await ctx.defer(ephemeral=True)
+        p = Player.get(member.id)
         if not p:
             await disp.NOT_PLAYER_2.send_priv(ctx, member.mention)
             return
