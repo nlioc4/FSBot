@@ -309,9 +309,9 @@ class Lobby:
             msg_id = msg_ids[self.name]
             self.dashboard_msg = await self.channel.fetch_message(msg_id)
             self.dashboard_msg = await self.update_dashboard_message(action='edit', force=True)
-        except (KeyError, discord.NotFound):
+        except (KeyError, discord.NotFound, AttributeError):
             log.info('No previous embed found for %s, creating new message...', self.name)
-            self.dashboard_msg = await self.create_dashboard()
+            self.dashboard_msg = await self.update_dashboard_message()
         finally:
             await db.async_db_call(db.set_field, 'restart_data', 0,
                                    {f'dashboard_msg_ids.{self.name}': self.dashboard_msg.id})
