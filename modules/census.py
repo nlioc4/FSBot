@@ -214,7 +214,7 @@ async def online_status_rest(chars_players_map):
             # Manual error addition if response returned is invalid
             if data["returned"] == 0 or 'character_id_join_characters_online_status' not in data['character_list'][0]:
                 raise auraxium.errors.ResponseError
-        except (auraxium.errors.ServiceUnavailableError, auraxium.errors.ResponseError):
+        except auraxium.errors:
             log.debug('API Unreachable REST Online Check')
             return False
 

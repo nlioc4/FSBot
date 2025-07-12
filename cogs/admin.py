@@ -773,13 +773,18 @@ class AdminCog(commands.Cog):
             self.wss_restart.start()
             log.info("Census REST and WSS Started..")
 
-    @tasks.loop(seconds=15)
+    @tasks.loop(seconds=60)
     async def census_rest(self):
         """Backup census method for checking accounts online status"""
-        for _ in range(5):
+        for _ in range(3):
             if await census.online_status_rest(Player.map_chars_to_players()):
+                if self.census_rest.minutes != 1:
+                    log.info("Census REST successfully ran, changing interval to 1 minute")
+                    self.census_rest.change_interval(minutes=1)
                 return True
-        log.warning("Could not reach REST api during census REST after 5 tries...")
+            await asyncio.sleep(3)  # Wait before retrying
+        log.warning("Could not reach REST api during census REST after 3 tries, increasing interval to 10 minutes")
+        self.census_rest.change_interval(minutes=10)  # Increase interval to 10 minutes after failure
         return False
 
     @tasks.loop(hours=6)
