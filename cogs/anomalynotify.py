@@ -17,7 +17,7 @@ from display import AllStrings as disp, views, embeds
 log = getLogger('fs_bot')
 
 # 228(2),229(4),230(6),231(8),232(344)
-WORLD_DICT = {1: "Connery", 10: "Miller", 13: "Cobalt", 17: "Emerald", 40: "Soltech"}
+WORLD_DICT = {1: "Osprey", 10: "Wainwright", 40: "Soltech"}
 ZONE_DICT = {2: "Indar", 4: "Hossin", 6: "Amerish", 8: "Esamir", 344: "Oshur"}
 AIRCRAFT_ID_DICT = {"Scythe": 7, "Reaver": 8, "Mosquito": 9, "Liberator": 10,
                     "Galaxy": 11, "Valkyrie": 14, "Dervish": 2136}
@@ -120,9 +120,9 @@ class AnomalyEvent:
         Generally just updates the progress of each faction and state
         """
 
-        self.nc_progress = int(data['faction_nc'])
-        self.tr_progress = int(data['faction_tr'])
-        self.vs_progress = int(data['faction_vs'])
+        self.nc_progress = float(data['faction_nc'])
+        self.tr_progress = float(data['faction_tr'])
+        self.vs_progress = float(data['faction_vs'])
         self.state_id = int(data['metagame_event_state'])
         if not self.is_active:
             self.end_stamp = int(data['timestamp'])
@@ -493,14 +493,13 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
 
         elif len(relevant_anom) > 1:
             log.warning(f'Found more than one relevant anomaly for vehicle destroy event... ignoring event...')
-            return
 
         # Check if VehicleDestroy is not aircraft on aircraft
         if evt.attacker_vehicle_id not in AIRCRAFT_ID_DICT.values() or evt.vehicle_id not in AIRCRAFT_ID_DICT.values():
             return
 
         # Check if VehicleDestroy is a teamkill
-        if evt.attacker_team_id == evt.faction_id:
+        if evt.attacker_team_id == evt.team_id:
             return
 
         relevant_anom[0].add_kill(evt.attacker_character_id)
@@ -630,19 +629,24 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
     @tasks.loop(minutes=1, seconds=0)
     async def anomaly_update_loop(self):
         """Update all anomaly events through REST API calls, and GRAPHQL calls, and then update embeds"""
-        log.debug('Updating anomaly events...')
-        removed = await self.update_all_from_rest()
-        all_events = list(self.events.values())
-        all_events.extend(removed or [])
-        await self.fetch_graphql_data()
-        self.update_from_graphql_data(all_events)
-        for anom in all_events:
-            self.update_event_embed(anom)
-        log.debug('Finished updating anomaly events...')
+        try:
+            log.debug('Updating anomaly events...')
+            removed = await self.update_all_from_rest()
+            all_events = list(self.events.values())
+            all_events.extend(removed or [])
+            await self.fetch_graphql_data()
+            self.update_from_graphql_data(all_events)
+            for anom in all_events:
+                self.update_event_embed(anom)
+            log.debug('Finished updating anomaly events...')
+        except Exception as e:
+            log.error(f'Error in anomaly update loop: {e}', exc_info=True)
+            await d_obj.d_log(f'Error in anomaly update loop: {e}', error=e)
 
     @anomaly_update_loop.after_loop
     async def after_anomaly_update_loop(self):
         """Save all events to DB after loop ends"""
+        log.warning('Anomaly update loop has ended, saving all events to DB...')
         await self.save_all_to_db()
 
     anomaly_commands = discord.SlashCommandGroup(

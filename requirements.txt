@@ -2,7 +2,7 @@ pytz==2023.3
 gspread==5.10.0
 numpy==1.26.1
 asyncio~=3.4.3
-auraxium>=0.3.0
+#  auraxium @ git+https://github.com/leonhard-s/auraxium.git@master
 pymongo[tls,srv]==4.8
 dnspython==2.4.0
 py-cord>=2.6.1
