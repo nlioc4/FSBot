@@ -21,9 +21,8 @@ WORLD_DICT = {1: "Osprey", 10: "Wainwright", 40: "Soltech"}
 ZONE_DICT = {2: "Indar", 4: "Hossin", 6: "Amerish", 8: "Esamir", 344: "Oshur"}
 AIRCRAFT_ID_DICT = {"Scythe": 7, "Reaver": 8, "Mosquito": 9, "Liberator": 10,
                     "Galaxy": 11, "Valkyrie": 14, "Dervish": 2136}
-ANOMALY_IDS_STR = ['228', '229', '230', '231', '232']
 ANOMALY_IDS = [228, 229, 230, 231, 232]
-STATE_DICT_INT = {135: 'Started', 138: 'Ended'}
+STATE_DICT_INT = {135: 'started', 138: 'ended'}
 STATE_DICT_STR = {v: k for k, v in STATE_DICT_INT.items()}
 
 
@@ -167,7 +166,7 @@ class AnomalyEvent:
     @property
     def is_active(self):
         """Returns True if anomaly is active"""
-        return self.state_id != STATE_DICT_STR['Ended']
+        return self.state_id != STATE_DICT_STR['ended']
 
     @property
     def state_name(self):
@@ -284,6 +283,10 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
             old_events = []
         for event in old_events:
             anom = self.events[event['unique_id']] = AnomalyEvent.from_dict(event)
+            if anom.is_active and anom.timestamp + (60 * 30) < tools.timestamp_now():
+                # If the event is active but older than 30 minutes, ensure it is set to inactive.
+                log.debug(f'Anomaly {anom.unique_id} is active but older than 30 minutes, setting to inactive.')
+                anom.state_id = STATE_DICT_STR['ended']
             try:
                 anom.message = await self.notify_channel.fetch_message(event['message_id'])
             except discord.NotFound:
