@@ -28,8 +28,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=requirements.txt \
     python -m pip install -r requirements.txt
 
-RUN python -m pip install "auraxium @ git+https://github.com/leonhard-s/auraxium.git@master"
-
 
 # Copy the source code into the container.
 COPY . .
