@@ -9,6 +9,7 @@ import auraxium
 from auraxium import EventClient, Trigger
 import aiohttp
 import datetime
+import time
 
 # Internal Imports
 from modules import discord_obj as d_obj, tools, database as db, config as cfg, tools
@@ -395,34 +396,34 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
                 return  # No events found
 
             ended = []
-            for event in data:
-                unique_id = f"{event['world_id']}-{event['instance_id']}"
-                if anom := self.events.get(unique_id):
-                    async with self.update_lock:
-                        # Re-check after acquiring lock
-                        if unique_id in self.events:
-                            # if event is already stored, update it
-                            anom.update_from_dict(event)
-                            if not anom.is_active:  # remove inactive events
-                                log.debug(f'Removing inactive anomaly {anom.unique_id}')
-                                ended.append(anom.unique_id)
-                                if unique_id in self.events:
-                                    removed.append(self.events.pop(anom.unique_id))
+            rest_api_timer = time.time()
+            log.debug(f'Updating anomalies from REST API, found {len(data)} events')
+            async with self.update_lock:
+                for event in data:
+                    unique_id = f"{event['world_id']}-{event['instance_id']}"
+                    if anom := self.events.get(unique_id):
+                        # if event is already stored, update it
+                        anom.update_from_dict(event)
+                        if not anom.is_active:  # remove inactive events
+                            log.debug(f'Removing inactive anomaly {anom.unique_id}')
+                            ended.append(anom.unique_id)
+                            if unique_id in self.events:
+                                removed.append(self.events.pop(anom.unique_id))
 
-                elif event['metagame_event_state_name'] == 'ended':
-                    # if event is not stored and is ended, add it to ended list to check against started events
-                    ended.append(unique_id)
+                    elif event['metagame_event_state_name'] == 'ended':
+                        # if event is not stored and is ended, add it to ended list to check against started events
+                        ended.append(unique_id)
 
-                elif event['metagame_event_state_name'] == 'started':
-                    # check if there is an ended event with the same world and instance id
-                    if unique_id in ended or \
-                            int(event['timestamp']) + 108000 < tools.timestamp_now():  # if event is older than 30 mins
-                        continue
-                    async with self.update_lock:
-                        if unique_id not in self.events:  # re-check after acquiring lock
-                            # if event is not stored and is active, store it
-                            self.events[unique_id] = AnomalyEvent.from_dict(event)
-                            log.debug(f'Adding new anomaly from REST {unique_id}')
+                    elif event['metagame_event_state_name'] == 'started':
+                        # check if there is an ended event with the same world and instance id
+                        if unique_id in ended or \
+                                int(event[
+                                        'timestamp']) + 108000 < tools.timestamp_now():  # if event is older than 30 mins
+                            continue
+                        # if event is not stored and is active, store it
+                        self.events[unique_id] = AnomalyEvent.from_dict(event)
+                        log.debug(f'Adding new anomaly from REST {unique_id}')
+            log.debug(f'Updated anomalies from REST API in {(time.time() - rest_api_timer) * 1000:.5f} ms')
         return removed
 
     async def fetch_graphql_data(self):
@@ -644,7 +645,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
             log.debug('Finished updating anomaly events...')
         except Exception as e:
             log.error(f'Error in anomaly update loop: {e}', exc_info=True)
-            await d_obj.d_log(f'Error in anomaly update loop: {e}', error=e)
+            await d_obj.d_log(f'Error in anomaly update loop: {e}')
 
     @anomaly_update_loop.after_loop
     async def after_anomaly_update_loop(self):
