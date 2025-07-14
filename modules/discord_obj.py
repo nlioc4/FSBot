@@ -127,7 +127,7 @@ async def d_log(message: str = '', source: str = '', error=None, ping=None) -> b
 
     try:
         if error:
-            tb = traceback.format_exception(etype=type(error), value=error, tb=error.__traceback__)
+            tb = traceback.format_exception(error, value=error, tb=error.__traceback__)
             msg = await disp.LOG_EMBED.send(channels['logs'], source=tools.convert_mentions(bot, source),
                                             message=message,
                                             error=error,
