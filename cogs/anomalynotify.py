@@ -417,7 +417,7 @@ class AnomalyCog(commands.Cog, name="AnomalyCog"):
                     elif event['metagame_event_state_name'] == 'started':
                         # check if there is an ended event with the same world and instance id
                         if unique_id in ended or \
-                                int(event[
+                                float(event[
                                         'timestamp']) + 108000 < tools.timestamp_now():  # if event is older than 30 mins
                             continue
                         # if event is not stored and is active, store it
